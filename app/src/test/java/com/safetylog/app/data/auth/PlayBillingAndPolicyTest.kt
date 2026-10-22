@@ -65,6 +65,8 @@ class PlayBillingAndPolicyTest {
         val activeFile = if (policyFile.exists()) policyFile else altFile
         if (activeFile.exists()) {
             val content = activeFile.readText()
+            assertTrue("Policy must disclose Hex Engine Labs publisher", content.contains("Hex Engine Labs"))
+            assertTrue("Policy must disclose hexenginelabs@gmail.com contact", content.contains("hexenginelabs@gmail.com"))
             assertTrue("Policy must disclose Camera access", content.contains("android.permission.CAMERA"))
             assertTrue("Policy must disclose Notifications", content.contains("android.permission.POST_NOTIFICATIONS"))
             assertTrue("Policy must disclose Exact Alarms", content.contains("android.permission.SCHEDULE_EXACT_ALARM"))

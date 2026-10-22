@@ -57,6 +57,8 @@ object CrashLogVault {
         }
     }
 
+    // Synchronous commit() is required in uncaught exception handler to guarantee disk persistence before process exit
+    @android.annotation.SuppressLint("ApplySharedPref")
     private fun recordCrash(
         context: Context,
         secureStorage: SecureTokenStorage,

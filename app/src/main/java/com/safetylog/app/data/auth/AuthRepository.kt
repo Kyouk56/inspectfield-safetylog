@@ -59,12 +59,12 @@ class AuthRepository(
     fun getEffectiveGoogleClientId(): String? {
         val custom = secureStorage.getCustomGoogleClientId()
         if (!custom.isNullOrBlank()) return custom
-        val resId = context.resources.getIdentifier("google_web_client_id", "string", context.packageName)
-        if (resId != 0) {
-            val fromRes = context.getString(resId)
-            if (fromRes.isNotBlank()) return fromRes
+        return try {
+            val fromRes = context.getString(com.safetylog.app.R.string.google_web_client_id)
+            if (fromRes.isNotBlank()) fromRes else null
+        } catch (_: Exception) {
+            null
         }
-        return null
     }
 
     fun setCustomGoogleClientId(clientId: String?) {

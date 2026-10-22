@@ -33,20 +33,18 @@ class InspectionReminderManager(private val context: Context) {
         const val TEST_NOTIFICATION_ID = 99999
 
         fun initNotificationChannel(context: Context) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    CHANNEL_ID,
-                    CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = CHANNEL_DESC
-                    enableLights(true)
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 350, 150, 350)
-                }
-                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                notificationManager?.createNotificationChannel(channel)
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = CHANNEL_DESC
+                enableLights(true)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 350, 150, 350)
             }
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            notificationManager?.createNotificationChannel(channel)
         }
 
         fun getCalendarRRule(frequency: String): String = when (frequency) {
@@ -112,10 +110,8 @@ class InspectionReminderManager(private val context: Context) {
                 } else {
                     alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
                 }
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             }
         } catch (_: SecurityException) {
             // Graceful fallback if exact alarms permission restricted by OEM

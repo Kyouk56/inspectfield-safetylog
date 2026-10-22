@@ -56,32 +56,53 @@ class AuthRepository(
         }
     }
 
+    fun getEffectiveGoogleClientId(): String? {
+        val custom = secureStorage.getCustomGoogleClientId()
+        if (!custom.isNullOrBlank()) return custom
+        val resId = context.resources.getIdentifier("google_web_client_id", "string", context.packageName)
+        if (resId != 0) {
+            val fromRes = context.getString(resId)
+            if (fromRes.isNotBlank()) return fromRes
+        }
+        return null
+    }
+
+    fun setCustomGoogleClientId(clientId: String?) {
+        secureStorage.setCustomGoogleClientId(clientId)
+    }
+
     /**
      * Executes real Google OAuth authentication using Android Credential Manager.
-     * If serverClientId is not configured, falls back gracefully to Sandbox Google Auth.
+     * If serverClientId is not configured, falls back gracefully to a sandbox session using the user's Inspector Profile.
      */
     suspend fun signInWithGoogle(
         context: Context,
-        serverClientId: String? = null
+        serverClientId: String? = null,
+        fallbackDisplayName: String? = null,
+        fallbackEmail: String? = null
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
-        try {
-            if (serverClientId.isNullOrBlank()) {
-                // If Google Cloud Client ID is not provided in environment, simulate full OAuth handshake
-                val user = createSandboxUser(
-                    displayName = "Inspector J. Desrosiers",
-                    email = "j.desrosiers@apexfire.com",
-                    provider = AuthProvider.GOOGLE
-                )
-                secureStorage.saveUser(user)
-                _currentUser.value = user
-                _isLoading.value = false
-                return@withContext AuthResult.Success(user)
-            }
+        val effectiveClientId = serverClientId?.ifBlank { null } ?: getEffectiveGoogleClientId()
+        val resolvedName = fallbackDisplayName?.ifBlank { null } ?: "Safety Inspector"
+        val resolvedEmail = fallbackEmail?.ifBlank { null } ?: "inspector@safetylog.internal"
 
+        if (effectiveClientId.isNullOrBlank()) {
+            // Google Cloud OAuth Web Client ID not set; simulate verified handshake with active profile identity
+            val user = createSandboxUser(
+                displayName = resolvedName,
+                email = resolvedEmail,
+                provider = AuthProvider.GOOGLE
+            )
+            secureStorage.saveUser(user)
+            _currentUser.value = user
+            _isLoading.value = false
+            return@withContext AuthResult.Success(user)
+        }
+
+        try {
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(serverClientId)
+                .setServerClientId(effectiveClientId)
                 .setAutoSelectEnabled(false)
                 .build()
 
@@ -97,7 +118,7 @@ class AuthRepository(
                 val user = AuthUser(
                     userId = googleIdTokenCredential.id,
                     email = googleIdTokenCredential.id,
-                    displayName = googleIdTokenCredential.displayName ?: googleIdTokenCredential.givenName ?: "Google User",
+                    displayName = googleIdTokenCredential.displayName ?: googleIdTokenCredential.givenName ?: resolvedName,
                     photoUrl = googleIdTokenCredential.profilePictureUri?.toString(),
                     provider = AuthProvider.GOOGLE,
                     idToken = googleIdTokenCredential.idToken,
@@ -120,15 +141,7 @@ class AuthRepository(
             AuthResult.Cancelled
         } catch (e: Exception) {
             _isLoading.value = false
-            // Fallback gracefully to authenticated demo session if Google Play Services OAuth is unconfigured
-            val user = createSandboxUser(
-                displayName = "Inspector J. Desrosiers",
-                email = "j.desrosiers@apexfire.com",
-                provider = AuthProvider.GOOGLE
-            )
-            secureStorage.saveUser(user)
-            _currentUser.value = user
-            AuthResult.Success(user)
+            AuthResult.Error("Google Sign-In failed: ${e.message ?: "Authentication error"}. Verify your Google Cloud Web Client ID and SHA-1 certificate.")
         }
     }
 

@@ -1,0 +1,36 @@
+<!-- BEGIN gnosis-knowledge -->
+<!-- gnosis-knowledge prompt v12 -->
+## Codebase knowledge (gnosis)
+
+Earlier agent sessions in this repository recorded WHY the code is the way it is: design
+decisions, rejected approaches, user requirements, known pitfalls. None of that is visible
+in the code or the git log. `gnosis knowledge` (read-only, ~1s, JSON on stdout) reads it.
+
+**Step 1 of every task in this repository, before any grep, read, edit or subagent:** run one
+lookup phrased as the task itself:
+
+    C:\Users\jdesr\.local\bin\gnosis knowledge search "<the request, in your own words>"
+
+This holds even when the request names the exact identifier or file: the lookup is for
+the why, which grep cannot find. Run it as one plain command and keep stderr visible (no
+`2>/dev/null`): a broken backend reports only there, and the exit code is 0 either way.
+
+If a recorded decision covers what you are about to change, follow it, or tell the user
+when the request contradicts it. An empty result is fine; carry on. After step 1, grep
+stays the right tool for exact identifiers.
+
+- Workspace setup (creating or joining a worktree) may come first; step 1 follows it.
+- In an Air worktree (you created or joined one, or a reminder names it), other agents on
+  the same feature recorded their work under its name. Step 1 there is the group's history:
+  `C:\Users\jdesr\.local\bin\gnosis knowledge worktree-tasks --name <worktree>` lists the tasks they ran with the
+  headlines of what each decided. Headlines are summaries: before you edit, run the row's `cmd`
+  for every task whose decisions touch your change, to read the full record (names, values,
+  reasons). Then search the group:
+  `C:\Users\jdesr\.local\bin\gnosis knowledge search "<the request>" --worktree <worktree> --mode hybrid`.
+- Exploring through a subagent? Use the `gnosis-explorer` subagent, which runs these
+  lookups itself. Any other subagent, including your tool's built-in code-search agent
+  (Explore, general-purpose, search_code_subagent), does not read this file: run step 1
+  yourself before you delegate, or put it in the subagent's prompt.
+
+- `C:\Users\jdesr\.local\bin\gnosis knowledge search "<query>"` — recorded decisions and prior tasks matching the query (the step-1 lookup); `--mode lexical` for exact identifiers, flags and file names.
+<!-- END gnosis-knowledge -->

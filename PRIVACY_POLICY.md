@@ -3,8 +3,8 @@
 **Effective Date:** October 22, 2026  
 **Last Updated:** October 22, 2026  
 **Application ID:** `com.safetylog.inspection.app`  
-**Publisher:** InspectField Systems / SafetyLog Compliance Group  
-**Contact:** privacy@safetylog.internal / support@safetylog.internal
+**Publisher:** Hex Engine Labs  
+**Contact:** hexenginelabs@gmail.com
 
 ---
 
@@ -76,6 +76,7 @@ We may periodically update this Privacy Policy to reflect application updates or
 ---
 
 ## 8. Contact & Compliance Inquiries
-If you have questions regarding this Privacy Policy or your data protections, please contact our Compliance Officer:
-- **Email:** `privacy@safetylog.internal`
+If you have questions regarding this Privacy Policy or your data protections, please contact Hex Engine Labs:
+- **Publisher:** Hex Engine Labs
+- **Email:** `hexenginelabs@gmail.com`
 - **Application:** InspectField SafetyLog – Settings > Regulatory & Privacy

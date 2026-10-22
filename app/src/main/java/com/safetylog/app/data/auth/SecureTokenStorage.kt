@@ -80,6 +80,7 @@ class SecureTokenStorage(private val context: Context) {
         private const val PREF_HARDWARE_BACKED = "sec_auth_hardware_backed"
         private const val PREF_ROLE = "sec_auth_user_role"
         private const val PREF_CUSTOM_GOOGLE_CLIENT_ID = "sec_custom_google_client_id"
+        private const val PREF_FORCE_SANDBOX_AUTH = "sec_force_sandbox_auth"
     }
 
     fun getCustomGoogleClientId(): String? = securePrefs.getString(PREF_CUSTOM_GOOGLE_CLIENT_ID, null)
@@ -90,6 +91,12 @@ class SecureTokenStorage(private val context: Context) {
         } else {
             securePrefs.edit().putString(PREF_CUSTOM_GOOGLE_CLIENT_ID, clientId.trim()).apply()
         }
+    }
+
+    fun isSandboxAuthForced(): Boolean = securePrefs.getBoolean(PREF_FORCE_SANDBOX_AUTH, false)
+
+    fun setSandboxAuthForced(forced: Boolean) {
+        securePrefs.edit().putBoolean(PREF_FORCE_SANDBOX_AUTH, forced).apply()
     }
 
     private var activeMasterKeyAlias: String = KEY_ALIAS
@@ -371,10 +378,14 @@ class SecureTokenStorage(private val context: Context) {
      */
     fun clearUser() {
         val savedClientId = getCustomGoogleClientId()
+        val savedSandboxForced = isSandboxAuthForced()
         val deviceId = securePrefs.getString("device_unique_id", null)
         securePrefs.edit().clear().apply()
         if (savedClientId != null) {
             setCustomGoogleClientId(savedClientId)
+        }
+        if (savedSandboxForced) {
+            setSandboxAuthForced(true)
         }
         if (deviceId != null) {
             securePrefs.edit().putString("device_unique_id", deviceId).apply()

@@ -28,7 +28,8 @@ data class AuthUiState(
     val paymentStatus: PaymentStatus = PaymentStatus.ACTIVE,
     val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
     val companyOAuthConfig: CompanyOAuthConfig = CompanyOAuthConfig(),
-    val googleClientId: String? = null
+    val googleClientId: String? = null,
+    val isSandboxMode: Boolean = false
 ) {
     val isAuthenticated: Boolean get() = currentUser != null
 }
@@ -43,6 +44,7 @@ class AuthViewModel(
     private val _successMessage = MutableStateFlow<String?>(null)
     private val _keystoreDiagnostics = MutableStateFlow<KeystoreDiagnostics?>(null)
     private val _isRunningDiagnostics = MutableStateFlow(false)
+    private val _isSandboxMode = MutableStateFlow(authRepository.isSandboxMode())
 
     val uiState: StateFlow<AuthUiState> = combine(
         authRepository.currentUser,
@@ -53,7 +55,8 @@ class AuthViewModel(
         billingRepository?.canUseCompanyOAuth ?: MutableStateFlow(false),
         billingRepository?.paymentStatus ?: MutableStateFlow(PaymentStatus.ACTIVE),
         billingRepository?.currentTier ?: MutableStateFlow(SubscriptionTier.FREE),
-        billingRepository?.companyOAuthConfig ?: MutableStateFlow(CompanyOAuthConfig())
+        billingRepository?.companyOAuthConfig ?: MutableStateFlow(CompanyOAuthConfig()),
+        _isSandboxMode
     ) { args: Array<Any?> ->
         val user = args[0] as? AuthUser
         val loading = args[1] as Boolean
@@ -66,6 +69,7 @@ class AuthViewModel(
         val payStatus = args[6] as PaymentStatus
         val tier = args[7] as SubscriptionTier
         val companyConfig = args[8] as CompanyOAuthConfig
+        val sandboxActive = args[9] as Boolean
 
         AuthUiState(
             currentUser = user,
@@ -79,7 +83,8 @@ class AuthViewModel(
             paymentStatus = payStatus,
             subscriptionTier = tier,
             companyOAuthConfig = companyConfig,
-            googleClientId = authRepository.getEffectiveGoogleClientId()
+            googleClientId = authRepository.getEffectiveGoogleClientId(),
+            isSandboxMode = sandboxActive
         )
     }.stateIn(
         scope = viewModelScope,
@@ -91,7 +96,8 @@ class AuthViewModel(
             paymentStatus = billingRepository?.paymentStatus?.value ?: PaymentStatus.ACTIVE,
             subscriptionTier = billingRepository?.currentTier?.value ?: SubscriptionTier.FREE,
             companyOAuthConfig = billingRepository?.companyOAuthConfig?.value ?: CompanyOAuthConfig(),
-            googleClientId = authRepository.getEffectiveGoogleClientId()
+            googleClientId = authRepository.getEffectiveGoogleClientId(),
+            isSandboxMode = authRepository.isSandboxMode()
         )
     )
 
@@ -146,6 +152,35 @@ class AuthViewModel(
     fun saveCustomGoogleClientId(clientId: String?) {
         authRepository.setCustomGoogleClientId(clientId)
         _successMessage.value = if (clientId.isNullOrBlank()) "Cleared custom Google Client ID" else "Saved Google OAuth Client ID"
+    }
+
+    fun setSandboxMode(enabled: Boolean) {
+        authRepository.setSandboxMode(enabled)
+        _isSandboxMode.value = enabled
+        _successMessage.value = if (enabled) "Sandbox Mode enabled (instant login as jdesrosiers88@gmail.com)" else "Live Google Cloud OAuth enabled"
+    }
+
+    fun signInSandbox() {
+        viewModelScope.launch {
+            _errorMessage.value = null
+            val profile = profileDao.getProfileOnce()
+            val fallbackName = profile?.inspectorName?.takeIf { it.isNotBlank() && it != "Safety Inspector" } ?: "J. Desrosiers"
+            val fallbackEmail = profile?.contactEmail?.takeIf { it.isNotBlank() && !it.contains("apexfire") } ?: "jdesrosiers88@gmail.com"
+            when (val result = authRepository.signInSandbox(
+                fallbackDisplayName = fallbackName,
+                fallbackEmail = fallbackEmail,
+                provider = AuthProvider.GOOGLE
+            )) {
+                is AuthResult.Success -> {
+                    _successMessage.value = "Verified local session active: ${result.user.displayName}"
+                    authRepository.syncWithInspectorProfile(profileDao)
+                }
+                is AuthResult.Error -> {
+                    _errorMessage.value = result.message
+                }
+                is AuthResult.Cancelled -> {}
+            }
+        }
     }
 
     fun getEffectiveGoogleClientId(): String? = authRepository.getEffectiveGoogleClientId()

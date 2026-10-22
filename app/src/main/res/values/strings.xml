@@ -2,5 +2,5 @@
     <string name="app_name">SafetyLog - Equipment &amp; Compliance Vault</string>
     <string name="app_short_description">NFPA &amp; OSHA compliance tracking, hardware-encrypted audit vault, and signed PDF inspection reports.</string>
     <!-- Google Cloud Console OAuth 2.0 Web Client ID -->
-    <string name="google_web_client_id" translatable="false">857283817506-es15apeciq59fj5ge7hmjqrti4stqu94.apps.googleusercontent.com</string>
+    <string name="google_web_client_id" translatable="false">857283817506-5h0qdri6j1rdcia5u7624vs3uc99qhot.apps.googleusercontent.com</string>
 </resources>

@@ -44,6 +44,7 @@ data class DashboardUiState(
     val teamMembers: List<TeamMember> = emptyList(),
     val userRole: UserRole = UserRole.OWNER,
     val isAdminTestViewActive: Boolean = false,
+    val authUser: com.safetylog.app.data.auth.AuthUser? = null,
     val inspectionsThisMonth: Int = 0,
     val freeLimit: Int = 5,
     val isLoading: Boolean = true
@@ -145,6 +146,7 @@ class DashboardViewModel(
             teamMembers = members,
             userRole = role,
             isAdminTestViewActive = isTestView,
+            authUser = authUser,
             inspectionsThisMonth = countThisMonth,
             freeLimit = entitlementManager.FREE_MONTHLY_LIMIT,
             isLoading = false
@@ -161,6 +163,12 @@ class DashboardViewModel(
 
     fun onFilterSelected(filter: FilterStatus) {
         _activeFilter.value = filter
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            authRepository.signOut()
+        }
     }
 
     fun deleteEquipment(equipment: EquipmentItem) {

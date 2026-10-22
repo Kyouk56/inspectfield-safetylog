@@ -423,6 +423,35 @@ fun AuthScreen(
                                 Text("Secure Sign Out", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
+
+                        val serverClientId = uiState.googleClientId ?: androidx.compose.ui.res.stringResource(com.safetylog.app.R.string.google_web_client_id).takeIf { it.isNotBlank() }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (!serverClientId.isNullOrBlank()) "Google OAuth: Live Cloud Mode" else "Google OAuth: Local Identity Mode",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (!serverClientId.isNullOrBlank()) Color(0xFF059669) else SafetyOrange,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            TextButton(
+                                onClick = {
+                                    clientIdDraft = uiState.googleClientId ?: ""
+                                    showClientIdDialog = true
+                                },
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (!serverClientId.isNullOrBlank()) "Edit Client ID" else "Configure Client ID",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             } else {

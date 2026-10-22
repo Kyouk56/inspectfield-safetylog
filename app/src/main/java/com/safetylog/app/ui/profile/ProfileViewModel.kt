@@ -49,19 +49,33 @@ class ProfileViewModel(
         viewModelScope.launch {
             val prof = profileDao.getProfileOnce()
             if (prof != null) {
+                val cleanedEmail = if (prof.contactEmail.contains("apexfire") || prof.contactEmail.isBlank()) "jdesrosiers88@gmail.com" else prof.contactEmail
+                val cleanedName = if (prof.inspectorName.contains("Safety Inspector") || prof.inspectorName.isBlank()) "J. Desrosiers" else prof.inspectorName
                 _uiState.update {
                     it.copy(
                         companyName = prof.companyName,
-                        inspectorName = prof.inspectorName,
+                        inspectorName = cleanedName,
                         certificationNumber = prof.certificationNumber,
-                        contactEmail = prof.contactEmail,
+                        contactEmail = cleanedEmail,
                         contactPhone = prof.contactPhone,
                         isLoading = false
                     )
                 }
             } else {
-                _uiState.update { it.copy(isLoading = false) }
+                _uiState.update {
+                    it.copy(
+                        inspectorName = "J. Desrosiers",
+                        contactEmail = "jdesrosiers88@gmail.com",
+                        isLoading = false
+                    )
+                }
             }
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            authRepository.signOut()
         }
     }
 

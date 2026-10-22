@@ -367,10 +367,18 @@ class SecureTokenStorage(private val context: Context) {
     }
 
     /**
-     * Securely purges all encrypted tokens and session data
+     * Securely purges all encrypted tokens and session data, while preserving persistent device & client ID configs
      */
     fun clearUser() {
+        val savedClientId = getCustomGoogleClientId()
+        val deviceId = securePrefs.getString("device_unique_id", null)
         securePrefs.edit().clear().apply()
+        if (savedClientId != null) {
+            setCustomGoogleClientId(savedClientId)
+        }
+        if (deviceId != null) {
+            securePrefs.edit().putString("device_unique_id", deviceId).apply()
+        }
     }
 
     fun getAuthToken(): String? {

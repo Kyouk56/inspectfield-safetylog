@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -78,6 +79,7 @@ fun DashboardScreen(
     var showPaywall by remember { mutableStateOf(false) }
     val logDateFormat = remember { SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US) }
     val listState = rememberLazyListState()
+    var showAccountMenu by remember { mutableStateOf(false) }
     val isScrolledPastHero by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 2 ||
@@ -189,12 +191,108 @@ fun DashboardScreen(
                         )
                     }
 
-                    IconButton(onClick = onNavigateToProfile) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = "Inspector Profile",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                    Box {
+                        IconButton(onClick = { showAccountMenu = true }) {
+                            val authUser = uiState.authUser
+                            if (authUser != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(authUser.provider.brandColorHex)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = authUser.initials,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.AccountCircle,
+                                    contentDescription = "Inspector Profile",
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showAccountMenu,
+                            onDismissRequest = { showAccountMenu = false }
+                        ) {
+                            val authUser = uiState.authUser
+                            if (authUser != null) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(
+                                                text = authUser.displayName,
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                            Text(
+                                                text = authUser.email,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        showAccountMenu = false
+                                        onNavigateToProfile()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.AccountCircle, contentDescription = null)
+                                    }
+                                )
+                                HorizontalDivider()
+                            }
+
+                            DropdownMenuItem(
+                                text = { Text("Inspector Profile") },
+                                onClick = {
+                                    showAccountMenu = false
+                                    onNavigateToProfile()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Badge, contentDescription = null)
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Security & OAuth Vault") },
+                                onClick = {
+                                    showAccountMenu = false
+                                    onNavigateToAuth()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.VpnKey, contentDescription = null)
+                                }
+                            )
+
+                            if (authUser != null) {
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = {
+                                        Text("Sign Out", color = StatusDeficient, fontWeight = FontWeight.Bold)
+                                    },
+                                    onClick = {
+                                        showAccountMenu = false
+                                        viewModel.signOut()
+                                        Toast.makeText(context, "Signed out successfully", Toast.LENGTH_SHORT).show()
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Logout,
+                                            contentDescription = "Sign Out",
+                                            tint = StatusDeficient
+                                        )
+                                    }
+                                )
+                            }
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

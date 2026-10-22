@@ -6,6 +6,9 @@
 | :--- | :--- | :--- | :--- |
 | **App Title** | 30 chars max | `SafetyLog: Fire & Safety Audit` | 30 chars |
 | **Short Description** | 80 chars max | `Track fire extinguisher & safety equipment inspections. Export signed audit PDFs.` | 80 chars |
+| **Developer / Publishing Name** | N/A | `Hex Engine Labs` | - |
+| **Developer Contact Email** | N/A | `hexenginelabs@gmail.com` | - |
+| **Privacy Policy URL** | N/A | `https://kyouk56.github.io/inspectfield-safetylog/` | - |
 | **Package Name / App ID** | N/A | `com.safetylog.inspection.app` | - |
 
 ---

@@ -1,0 +1,50 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"c:/Users/jdesr/Projects/InspectField-Equipment Log/.claude/hooks/air-worktree-user-prompt-submit.sh\" --default-scope worktree"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"c:/Users/jdesr/Projects/InspectField-Equipment Log/.claude/hooks/air-worktree-post-tool-use.sh\""
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"c:/Users/jdesr/Projects/InspectField-Equipment Log/.claude/hooks/air-worktree-pre-tool-use.sh\" --default-scope worktree"
+          }
+        ],
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit"
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(C:\\Users\\jdesr\\.local\\bin\\gnosis knowledge:*)",
+      "Bash(gnosis knowledge:*)"
+    ]
+  },
+  "sandbox": {
+    "excludedCommands": [
+      "gnosis:*",
+      "jbcontext:*",
+      "embark-call-graph:*",
+      "C:\\Users\\jdesr\\.local\\bin\\gnosis:*"
+    ]
+  }
+}

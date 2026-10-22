@@ -152,7 +152,7 @@ fun PrivacyPolicyDialog(
                         onClick = {
                             val intent = Intent(
                                 Intent.ACTION_VIEW,
-                                Uri.parse("https://github.com/safety-compliance/safetylog/blob/main/PRIVACY_POLICY.md")
+                                Uri.parse("https://kyouk56.github.io/inspectfield-safetylog/")
                             )
                             try {
                                 context.startActivity(intent)

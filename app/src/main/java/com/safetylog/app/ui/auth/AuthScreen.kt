@@ -486,7 +486,13 @@ fun AuthScreen(
                         val serverClientId = uiState.googleClientId ?: androidx.compose.ui.res.stringResource(com.safetylog.app.R.string.google_web_client_id).takeIf { it.isNotBlank() }
                         GoogleSignInButton(
                             isLoading = uiState.isLoading,
-                            onClick = { viewModel.signInWithGoogle(context, serverClientId) }
+                            onClick = {
+                                if (uiState.isSandboxMode) {
+                                    viewModel.signInSandbox()
+                                } else {
+                                    viewModel.signInWithGoogle(context, serverClientId)
+                                }
+                            }
                         )
 
                         Row(
@@ -499,13 +505,13 @@ fun AuthScreen(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(if (!serverClientId.isNullOrBlank()) Color(0xFF10B981) else SafetyOrange)
+                                        .background(if (uiState.isSandboxMode) SafetyOrange else if (!serverClientId.isNullOrBlank()) Color(0xFF10B981) else SafetyOrange)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (!serverClientId.isNullOrBlank()) "Live Google OAuth Ready" else "Profile Identity Simulation",
+                                    text = if (uiState.isSandboxMode) "Emulator Sandbox (jdesrosiers88@gmail.com)" else if (!serverClientId.isNullOrBlank()) "Live Google OAuth Ready" else "Profile Identity Simulation",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (!serverClientId.isNullOrBlank()) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (uiState.isSandboxMode) SafetyOrange else if (!serverClientId.isNullOrBlank()) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -524,6 +530,24 @@ fun AuthScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                        }
+
+                        // Sandbox quick sign-in button for instant test access
+                        OutlinedButton(
+                            onClick = { viewModel.signInSandbox() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Sign In as J. Desrosiers (Sandbox Mode)",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
 
                         // Secondary Action: Sign in with Microsoft
@@ -854,8 +878,62 @@ fun AuthScreen(
                         }
                     }
 
+                    // Mode Switch: Live vs Sandbox
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (uiState.isSandboxMode) SafetyOrange.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, if (uiState.isSandboxMode) SafetyOrange.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = "Force Emulator Sandbox Mode",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                                Text(
+                                    text = "Bypasses Google Play Services and instantly signs in as J. Desrosiers (jdesrosiers88@gmail.com).",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = uiState.isSandboxMode,
+                                onCheckedChange = { viewModel.setSandboxMode(it) }
+                            )
+                        }
+                    }
+
+                    // Direct sandbox login button inside dialog
+                    Button(
+                        onClick = {
+                            viewModel.signInSandbox()
+                            showClientIdDialog = false
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(38.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
+                    ) {
+                        Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Sign In Now as J. Desrosiers (Sandbox)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
                     Text(
-                        text = "When left blank, the app safely signs in using your actual Profile name and email from the Profile tab.",
+                        text = "When in Sandbox mode or when Client ID is left blank, the app safely signs in using your actual Profile name and email (jdesrosiers88@gmail.com).",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

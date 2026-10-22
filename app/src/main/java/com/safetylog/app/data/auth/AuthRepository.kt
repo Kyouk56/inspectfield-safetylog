@@ -83,8 +83,8 @@ class AuthRepository(
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
         val effectiveClientId = serverClientId?.ifBlank { null } ?: getEffectiveGoogleClientId()
-        val resolvedName = fallbackDisplayName?.ifBlank { null } ?: "Safety Inspector"
-        val resolvedEmail = fallbackEmail?.ifBlank { null } ?: "inspector@safetylog.internal"
+        val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() && it != "Safety Inspector" } ?: "J. Desrosiers"
+        val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() && !it.contains("apexfire") && !it.contains("safetylog.internal") } ?: "jdesrosiers88@gmail.com"
 
         if (effectiveClientId.isNullOrBlank()) {
             // Google Cloud OAuth Web Client ID not set; simulate verified handshake with active profile identity
@@ -214,11 +214,11 @@ class AuthRepository(
         } else {
             InspectorProfile(
                 id = 1,
-                companyName = "Apex Commercial Life Safety Corp",
-                inspectorName = user.displayName,
-                certificationNumber = "NICET-IV #78921",
-                contactEmail = user.email,
-                contactPhone = "(555) 782-9901"
+                companyName = "InspectField Safety Services",
+                inspectorName = user.displayName.ifBlank { "J. Desrosiers" },
+                certificationNumber = "OSHA/NFPA Certified",
+                contactEmail = user.email.ifBlank { "jdesrosiers88@gmail.com" },
+                contactPhone = ""
             )
         }
         profileDao.upsertProfile(updatedProfile)
@@ -240,9 +240,9 @@ class AuthRepository(
     fun updateUserRole(newRole: UserRole) {
         val current = _currentUser.value
         val updated = current?.copy(role = newRole) ?: createSandboxUser(
-            displayName = "Facility Owner",
-            email = "admin@safetylog.vault",
-            provider = AuthProvider.CORPORATE_SSO,
+            displayName = "J. Desrosiers",
+            email = "jdesrosiers88@gmail.com",
+            provider = AuthProvider.GOOGLE,
             role = newRole
         )
         secureStorage.saveUser(updated)

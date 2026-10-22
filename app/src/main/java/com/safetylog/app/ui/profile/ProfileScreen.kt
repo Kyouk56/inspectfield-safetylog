@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -272,6 +273,22 @@ fun ProfileScreen(
                                 Text("Security Vault", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
+
+                        Button(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.signOut()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = StatusDeficient)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sign Out", modifier = Modifier.size(16.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Sign Out (${authUser.email})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
                     } else {
                         Text(
                             text = "Connect your Google or corporate account to embed cryptographically verified identity signatures into all inspection reports and certificates.",
@@ -361,7 +378,7 @@ fun ProfileScreen(
                         value = uiState.contactEmail,
                         onValueChange = viewModel::onEmailChanged,
                         label = { Text("Official Contact Email") },
-                        placeholder = { Text("e.g. inspections@apexfire.com") },
+                        placeholder = { Text("e.g. jdesrosiers88@gmail.com") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),

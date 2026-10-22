@@ -121,11 +121,13 @@ class AuthViewModel(
         viewModelScope.launch {
             _errorMessage.value = null
             val profile = profileDao.getProfileOnce()
+            val fallbackName = profile?.inspectorName?.takeIf { it.isNotBlank() && it != "Safety Inspector" } ?: "J. Desrosiers"
+            val fallbackEmail = profile?.contactEmail?.takeIf { it.isNotBlank() && !it.contains("apexfire") } ?: "jdesrosiers88@gmail.com"
             when (val result = authRepository.signInWithGoogle(
                 context = context,
                 serverClientId = serverClientId,
-                fallbackDisplayName = profile?.inspectorName,
-                fallbackEmail = profile?.contactEmail
+                fallbackDisplayName = fallbackName,
+                fallbackEmail = fallbackEmail
             )) {
                 is AuthResult.Success -> {
                     _successMessage.value = "Securely signed in as ${result.user.displayName}"

@@ -79,6 +79,17 @@ class SecureTokenStorage(private val context: Context) {
         private const val PREF_LAST_LOGIN = "sec_auth_last_login_epoch"
         private const val PREF_HARDWARE_BACKED = "sec_auth_hardware_backed"
         private const val PREF_ROLE = "sec_auth_user_role"
+        private const val PREF_CUSTOM_GOOGLE_CLIENT_ID = "sec_custom_google_client_id"
+    }
+
+    fun getCustomGoogleClientId(): String? = securePrefs.getString(PREF_CUSTOM_GOOGLE_CLIENT_ID, null)
+
+    fun setCustomGoogleClientId(clientId: String?) {
+        if (clientId.isNullOrBlank()) {
+            securePrefs.edit().remove(PREF_CUSTOM_GOOGLE_CLIENT_ID).apply()
+        } else {
+            securePrefs.edit().putString(PREF_CUSTOM_GOOGLE_CLIENT_ID, clientId.trim()).apply()
+        }
     }
 
     private var activeMasterKeyAlias: String = KEY_ALIAS

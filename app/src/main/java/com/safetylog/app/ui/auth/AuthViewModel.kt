@@ -27,7 +27,8 @@ data class AuthUiState(
     val canUseCompanyOAuth: Boolean = false,
     val paymentStatus: PaymentStatus = PaymentStatus.ACTIVE,
     val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
-    val companyOAuthConfig: CompanyOAuthConfig = CompanyOAuthConfig()
+    val companyOAuthConfig: CompanyOAuthConfig = CompanyOAuthConfig(),
+    val googleClientId: String? = null
 ) {
     val isAuthenticated: Boolean get() = currentUser != null
 }
@@ -77,7 +78,8 @@ class AuthViewModel(
             canUseCompanyOAuth = canCompanyOAuth,
             paymentStatus = payStatus,
             subscriptionTier = tier,
-            companyOAuthConfig = companyConfig
+            companyOAuthConfig = companyConfig,
+            googleClientId = authRepository.getEffectiveGoogleClientId()
         )
     }.stateIn(
         scope = viewModelScope,
@@ -88,7 +90,8 @@ class AuthViewModel(
             canUseCompanyOAuth = billingRepository?.canUseCompanyOAuth?.value ?: false,
             paymentStatus = billingRepository?.paymentStatus?.value ?: PaymentStatus.ACTIVE,
             subscriptionTier = billingRepository?.currentTier?.value ?: SubscriptionTier.FREE,
-            companyOAuthConfig = billingRepository?.companyOAuthConfig?.value ?: CompanyOAuthConfig()
+            companyOAuthConfig = billingRepository?.companyOAuthConfig?.value ?: CompanyOAuthConfig(),
+            googleClientId = authRepository.getEffectiveGoogleClientId()
         )
     )
 
@@ -117,7 +120,13 @@ class AuthViewModel(
     fun signInWithGoogle(context: Context, serverClientId: String? = null) {
         viewModelScope.launch {
             _errorMessage.value = null
-            when (val result = authRepository.signInWithGoogle(context, serverClientId)) {
+            val profile = profileDao.getProfileOnce()
+            when (val result = authRepository.signInWithGoogle(
+                context = context,
+                serverClientId = serverClientId,
+                fallbackDisplayName = profile?.inspectorName,
+                fallbackEmail = profile?.contactEmail
+            )) {
                 is AuthResult.Success -> {
                     _successMessage.value = "Securely signed in as ${result.user.displayName}"
                     authRepository.syncWithInspectorProfile(profileDao)
@@ -131,6 +140,13 @@ class AuthViewModel(
             }
         }
     }
+
+    fun saveCustomGoogleClientId(clientId: String?) {
+        authRepository.setCustomGoogleClientId(clientId)
+        _successMessage.value = if (clientId.isNullOrBlank()) "Cleared custom Google Client ID" else "Saved Google OAuth Client ID"
+    }
+
+    fun getEffectiveGoogleClientId(): String? = authRepository.getEffectiveGoogleClientId()
 
     fun signInWithMicrosoft(email: String = "officer@apexcommercial.onmicrosoft.com") {
         viewModelScope.launch {

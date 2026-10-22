@@ -54,6 +54,8 @@ fun AuthScreen(
     var corporateOfficerName by remember { mutableStateOf("") }
     var showPaywall by remember { mutableStateOf(false) }
     var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
+    var showClientIdDialog by remember { mutableStateOf(false) }
+    var clientIdDraft by remember(uiState.googleClientId) { mutableStateOf(uiState.googleClientId ?: "") }
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US) }
 
@@ -452,11 +454,48 @@ fun AuthScreen(
                         }
 
                         // Primary Action: Sign in with Google
-                        val serverClientId = androidx.compose.ui.res.stringResource(com.safetylog.app.R.string.google_web_client_id).takeIf { it.isNotBlank() }
+                        val serverClientId = uiState.googleClientId ?: androidx.compose.ui.res.stringResource(com.safetylog.app.R.string.google_web_client_id).takeIf { it.isNotBlank() }
                         GoogleSignInButton(
                             isLoading = uiState.isLoading,
                             onClick = { viewModel.signInWithGoogle(context, serverClientId) }
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(if (!serverClientId.isNullOrBlank()) Color(0xFF10B981) else SafetyOrange)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (!serverClientId.isNullOrBlank()) "Live Google OAuth Ready" else "Profile Identity Simulation",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (!serverClientId.isNullOrBlank()) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            TextButton(
+                                onClick = {
+                                    clientIdDraft = uiState.googleClientId ?: ""
+                                    showClientIdDialog = true
+                                },
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (!serverClientId.isNullOrBlank()) "Edit Client ID" else "Configure Client ID",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
 
                         // Secondary Action: Sign in with Microsoft
                         MicrosoftSignInButton(
@@ -717,6 +756,97 @@ fun AuthScreen(
     if (showPrivacyPolicyDialog) {
         PrivacyPolicyDialog(
             onDismissRequest = { showPrivacyPolicyDialog = false }
+        )
+    }
+
+    if (showClientIdDialog) {
+        val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+        AlertDialog(
+            onDismissRequest = { showClientIdDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CloudSync, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Google Cloud OAuth Setup", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "To enable official Google Sign-In with real Google accounts on your device, create an OAuth 2.0 Web Client ID in Google Cloud Console and paste it below.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = clientIdDraft,
+                        onValueChange = { clientIdDraft = it },
+                        label = { Text("Web Client ID (.apps.googleusercontent.com)") },
+                        placeholder = { Text("e.g. 123456789-abc.apps.googleusercontent.com") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Google Cloud Registration Parameters:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            Text("Package: com.safetylog.inspection.app", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
+                            
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("Release SHA-1: 62:FC:B5...EE:21", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
+                                TextButton(
+                                    onClick = {
+                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString("62:FC:B5:63:A9:32:68:10:95:77:C7:78:6D:01:8F:34:14:74:EE:21"))
+                                        android.widget.Toast.makeText(context, "Copied Release SHA-1", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("Copy", fontSize = 11.sp)
+                                }
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("Debug SHA-1: 0E:58:7D...51:34", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
+                                TextButton(
+                                    onClick = {
+                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString("0E:58:7D:5D:00:F0:17:83:73:A2:72:C4:25:1D:29:AC:DD:CD:51:34"))
+                                        android.widget.Toast.makeText(context, "Copied Debug SHA-1", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("Copy", fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "When left blank, the app safely signs in using your actual Profile name and email from the Profile tab.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.saveCustomGoogleClientId(clientIdDraft.trim())
+                        showClientIdDialog = false
+                    }
+                ) {
+                    Text("Save Client ID")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClientIdDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

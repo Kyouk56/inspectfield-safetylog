@@ -59,9 +59,37 @@ We believe that your facility's safety records belong to you. By default, **all 
 
 ---
 
-## 5. Data Retention, Portability & Deletion Rights
-- **Data Export:** You can export all inspection history records and certified compliance audit certificates into standard US Letter PDF format at any time.
-- **Data Deletion:** Decommissioning an asset or clearing data within the application permanently removes the corresponding records from your device's SQLite/Room storage. Uninstalling the application deletes all locally stored data.
+## 5. Account and Data Deletion (Google Play Compliance)
+
+InspectField SafetyLog and **Hex Engine Labs** are committed to giving you complete ownership and control over your account and data.
+
+### A. How to Request Account & Data Deletion
+Users have two straightforward methods to delete their account and associated data:
+
+1. **In-App Immediate Deletion:**
+   - Open **InspectField SafetyLog**.
+   - Navigate to **Settings** > **Storage & Privacy Vault**.
+   - Tap **"Clear All Local Data & Reset Identity Vault"**. This will instantly and irreversibly erase all local equipment inventories, inspection logs, defect photos, digital signatures, and cached credentials from your device's hardware-isolated storage.
+   - To revoke OAuth credentials: Go to **Profile** > Tap **"Sign Out & Revoke Credentials"**.
+
+2. **Web / External Deletion Request (Without App Installed):**
+   - If you have uninstalled the application or wish to submit an account deletion request externally, contact our compliance team directly:
+     - **Email:** `hexenginelabs@gmail.com`
+     - **Subject:** `InspectField Account Deletion Request`
+     - **Required Details:** Provide your Google account email address (or company domain) used during OAuth sign-in and request deletion.
+     - **Processing Timeline:** All requests are confirmed within 48 hours and completed within 7 business days.
+
+### B. Types of Data Deleted vs. Kept
+- **Data Permanently Deleted:**
+  - Account profile records, technician name, contact information, and license numbers.
+  - Cached OAuth bearer tokens, session identifiers, and hardware security hashes.
+  - Equipment records, inspection checklists, defect observations, and inspector digital signatures.
+- **Data Kept and Retention Period:**
+  - Because InspectField SafetyLog operates on a local-first architecture, once deleted locally or revoked via email, **no copies of your inspection data are retained** on our servers (0-day retention).
+  - If you purchased a subscription or the Ad-Free Pass, transaction IDs are processed and retained by **Google Play In-App Billing** pursuant to Google's statutory and financial record-keeping obligations. InspectField SafetyLog does not collect or retain payment card information.
+
+### C. Data Export & Portability
+- Before requesting account deletion, you may export your entire inspection history, equipment logs, and certified audit certificates in standard PDF or CSV format via the **Reports** or **Export** tab in the app.
 
 ---
 

@@ -223,9 +223,9 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
             .setProductList(productList)
             .build()
 
-        billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+        billingClient.queryProductDetailsAsync(params) { billingResult, result ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                _productDetailsMap.value = productDetailsList.associateBy { it.productId }
+                _productDetailsMap.value = result.productDetailsList.associateBy { it.productId }
             }
         }
     }

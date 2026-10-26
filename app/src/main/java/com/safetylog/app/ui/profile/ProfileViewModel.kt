@@ -49,14 +49,12 @@ class ProfileViewModel(
         viewModelScope.launch {
             val prof = profileDao.getProfileOnce()
             if (prof != null) {
-                val cleanedEmail = if (prof.contactEmail.contains("apexfire") || prof.contactEmail.isBlank()) "jdesrosiers88@gmail.com" else prof.contactEmail
-                val cleanedName = if (prof.inspectorName.contains("Safety Inspector") || prof.inspectorName.isBlank()) "J. Desrosiers" else prof.inspectorName
                 _uiState.update {
                     it.copy(
                         companyName = prof.companyName,
-                        inspectorName = cleanedName,
+                        inspectorName = prof.inspectorName,
                         certificationNumber = prof.certificationNumber,
-                        contactEmail = cleanedEmail,
+                        contactEmail = prof.contactEmail,
                         contactPhone = prof.contactPhone,
                         isLoading = false
                     )
@@ -64,8 +62,11 @@ class ProfileViewModel(
             } else {
                 _uiState.update {
                     it.copy(
-                        inspectorName = "J. Desrosiers",
-                        contactEmail = "jdesrosiers88@gmail.com",
+                        companyName = "",
+                        inspectorName = "",
+                        certificationNumber = "",
+                        contactEmail = "",
+                        contactPhone = "",
                         isLoading = false
                     )
                 }

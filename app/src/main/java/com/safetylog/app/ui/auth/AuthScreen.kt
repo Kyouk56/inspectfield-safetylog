@@ -509,7 +509,7 @@ fun AuthScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (uiState.isSandboxMode) "Emulator Sandbox (jdesrosiers88@gmail.com)" else if (!serverClientId.isNullOrBlank()) "Live Google OAuth Ready" else "Profile Identity Simulation",
+                                    text = if (uiState.isSandboxMode) "Offline Sandbox Active" else if (!serverClientId.isNullOrBlank()) "Live Google OAuth Ready" else "Standard Local Authentication",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = if (uiState.isSandboxMode) SafetyOrange else if (!serverClientId.isNullOrBlank()) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.SemiBold
@@ -544,7 +544,7 @@ fun AuthScreen(
                             Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Sign In as J. Desrosiers (Sandbox Mode)",
+                                text = "Quick Demo Sign-In (Sandbox Mode)",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -902,7 +902,7 @@ fun AuthScreen(
                                     fontSize = 12.sp
                                 )
                                 Text(
-                                    text = "Bypasses Google Play Services and instantly signs in as J. Desrosiers (jdesrosiers88@gmail.com).",
+                                    text = "Bypasses Google Play Services and simulates a verified local audit session for testing.",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontSize = 10.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -929,11 +929,11 @@ fun AuthScreen(
                     ) {
                         Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Sign In Now as J. Desrosiers (Sandbox)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Sign In Now (Offline Sandbox)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Text(
-                        text = "When in Sandbox mode or when Client ID is left blank, the app safely signs in using your actual Profile name and email (jdesrosiers88@gmail.com).",
+                        text = "When in Sandbox mode or when offline, the app safely signs in using your active local Profile name and email.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

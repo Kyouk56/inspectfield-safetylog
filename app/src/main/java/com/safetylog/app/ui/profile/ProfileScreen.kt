@@ -378,7 +378,7 @@ fun ProfileScreen(
                         value = uiState.contactEmail,
                         onValueChange = viewModel::onEmailChanged,
                         label = { Text("Official Contact Email") },
-                        placeholder = { Text("e.g. jdesrosiers88@gmail.com") },
+                        placeholder = { Text("e.g. inspector@safetycorp.com") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),

@@ -127,8 +127,8 @@ class AuthViewModel(
         viewModelScope.launch {
             _errorMessage.value = null
             val profile = profileDao.getProfileOnce()
-            val fallbackName = profile?.inspectorName?.takeIf { it.isNotBlank() && it != "Safety Inspector" } ?: "J. Desrosiers"
-            val fallbackEmail = profile?.contactEmail?.takeIf { it.isNotBlank() && !it.contains("apexfire") } ?: "jdesrosiers88@gmail.com"
+            val fallbackName = profile?.inspectorName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
+            val fallbackEmail = profile?.contactEmail?.takeIf { it.isNotBlank() } ?: ""
             when (val result = authRepository.signInWithGoogle(
                 context = context,
                 serverClientId = serverClientId,
@@ -157,15 +157,15 @@ class AuthViewModel(
     fun setSandboxMode(enabled: Boolean) {
         authRepository.setSandboxMode(enabled)
         _isSandboxMode.value = enabled
-        _successMessage.value = if (enabled) "Sandbox Mode enabled (instant login as jdesrosiers88@gmail.com)" else "Live Google Cloud OAuth enabled"
+        _successMessage.value = if (enabled) "Sandbox Mode enabled (local offline session)" else "Live Google Cloud OAuth enabled"
     }
 
     fun signInSandbox() {
         viewModelScope.launch {
             _errorMessage.value = null
             val profile = profileDao.getProfileOnce()
-            val fallbackName = profile?.inspectorName?.takeIf { it.isNotBlank() && it != "Safety Inspector" } ?: "J. Desrosiers"
-            val fallbackEmail = profile?.contactEmail?.takeIf { it.isNotBlank() && !it.contains("apexfire") } ?: "jdesrosiers88@gmail.com"
+            val fallbackName = profile?.inspectorName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
+            val fallbackEmail = profile?.contactEmail?.takeIf { it.isNotBlank() } ?: ""
             when (val result = authRepository.signInSandbox(
                 fallbackDisplayName = fallbackName,
                 fallbackEmail = fallbackEmail,

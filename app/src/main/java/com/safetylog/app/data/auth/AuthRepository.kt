@@ -87,8 +87,8 @@ class AuthRepository(
         provider: AuthProvider = AuthProvider.GOOGLE
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
-        val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() && it != "Safety Inspector" } ?: "J. Desrosiers"
-        val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() && !it.contains("apexfire") && !it.contains("safetylog.internal") } ?: "jdesrosiers88@gmail.com"
+        val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
+        val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "demo.inspector@safetylog.app"
         val user = createSandboxUser(
             displayName = resolvedName,
             email = resolvedEmail,
@@ -112,8 +112,8 @@ class AuthRepository(
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
         val effectiveClientId = serverClientId?.ifBlank { null } ?: getEffectiveGoogleClientId()
-        val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() && it != "Safety Inspector" } ?: "J. Desrosiers"
-        val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() && !it.contains("apexfire") && !it.contains("safetylog.internal") } ?: "jdesrosiers88@gmail.com"
+        val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
+        val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "inspector@safetylog.app"
 
         if (isSandboxMode() || effectiveClientId.isNullOrBlank()) {
             // Google Cloud OAuth Web Client ID not set or sandbox mode active; simulate verified handshake with active profile identity
@@ -175,7 +175,7 @@ class AuthRepository(
         } catch (e: androidx.credentials.exceptions.NoCredentialException) {
             _isLoading.value = false
             AuthResult.Error(
-                "No Google account found on this device/emulator. Add jdesrosiers88@gmail.com in Android Settings > Passwords & accounts, or tap 'Edit Client ID' to enable Sandbox Mode and sign in instantly."
+                "No Google account found on this device. Please sign in to a Google account in Android Settings > Accounts, or check your Google Play Services."
             )
         } catch (e: Exception) {
             _isLoading.value = false
@@ -253,9 +253,9 @@ class AuthRepository(
             InspectorProfile(
                 id = 1,
                 companyName = "InspectField Safety Services",
-                inspectorName = user.displayName.ifBlank { "J. Desrosiers" },
+                inspectorName = user.displayName.ifBlank { "Safety Inspector" },
                 certificationNumber = "OSHA/NFPA Certified",
-                contactEmail = user.email.ifBlank { "jdesrosiers88@gmail.com" },
+                contactEmail = user.email.ifBlank { "" },
                 contactPhone = ""
             )
         }
@@ -278,8 +278,8 @@ class AuthRepository(
     fun updateUserRole(newRole: UserRole) {
         val current = _currentUser.value
         val updated = current?.copy(role = newRole) ?: createSandboxUser(
-            displayName = "J. Desrosiers",
-            email = "jdesrosiers88@gmail.com",
+            displayName = "Safety Inspector",
+            email = "inspector@safetylog.app",
             provider = AuthProvider.GOOGLE,
             role = newRole
         )

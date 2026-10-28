@@ -2552,7 +2552,7 @@ fun SettingsScreen(
                         )
                     }
                     Text(
-                        text = "SafetyLog Enterprise • Version 1.0.0 (Build 1) • Hardware Signed",
+                        text = "SafetyLog Enterprise • Version ${com.safetylog.app.BuildConfig.VERSION_NAME} (Build ${com.safetylog.app.BuildConfig.VERSION_CODE}) • Hardware Signed",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -1,7 +1,7 @@
 # Privacy Policy for InspectField – Equipment SafetyLog
 
 **Effective Date:** October 22, 2026  
-**Last Updated:** October 22, 2026  
+**Last Updated:** October 28, 2026  
 **Application ID:** `com.safetylog.inspection.app`  
 **Publisher:** Hex Engine Labs  
 **Contact:** hexenginelabs@gmail.com

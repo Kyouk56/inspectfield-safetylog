@@ -8,7 +8,7 @@ description: "Step 1 of every task in this repository: before any grep, read or 
 
 `gnosis knowledge` is a hypermedia (HATEOAS) knowledge graph you drive from the shell (via Bash). It connects three things this workspace already tracks:
 
-- **Code** — the call-graph methods a task edited.
+- **Code** — the call-graph methods a task edited, and semantic search over the live codebase (via `embark`), plus behaviour *flows* — the call chains a location participates in.
 - **Conversation tasks** — every prior Claude Code session is segmented into tasks; gnosis records what each task did, its messages, and the files it changed.
 - **Knowledge items (KB)** — per task, gnosis extracts **topics** (semantic segments) and **motifs** (named decisions: `technical_design_decision`, `product_design_decision`, `context_resource`, `summary`).
 
@@ -26,7 +26,23 @@ gnosis knowledge search "<query>" | jq '.data.results'   # stderr stays visible 
 
 Merging the streams (`2>&1 | jq`) corrupts the envelope (`Expecting value: line 1 column 1`), so don't. But **`2>/dev/null` is just as wrong**: stderr is the *only* channel that reports a broken backend, and gnosis exits **0** regardless — so discarding it turns a configuration failure into a silent, convincing "nothing found".
 
+**A zero-result code search is ambiguous — verify before you believe it.** `search-code` degrades gracefully by design: whether `jbcontext` is genuinely finding nothing, or is missing from PATH / un-authenticated / timing out / pointed at an unindexed repo, you get the *same* stdout — `count: 0`, `results: []`, exit `0`, and a `warnings[].code = "no-hits"`. The two cases are only distinguishable on stderr, where gnosis prints one line:
+
+```
+[knowledge:jbcontext] binary not found on PATH (skipping code edge)
+[knowledge:jbcontext] timed out after 90s
+[knowledge:jbcontext] exit 1: <the backend's own error>
+```
+
+If a `[knowledge:…]` line appeared on stderr, say **the tool is broken** — do not report "no prior context" or "no results". The graph was never consulted, so its silence means nothing.
+
+**One failure has a specific fix — name it.** An `exit 1` line whose backend error says `Authentication required; this environment looks sandboxed (JetBrains daemon socket is blocked)` (often preceded by a `JNA temporary directory … is not writable` warning) means **Claude Code's Bash sandbox is on** and your shell cannot reach the JetBrains Daemon's Unix socket that jbcontext authenticates through. Nothing is wrong with the index or the login, and retrying will not help. Tell the user exactly this: the sandbox (`/sandbox`, `sandbox.enabled`) is blocking the code index; `gnosis instrument` writes the fix — `"sandbox": {"excludedCommands": ["gnosis:*", "jbcontext:*", "embark-call-graph:*"]}` in `.claude/settings.local.json` — so re-running it (or adding those entries by hand, or turning the sandbox off) resolves it. Do not describe this as "the code index is unavailable" — say the sandbox is blocking it.
+
+Once those exclusions are in place, **invoke gnosis as a single plain command** — no `cd <repo> && …` prefix and no `| jq` pipe. The exclusion only applies to a simple command; a compound one runs sandboxed again and jbcontext fails the same way. Your shell already starts in the workspace, so `cd` is unnecessary, and the stderr line you need to see is only visible without a pipe anyway.
+
 The load-bearing idea: each `links[]` entry is a **ready-to-run command**. You navigate the graph by reading `data`, picking the link whose `rel` matches your goal, and running its `cmd` string verbatim. **Follow links by `rel`; don't guess subcommands or flags.**
+
+`gnosis knowledge search-code` is **the** semantic code-search tool for this workspace — it wraps the jbcontext/embark index, so use it (not a raw `jbcontext search`) for "find code that does X". `gnosis knowledge search` adds what jbcontext can't: prior-conversation history and recorded decisions. Between them, gnosis is a superset of jbcontext for single-repo work; the org-wide skills (`gnosis-org-search`, `gnosis-dependency-search`, `gnosis-blast-radius`) cover cross-repo reach.
 
 <when_to_use>
 
@@ -66,12 +82,15 @@ Stable `rel` names on `links[]` — pick the one that matches your goal:
 
 ## Subcommand cheat-sheet
 
-`<conv>` is a conversation `#` id or absolute path; `<task>` is its per-conversation task number. Pass the query as a positional argument to `search`; the rest take `--conv`/`--task` flags.
+`<conv>` is a conversation `#` id or absolute path; `<task>` is its per-conversation task number. Pass the query as a positional argument to `search`/`search-code`; the rest take `--conv`/`--task` flags.
 
 | Command | Use |
 |---|---|
 | `gnosis knowledge search "<query>"` | Semantic search over KB items **and raw messages**, grouped by (conv, task). **First call for "what did we decide / discuss" questions.** Add `--worktree <name>` for a worktree group, `--conv <conv> [--task <task>]` for one conversation/task, `--mode lexical` for exact terms (identifiers, flags, file names, error strings) or `--mode hybrid` for both. |
 | `gnosis knowledge worktree-tasks --name <worktree> [--query "<keywords>"]` | **The tasks a worktree group already ran**, oldest first: headline, agreed design, recorded decisions, and the `cmd` that fetches each task's whole knowledge. **First call after joining or creating an Air worktree.** |
+| `gnosis knowledge search-code "<query>"` | Semantic code search. **First call for "find code that does X" questions.** |
+| `gnosis knowledge search-flows "<query>"` | Flow-first semantic search — whole behaviour flows matching a description. Use when you don't yet know where the code lives. |
+| `gnosis knowledge flows-show <file:line>` | The flows a location participates in — its impact radius. **Run before editing existing code.** |
 | `gnosis knowledge conversations [--limit N]` | List analyzed conversations (entry point; prefer search). |
 | `gnosis knowledge tasks --conv <conv>` | Tasks in a conversation. |
 | `gnosis knowledge task --conv <conv> --task <task>` | One task's detail + links to all edges. |
@@ -85,7 +104,7 @@ Stable `rel` names on `links[]` — pick the one that matches your goal:
 
 When the relevant subsystem is still unknown, bootstrap with **one** semantic search, then navigate by links and direct file reads:
 
-- No relevant file open yet → start with one `search`.
+- No relevant file open yet → start with one `search` (decisions/history) or `search-code` (code).
 - Make the first query specific — name the feature, class, method, flag, or behavior.
 - After the first hit, **follow a link** (run its `cmd`) or open the returned file locally. Don't fire a second broad search; inspect what the first one gave you.
 - Re-search only with a narrower query (`--path <dir-of-best-hit>`) if the first was genuinely off.
@@ -111,6 +130,13 @@ If what you are about to do contradicts a recorded decision, say so and follow t
 **"What did we decide about <topic>?"** (decision lookup)
 1. `gnosis knowledge search "<topic>"` → ranked (conv, task) hits with their matching KB items.
 2. Follow the top hit's `kb` link for the full topics/motifs, or `task` for detail.
+
+**"Why is `<file>` written this way?"** (code → history)
+1. `gnosis knowledge search-code "<behavior or symbol>"` → find the file/line.
+2. Follow the hit's `tasks-touching-method` link → `gnosis knowledge code-tasks --file <F> --line <L>`.
+3. For a returned task, follow its `kb` link → `gnosis knowledge task-kb --conv <c> --task <t>` and read the motifs (the recorded decisions).
+
+> If `code-tasks` returns `count: 0`, the file isn't in the reverse index — common for newer files. Fall back to `gnosis knowledge search "<filename or feature>"` to reach the originating conversation.
 
 **Before editing a file an `<air_related_context>` block named** (the bright-line rule)
 1. Run the `related-by-scope` command the block hands you.

@@ -128,14 +128,22 @@ fun DashboardScreen(
                                 )
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
-                                    color = if (isDarkTheme) Color(0xFF064E3B) else Color(0xFFD1FAE5),
-                                    border = BorderStroke(0.5.dp, StatusPassed)
+                                    color = if (uiState.isOnline) {
+                                        if (isDarkTheme) Color(0xFF064E3B) else Color(0xFFD1FAE5)
+                                    } else {
+                                        if (isDarkTheme) Color(0xFF451A03) else Color(0xFFFEF3C7)
+                                    },
+                                    border = BorderStroke(0.5.dp, if (uiState.isOnline) StatusPassed else SafetyOrange)
                                 ) {
                                     Text(
-                                        text = "OFFLINE",
+                                        text = if (uiState.isOnline) "ONLINE" else "OFFLINE",
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = if (isDarkTheme) Color(0xFF34D399) else Color(0xFF047857),
+                                        color = if (uiState.isOnline) {
+                                            if (isDarkTheme) Color(0xFF34D399) else Color(0xFF047857)
+                                        } else {
+                                            SafetyOrange
+                                        },
                                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                                         letterSpacing = 0.5.sp,
                                         maxLines = 1,
@@ -330,8 +338,8 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 100.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(start = 12.dp, top = 10.dp, end = 12.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Delinquency / Past-Due / Cancelled Alert Banner
             if (uiState.isSubscriptionDelinquentOrCancelled) {
@@ -764,14 +772,14 @@ private fun ExecutiveComplianceHeroCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(6.dp, RoundedCornerShape(20.dp)),
+            .shadow(3.dp, RoundedCornerShape(14.dp)),
         colors = CardDefaults.cardColors(
             containerColor = if (isDark) DarkSurfaceCard else Slate900
         ),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(14.dp),
         border = if (isDark) BorderStroke(1.dp, DarkSurfaceBorder) else null
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             // Header Row with live vault status badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -783,37 +791,38 @@ private fun ExecutiveComplianceHeroCard(
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
-                    letterSpacing = 1.sp
+                    fontSize = 10.sp,
+                    letterSpacing = 0.8.sp
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(12.dp))
                         .background(if (isDark) Color(0xFF0D2538) else Color(0xFF0F2942))
-                        .border(1.dp, Color(0xFF0284C7).copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                        .border(1.dp, Color(0xFF0284C7).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                         .clickable(onClick = onVaultClick)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(6.dp)
+                            .size(5.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF38BDF8))
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(5.dp))
                     Text(
                         text = "VAULT SECURED",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF38BDF8),
-                        fontSize = 9.sp
+                        fontSize = 8.sp
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Main Metrics Section: Radial Gauge + Metrics Column
+            // Main Metrics Section: Compact Radial Gauge + Metrics Column
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -821,7 +830,7 @@ private fun ExecutiveComplianceHeroCard(
             ) {
                 // Radial Arc Gauge
                 Box(
-                    modifier = Modifier.size(110.dp),
+                    modifier = Modifier.size(76.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     val gaugeColor = when {
@@ -830,7 +839,7 @@ private fun ExecutiveComplianceHeroCard(
                         else -> StatusDeficient
                     }
                     Canvas(modifier = Modifier.fillMaxSize()) {
-                        val strokeWidth = 10.dp.toPx()
+                        val strokeWidth = 7.dp.toPx()
                         val arcSize = size.width - strokeWidth
                         val topLeft = Offset(strokeWidth / 2, strokeWidth / 2)
 
@@ -862,16 +871,17 @@ private fun ExecutiveComplianceHeroCard(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = "$complianceRate%",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White,
+                            fontSize = 18.sp
                         )
                         Text(
                             text = if (complianceRate >= 90) "AUDIT READY" else "DEFICIENT",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = if (complianceRate >= 90) StatusPassedLight else StatusDeficientLight,
-                            fontSize = 8.sp
+                            fontSize = 7.sp
                         )
                     }
                 }
@@ -880,8 +890,8 @@ private fun ExecutiveComplianceHeroCard(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(start = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     MetricCounterRow(
                         label = "Managed Assets",
@@ -928,22 +938,24 @@ private fun MetricCounterRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(6.dp)
                     .clip(CircleShape)
                     .background(indicatorColor)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = Slate300
+                style = MaterialTheme.typography.labelSmall,
+                color = Slate300,
+                fontSize = 11.sp
             )
         }
         Text(
             text = value,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = textColor
+            color = textColor,
+            fontSize = 12.sp
         )
     }
 }
@@ -966,15 +978,15 @@ private fun LicenseQuotaCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             1.dp,
             if (isDelinquent) StatusDeficient.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -982,12 +994,12 @@ private fun LicenseQuotaCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
-                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    modifier = Modifier.weight(1f).padding(end = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
                             .background(
                                 if (isDelinquent) {
@@ -1025,21 +1037,21 @@ private fun LicenseQuotaCard(
                                     SubscriptionTier.ENTERPRISE -> Color(0xFF4F46E5)
                                 }
                             },
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = subscriptionTier.title,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1
                             )
                             if (isDelinquent) {
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
                                     color = if (paymentStatus == PaymentStatus.PAYMENT_FAILED)
@@ -1059,16 +1071,17 @@ private fun LicenseQuotaCard(
                         }
                         Text(
                             text = if (isDelinquent) {
-                                "Functions locked to Free ($inspectionsThisMonth of $freeLimit inspections used)"
+                                "Functions locked ($inspectionsThisMonth of $freeLimit used)"
                             } else {
                                 when (subscriptionTier) {
-                                    SubscriptionTier.FREE -> "$inspectionsThisMonth of $freeLimit free inspections used (Banner Ads)"
-                                    SubscriptionTier.AD_FREE -> "Ad-Free License ($2.99 flat) • Unlimited inspections"
-                                    SubscriptionTier.INDIVIDUAL_PRO -> "Individual Share & Sync ($0.99/mo) • No ads"
-                                    SubscriptionTier.ENTERPRISE -> "Enterprise Plan ($0.50/seat/mo) • $enterpriseSeats seats • Multi-account sharing"
+                                    SubscriptionTier.FREE -> "$inspectionsThisMonth of $freeLimit free used"
+                                    SubscriptionTier.AD_FREE -> "Ad-Free License • Unlimited"
+                                    SubscriptionTier.INDIVIDUAL_PRO -> "Individual Pro • Unlimited"
+                                    SubscriptionTier.ENTERPRISE -> "Enterprise • $enterpriseSeats seats"
                                 }
                             },
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -1076,6 +1089,7 @@ private fun LicenseQuotaCard(
 
                 AssistChip(
                     onClick = onManageSubscription,
+                    modifier = Modifier.height(28.dp),
                     label = {
                         Text(
                             text = if (isDelinquent) {
@@ -1083,10 +1097,10 @@ private fun LicenseQuotaCard(
                             } else if (effectiveTier == SubscriptionTier.FREE) {
                                 "Upgrade"
                             } else {
-                                "Manage Plan"
+                                "Manage"
                             },
                             fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             maxLines = 1
                         )
                     }
@@ -1098,8 +1112,8 @@ private fun LicenseQuotaCard(
                     progress = { progressFraction },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp)),
                     color = if (inspectionsThisMonth >= freeLimit) StatusDeficient else SafetyOrange,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
@@ -1123,11 +1137,11 @@ private fun AuditFilterChip(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(containerColor)
-            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(12.dp))
+            .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -1136,25 +1150,26 @@ private fun AuditFilterChip(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 color = contentColor
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(
                         if (isSelected) Color.White.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant
                     )
-                    .padding(horizontal = 6.dp, vertical = 1.dp)
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
             ) {
                 Text(
                     text = count.toString(),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp
+                    fontSize = 9.sp
                 )
             }
         }
@@ -1185,17 +1200,17 @@ private fun EquipmentAssetCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(3.dp, RoundedCornerShape(16.dp))
+            .shadow(2.dp, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             // Left Status Accent Stripe
             Box(
                 modifier = Modifier
-                    .width(6.dp)
+                    .width(4.dp)
                     .fillMaxHeight()
                     .background(if (isOverdue) StatusDeficient else statusColors.accent)
             )
@@ -1203,7 +1218,7 @@ private fun EquipmentAssetCard(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(16.dp)
+                    .padding(10.dp)
             ) {
                 // Top Row: Tag ID + Status Pill + Review Schedule Pill
                 Row(
@@ -1215,38 +1230,38 @@ private fun EquipmentAssetCard(
                         // Monospaced Tag Badge
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(if (isDark) DarkSurfaceCard else Slate900)
                                 .border(
                                     1.dp,
                                     if (isDark) DarkSurfaceBorder else Color.Transparent,
-                                    RoundedCornerShape(6.dp)
+                                    RoundedCornerShape(4.dp)
                                 )
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = eq.tagId,
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
 
                         // Status Badge Pill with M3 Container Tonal Contrast
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(statusColors.container)
-                                .border(1.dp, statusColors.border, RoundedCornerShape(20.dp))
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                                .border(1.dp, statusColors.border, RoundedCornerShape(16.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(6.dp)
+                                        .size(5.dp)
                                         .clip(CircleShape)
                                         .background(statusColors.accent)
                                 )
@@ -1260,7 +1275,7 @@ private fun EquipmentAssetCard(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = statusColors.text,
-                                    fontSize = 10.sp
+                                    fontSize = 9.sp
                                 )
                             }
                         }
@@ -1270,42 +1285,42 @@ private fun EquipmentAssetCard(
                     if (isOverdue) {
                         Surface(
                             color = if (isDark) Color(0xFF3B1214) else Color(0xFFFEE2E2),
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(4.dp),
                             border = BorderStroke(1.dp, StatusDeficient.copy(alpha = 0.5f))
                         ) {
                             Text(
                                 text = "OVERDUE",
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 9.sp,
+                                fontSize = 8.5.sp,
                                 color = StatusDeficient
                             )
                         }
                     } else if (eq.assignedReviewDate.isNotBlank()) {
                         Surface(
                             color = if (isDark) Color(0xFF132238) else Color(0xFFF1F5F9),
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(4.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = "DUE: ${eq.assignedReviewDate}",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 9.sp,
+                                    fontSize = 8.5.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 if (eq.reminderEnabled) {
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(3.dp))
                                     Icon(
                                         imageVector = Icons.Default.NotificationsActive,
                                         contentDescription = "Alarm Active",
                                         tint = SafetyOrange,
-                                        modifier = Modifier.size(11.dp)
+                                        modifier = Modifier.size(10.dp)
                                     )
                                 }
                             }
@@ -1313,7 +1328,7 @@ private fun EquipmentAssetCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // Equipment Type and Dedicated Icon
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1321,12 +1336,12 @@ private fun EquipmentAssetCard(
                         imageVector = getEquipmentIcon(eq.equipmentType),
                         contentDescription = null,
                         tint = SafetyOrange,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(17.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = eq.equipmentType,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
@@ -1334,7 +1349,7 @@ private fun EquipmentAssetCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
                 // Location
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1342,19 +1357,19 @@ private fun EquipmentAssetCard(
                         imageVector = Icons.Default.Place,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(13.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = eq.locationDescription,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 // Assigned Checklist Protocol Badge
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1362,32 +1377,32 @@ private fun EquipmentAssetCard(
                         imageVector = Icons.AutoMirrored.Filled.FactCheck,
                         contentDescription = null,
                         tint = Color(0xFF0284C7),
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(12.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = "Protocol: $protocolName • ${eq.reviewFrequency.ifBlank { "Monthly" }} cycle",
+                        text = "Protocol: $protocolName • ${eq.reviewFrequency.ifBlank { "Monthly" }}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
 
                 if (eq.serialNumber.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(1.dp))
                     Text(
                         text = "Serial: ${eq.serialNumber}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp
+                        fontSize = 10.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // Bottom Action Bar: Last inspected time + Direct full-width actions
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -1401,7 +1416,7 @@ private fun EquipmentAssetCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 9.sp,
+                            fontSize = 8.5.sp,
                             letterSpacing = 0.5.sp
                         )
                         Text(
@@ -1413,37 +1428,38 @@ private fun EquipmentAssetCard(
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold,
                             color = if (isDue) statusColors.text else MaterialTheme.colorScheme.onSurface,
+                            fontSize = 11.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Button(
                             onClick = onDirectInspect,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(40.dp),
+                                .height(34.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Checklist,
                                 contentDescription = null,
                                 tint = Color.White,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "Inspect",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 color = Color.White
                             )
                         }
@@ -1452,24 +1468,24 @@ private fun EquipmentAssetCard(
                             onClick = onClick,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(40.dp),
-                            shape = RoundedCornerShape(10.dp),
+                                .height(34.dp),
+                            shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.onSurface
                             ),
-                            contentPadding = PaddingValues(horizontal = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Tune,
                                 contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "Manage & Logs",
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp
+                                fontSize = 12.sp
                             )
                         }
                     }

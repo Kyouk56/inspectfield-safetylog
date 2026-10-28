@@ -138,11 +138,13 @@ data class AuthUser(
 
     val initials: String
         get() {
-            val parts = displayName.trim().split(" ")
-            return if (parts.size >= 2) {
-                "${parts[0].take(1)}${parts[1].take(1)}".uppercase()
+            val words = displayName.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+            return if (words.size >= 2) {
+                "${words[0].take(1)}${words[1].take(1)}".uppercase()
+            } else if (words.size == 1) {
+                words[0].take(2).uppercase().ifBlank { "SL" }
             } else {
-                displayName.take(2).uppercase().ifBlank { "SL" }
+                "SL"
             }
         }
 }
@@ -222,13 +224,15 @@ data class TeamMember(
     val initials: String
         get() {
             if (name.isNotBlank()) {
-                val parts = name.trim().split(" ")
-                if (parts.size >= 2) {
-                    return "${parts[0].take(1)}${parts[1].take(1)}".uppercase()
+                val words = name.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+                if (words.size >= 2) {
+                    return "${words[0].take(1)}${words[1].take(1)}".uppercase()
                 }
-                return name.take(2).uppercase()
+                if (words.size == 1) {
+                    return words[0].take(2).uppercase().ifBlank { "TM" }
+                }
             }
-            return email.take(2).uppercase()
+            return email.trim().take(2).uppercase().ifBlank { "TM" }
         }
 }
 

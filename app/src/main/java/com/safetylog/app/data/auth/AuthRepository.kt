@@ -1,6 +1,8 @@
 package com.safetylog.app.data.auth
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -100,9 +102,24 @@ class AuthRepository(
         AuthResult.Success(user)
     }
 
+    private fun Context.findActivity(): Activity? = when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
+    }
+
+    private fun isCancellation(e: Exception): Boolean {
+        if (e is GetCredentialCancellationException) return true
+        if (e is androidx.credentials.exceptions.GetCredentialInterruptedException) return true
+        val msg = e.message?.lowercase() ?: ""
+        val type = (e as? androidx.credentials.exceptions.GetCredentialCustomException)?.type?.lowercase() ?: ""
+        return type.contains("user_canceled") || type.contains("cancel") || msg.contains("cancel") || msg.contains("activity is cancelled")
+    }
+
     /**
      * Executes real Google OAuth authentication using Android Credential Manager.
-     * If serverClientId is not configured or sandbox mode is enabled, safely uses verified sandbox session.
+     * Uses the official single-option button flow (GetSignInWithGoogleOption) with seamless
+     * fallback to GetGoogleIdOption, ensuring full compatibility across all Android versions.
      */
     suspend fun signInWithGoogle(
         context: Context,
@@ -111,12 +128,11 @@ class AuthRepository(
         fallbackEmail: String? = null
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
-        val effectiveClientId = serverClientId?.ifBlank { null } ?: getEffectiveGoogleClientId()
+        val effectiveClientId = serverClientId?.trim()?.ifBlank { null } ?: getEffectiveGoogleClientId()?.trim()
         val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
         val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "inspector@safetylog.app"
 
         if (isSandboxMode() || effectiveClientId.isNullOrBlank()) {
-            // Google Cloud OAuth Web Client ID not set or sandbox mode active; simulate verified handshake with active profile identity
             val user = createSandboxUser(
                 displayName = resolvedName,
                 email = resolvedEmail,
@@ -128,37 +144,66 @@ class AuthRepository(
             return@withContext AuthResult.Success(user)
         }
 
+        val hostActivity = context.findActivity()
+        if (hostActivity == null || hostActivity.isFinishing || hostActivity.isDestroyed) {
+            _isLoading.value = false
+            return@withContext AuthResult.Error("Google Sign-In requires an active, visible Activity context.")
+        }
+        val rawNonce = UUID.randomUUID().toString()
+
         try {
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(effectiveClientId)
-                .setAutoSelectEnabled(false)
-                .build()
+            // Credential Manager launches system UI dialogs and must be executed on the Main thread
+            val response = withContext(Dispatchers.Main) {
+                try {
+                    // Stage 1: Attempt official "Sign In With Google" explicit button flow (as sole option)
+                    val signInOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(effectiveClientId)
+                        .setNonce(rawNonce)
+                        .build()
+                    val request = GetCredentialRequest.Builder()
+                        .addCredentialOption(signInOption)
+                        .build()
+                    credentialManager.getCredential(context = hostActivity, request = request)
+                } catch (stage1Error: Exception) {
+                    if (isCancellation(stage1Error)) throw stage1Error
 
-            val signInWithGoogleOption = com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption.Builder(effectiveClientId)
-                .build()
+                    // Stage 2: Fallback to GetGoogleIdOption (with all accounts shown, as sole option)
+                    val googleIdOption = GetGoogleIdOption.Builder()
+                        .setFilterByAuthorizedAccounts(false)
+                        .setServerClientId(effectiveClientId)
+                        .setAutoSelectEnabled(false)
+                        .setNonce(rawNonce)
+                        .build()
+                    val fallbackRequest = GetCredentialRequest.Builder()
+                        .addCredentialOption(googleIdOption)
+                        .build()
+                    credentialManager.getCredential(context = hostActivity, request = fallbackRequest)
+                }
+            }
 
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
-                .addCredentialOption(signInWithGoogleOption)
-                .build()
-
-            val response = credentialManager.getCredential(context = context, request = request)
             val credential = response.credential
 
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                val rawDisplayName = googleIdTokenCredential.displayName?.trim()?.takeIf { it.isNotBlank() }
+                val combinedNames = listOfNotNull(
+                    googleIdTokenCredential.givenName?.trim()?.takeIf { it.isNotBlank() },
+                    googleIdTokenCredential.familyName?.trim()?.takeIf { it.isNotBlank() }
+                ).joinToString(" ").trim().takeIf { it.isNotBlank() }
+                val resolvedDisplayName = rawDisplayName ?: combinedNames ?: resolvedName
+                val userEmail = googleIdTokenCredential.id.trim().takeIf { it.isNotBlank() } ?: resolvedEmail
                 val user = AuthUser(
-                    userId = googleIdTokenCredential.id,
-                    email = googleIdTokenCredential.id,
-                    displayName = googleIdTokenCredential.displayName ?: googleIdTokenCredential.givenName ?: resolvedName,
+                    userId = googleIdTokenCredential.id.trim().ifBlank { userEmail },
+                    email = userEmail,
+                    displayName = resolvedDisplayName,
                     photoUrl = googleIdTokenCredential.profilePictureUri?.toString(),
                     provider = AuthProvider.GOOGLE,
+                    role = _currentUser.value?.role ?: UserRole.OWNER,
                     idToken = googleIdTokenCredential.idToken,
                     accessToken = "oauth2_bearer_${UUID.randomUUID()}",
                     tokenExpiryEpochMs = System.currentTimeMillis() + (30L * 24 * 3600 * 1000), // 30-day session
                     lastLoginEpochMs = System.currentTimeMillis(),
-                    isHardwareEncrypted = true
+                    isHardwareEncrypted = true,
+                    keyAlias = secureStorage.masterKeyAlias
                 )
 
                 secureStorage.saveUser(user)
@@ -167,19 +212,25 @@ class AuthRepository(
                 AuthResult.Success(user)
             } else {
                 _isLoading.value = false
-                AuthResult.Error("Unsupported credential type returned from Google Credential Manager.")
+                AuthResult.Error("Unsupported credential type returned from Google Credential Manager (${credential::class.java.simpleName}).")
             }
-        } catch (e: GetCredentialCancellationException) {
-            _isLoading.value = false
-            AuthResult.Cancelled
-        } catch (e: androidx.credentials.exceptions.NoCredentialException) {
-            _isLoading.value = false
-            AuthResult.Error(
-                "No Google account found on this device. Please sign in to a Google account in Android Settings > Accounts, or check your Google Play Services."
-            )
         } catch (e: Exception) {
             _isLoading.value = false
-            AuthResult.Error("Google Sign-In failed: ${e.message ?: "Authentication error"}. Verify your Google Cloud Web Client ID and SHA-1 certificate.")
+            if (isCancellation(e)) {
+                AuthResult.Cancelled
+            } else if (e is androidx.credentials.exceptions.NoCredentialException) {
+                AuthResult.Error(
+                    "No Google accounts found or account selection was cancelled. Add a Google account under Android Settings > Accounts, or check Google Play Services."
+                )
+            } else {
+                val msg = e.localizedMessage ?: e.message ?: "Authentication error"
+                val errorHint = if (msg.contains("10") || msg.contains("12500") || msg.contains("DEVELOPER_ERROR")) {
+                    " (Developer Error: Ensure your Web Client ID is used, and the Play App Signing SHA-1 or release SHA-1 is registered in Google Cloud Console OAuth 2.0 Credentials with package 'com.safetylog.inspection.app')."
+                } else {
+                    ""
+                }
+                AuthResult.Error("Google Sign-In failed: $msg$errorHint")
+            }
         }
     }
 
@@ -241,13 +292,21 @@ class AuthRepository(
     /**
      * Synchronizes authenticated user identity with the local inspector profile
      */
-    suspend fun syncWithInspectorProfile(profileDao: ProfileDao) = withContext(Dispatchers.IO) {
+    suspend fun syncWithInspectorProfile(profileDao: ProfileDao, forceOverwrite: Boolean = false) = withContext(Dispatchers.IO) {
         val user = _currentUser.value ?: return@withContext
         val currentProfile = profileDao.getProfileOnce()
         val updatedProfile = if (currentProfile != null) {
             currentProfile.copy(
-                inspectorName = user.displayName.ifBlank { currentProfile.inspectorName },
-                contactEmail = user.email.ifBlank { currentProfile.contactEmail }
+                inspectorName = if (forceOverwrite) {
+                    user.displayName.ifBlank { currentProfile.inspectorName }
+                } else {
+                    currentProfile.inspectorName.ifBlank { user.displayName }
+                },
+                contactEmail = if (forceOverwrite) {
+                    user.email.ifBlank { currentProfile.contactEmail }
+                } else {
+                    currentProfile.contactEmail.ifBlank { user.email }
+                }
             )
         } else {
             InspectorProfile(

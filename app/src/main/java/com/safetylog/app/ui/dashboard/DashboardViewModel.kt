@@ -47,6 +47,7 @@ data class DashboardUiState(
     val authUser: com.safetylog.app.data.auth.AuthUser? = null,
     val inspectionsThisMonth: Int = 0,
     val freeLimit: Int = 5,
+    val isOnline: Boolean = true,
     val isLoading: Boolean = true
 ) {
     val totalCount: Int get() = equipmentList.size
@@ -92,7 +93,8 @@ class DashboardViewModel(
     private val billingRepository: BillingRepository,
     private val authRepository: AuthRepository,
     private val teamSyncEngine: TeamSyncEngine? = null,
-    private val reminderManager: InspectionReminderManager? = null
+    private val reminderManager: InspectionReminderManager? = null,
+    private val networkMonitor: com.safetylog.app.util.NetworkMonitor? = null
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -111,7 +113,8 @@ class DashboardViewModel(
         entitlementManager.countInspectionsThisMonthFlow(),
         authRepository.currentUser,
         _isAdminTestViewActive,
-        billingRepository.teamMembers
+        billingRepository.teamMembers,
+        networkMonitor?.isOnline ?: MutableStateFlow(true)
     ) { args: Array<Any?> ->
         @Suppress("UNCHECKED_CAST")
         val summaries = args[0] as List<EquipmentWithLatestInspection>
@@ -127,6 +130,7 @@ class DashboardViewModel(
         val isTestView = args[10] as Boolean
         @Suppress("UNCHECKED_CAST")
         val members = args[11] as? List<TeamMember> ?: emptyList()
+        val online = args[12] as? Boolean ?: true
 
         val role = authUser?.role ?: UserRole.OWNER
 
@@ -149,6 +153,7 @@ class DashboardViewModel(
             authUser = authUser,
             inspectionsThisMonth = countThisMonth,
             freeLimit = entitlementManager.FREE_MONTHLY_LIMIT,
+            isOnline = online,
             isLoading = false
         )
     }.stateIn(
@@ -436,7 +441,8 @@ class DashboardViewModel(
         private val billingRepository: BillingRepository,
         private val authRepository: AuthRepository,
         private val teamSyncEngine: TeamSyncEngine? = null,
-        private val reminderManager: InspectionReminderManager? = null
+        private val reminderManager: InspectionReminderManager? = null,
+        private val networkMonitor: com.safetylog.app.util.NetworkMonitor? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -447,7 +453,8 @@ class DashboardViewModel(
                 billingRepository,
                 authRepository,
                 teamSyncEngine,
-                reminderManager
+                reminderManager,
+                networkMonitor
             ) as T
         }
     }

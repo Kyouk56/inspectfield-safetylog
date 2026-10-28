@@ -112,7 +112,8 @@ fun SafetyLogNavGraph(
                     billingRepository = app.billingRepository,
                     authRepository = app.authRepository,
                     teamSyncEngine = app.teamSyncEngine,
-                    reminderManager = app.reminderManager
+                    reminderManager = app.reminderManager,
+                    networkMonitor = app.networkMonitor
                 )
             )
 
@@ -268,7 +269,8 @@ fun SafetyLogNavGraph(
                     billingRepository = app.billingRepository,
                     authRepository = app.authRepository,
                     teamSyncEngine = app.teamSyncEngine,
-                    reminderManager = app.reminderManager
+                    reminderManager = app.reminderManager,
+                    networkMonitor = app.networkMonitor
                 )
             )
             SettingsScreen(

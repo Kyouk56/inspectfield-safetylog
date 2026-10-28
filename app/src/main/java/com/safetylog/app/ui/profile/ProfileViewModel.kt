@@ -20,8 +20,10 @@ data class ProfileUiState(
     val contactEmail: String = "",
     val contactPhone: String = "",
     val isSavedSuccess: Boolean = false,
+    val isSaving: Boolean = false,
     val isLoading: Boolean = true,
-    val authUser: AuthUser? = null
+    val authUser: AuthUser? = null,
+    val errorMessage: String? = null
 )
 
 class ProfileViewModel(
@@ -32,6 +34,9 @@ class ProfileViewModel(
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
+    @Volatile
+    private var hasUserEdited = false
+
     init {
         loadProfile()
         observeAuth()
@@ -40,36 +45,59 @@ class ProfileViewModel(
     private fun observeAuth() {
         viewModelScope.launch {
             authRepository.currentUser.collect { user ->
-                _uiState.update { it.copy(authUser = user) }
+                _uiState.update { current ->
+                    if (current.isLoading || hasUserEdited) {
+                        current.copy(authUser = user)
+                    } else {
+                        current.copy(
+                            authUser = user,
+                            inspectorName = if (current.inspectorName.isBlank() && user?.displayName?.isNotBlank() == true) {
+                                user.displayName
+                            } else {
+                                current.inspectorName
+                            },
+                            contactEmail = if (current.contactEmail.isBlank() && user?.email?.isNotBlank() == true) {
+                                user.email
+                            } else {
+                                current.contactEmail
+                            }
+                        )
+                    }
+                }
             }
         }
     }
 
     private fun loadProfile() {
         viewModelScope.launch {
-            val prof = profileDao.getProfileOnce()
-            if (prof != null) {
-                _uiState.update {
-                    it.copy(
-                        companyName = prof.companyName,
-                        inspectorName = prof.inspectorName,
-                        certificationNumber = prof.certificationNumber,
-                        contactEmail = prof.contactEmail,
-                        contactPhone = prof.contactPhone,
-                        isLoading = false
-                    )
+            try {
+                val prof = profileDao.getProfileOnce()
+                _uiState.update { current ->
+                    if (hasUserEdited) {
+                        current.copy(isLoading = false)
+                    } else if (prof != null) {
+                        val auth = current.authUser ?: authRepository.currentUser.value
+                        val resolvedName = prof.inspectorName.ifBlank { auth?.displayName.orEmpty() }
+                        val resolvedEmail = prof.contactEmail.ifBlank { auth?.email.orEmpty() }
+                        current.copy(
+                            companyName = prof.companyName,
+                            inspectorName = resolvedName,
+                            certificationNumber = prof.certificationNumber,
+                            contactEmail = resolvedEmail,
+                            contactPhone = prof.contactPhone,
+                            isLoading = false
+                        )
+                    } else {
+                        val auth = current.authUser ?: authRepository.currentUser.value
+                        current.copy(
+                            inspectorName = auth?.displayName.orEmpty(),
+                            contactEmail = auth?.email.orEmpty(),
+                            isLoading = false
+                        )
+                    }
                 }
-            } else {
-                _uiState.update {
-                    it.copy(
-                        companyName = "",
-                        inspectorName = "",
-                        certificationNumber = "",
-                        contactEmail = "",
-                        contactPhone = "",
-                        isLoading = false
-                    )
-                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Error loading profile: ${e.message}") }
             }
         }
     }
@@ -80,14 +108,37 @@ class ProfileViewModel(
         }
     }
 
-    fun onCompanyNameChanged(v: String) = _uiState.update { it.copy(companyName = v) }
-    fun onInspectorNameChanged(v: String) = _uiState.update { it.copy(inspectorName = v) }
-    fun onCertNumberChanged(v: String) = _uiState.update { it.copy(certificationNumber = v) }
-    fun onEmailChanged(v: String) = _uiState.update { it.copy(contactEmail = v) }
-    fun onPhoneChanged(v: String) = _uiState.update { it.copy(contactPhone = v) }
+    fun onCompanyNameChanged(v: String) {
+        hasUserEdited = true
+        _uiState.update { it.copy(companyName = v) }
+    }
+
+    fun onInspectorNameChanged(v: String) {
+        hasUserEdited = true
+        _uiState.update { it.copy(inspectorName = v) }
+    }
+
+    fun onCertNumberChanged(v: String) {
+        hasUserEdited = true
+        _uiState.update { it.copy(certificationNumber = v) }
+    }
+
+    fun onEmailChanged(v: String) {
+        hasUserEdited = true
+        _uiState.update { it.copy(contactEmail = v) }
+    }
+
+    fun onPhoneChanged(v: String) {
+        hasUserEdited = true
+        _uiState.update { it.copy(contactPhone = v) }
+    }
+
+    fun clearSaveSuccess() = _uiState.update { it.copy(isSavedSuccess = false) }
+    fun clearErrorMessage() = _uiState.update { it.copy(errorMessage = null) }
 
     fun syncFromOAuth() {
         val user = _uiState.value.authUser ?: return
+        hasUserEdited = true
         _uiState.update { current ->
             current.copy(
                 inspectorName = if (user.displayName.isNotBlank()) user.displayName else current.inspectorName,
@@ -98,17 +149,22 @@ class ProfileViewModel(
 
     fun saveProfile() {
         viewModelScope.launch {
-            val s = _uiState.value
-            val profile = InspectorProfile(
-                id = 1,
-                companyName = s.companyName.trim(),
-                inspectorName = s.inspectorName.trim(),
-                certificationNumber = s.certificationNumber.trim(),
-                contactEmail = s.contactEmail.trim(),
-                contactPhone = s.contactPhone.trim()
-            )
-            profileDao.upsertProfile(profile)
-            _uiState.update { it.copy(isSavedSuccess = true) }
+            try {
+                _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+                val s = _uiState.value
+                val profile = InspectorProfile(
+                    id = 1,
+                    companyName = s.companyName.trim(),
+                    inspectorName = s.inspectorName.trim(),
+                    certificationNumber = s.certificationNumber.trim(),
+                    contactEmail = s.contactEmail.trim(),
+                    contactPhone = s.contactPhone.trim()
+                )
+                profileDao.upsertProfile(profile)
+                _uiState.update { it.copy(isSaving = false, isSavedSuccess = true, errorMessage = null) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isSaving = false, errorMessage = "Failed to save profile: ${e.message}") }
+            }
         }
     }
 

@@ -261,7 +261,7 @@ class AuthViewModel(
 
     fun syncInspectorProfile() {
         viewModelScope.launch {
-            authRepository.syncWithInspectorProfile(profileDao)
+            authRepository.syncWithInspectorProfile(profileDao, forceOverwrite = true)
             _successMessage.value = "Inspector profile updated with verified OAuth identity."
         }
     }

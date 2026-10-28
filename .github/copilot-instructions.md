@@ -32,5 +32,8 @@ stays the right tool for exact identifiers.
   (Explore, general-purpose, search_code_subagent), does not read this file: run step 1
   yourself before you delegate, or put it in the subagent's prompt.
 
+- `C:\Users\jdesr\.local\bin\gnosis knowledge search-code "<query>"` — semantic code search; use FIRST to find where code lives.
+- `C:\Users\jdesr\.local\bin\gnosis knowledge search-flows "<query>"` — flow-first semantic search over whole behaviour flows.
+- `C:\Users\jdesr\.local\bin\gnosis knowledge flows-show <file:line>` — the flows a location participates in (impact radius).
 - `C:\Users\jdesr\.local\bin\gnosis knowledge search "<query>"` — recorded decisions and prior tasks matching the query (the step-1 lookup); `--mode lexical` for exact identifiers, flags and file names.
 <!-- END gnosis-knowledge -->

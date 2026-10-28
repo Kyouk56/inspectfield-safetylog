@@ -51,3 +51,7 @@
 # --- Coil Image Loading ---
 -keep class coil.** { *; }
 -dontwarn coil.**
+
+# --- BuildConfig ---
+-keep class com.safetylog.app.BuildConfig { *; }
+

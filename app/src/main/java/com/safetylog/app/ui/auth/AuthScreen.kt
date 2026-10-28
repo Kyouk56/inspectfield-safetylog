@@ -487,11 +487,7 @@ fun AuthScreen(
                         GoogleSignInButton(
                             isLoading = uiState.isLoading,
                             onClick = {
-                                if (uiState.isSandboxMode) {
-                                    viewModel.signInSandbox()
-                                } else {
-                                    viewModel.signInWithGoogle(context, serverClientId)
-                                }
+                                viewModel.signInWithGoogle(context, serverClientId)
                             }
                         )
 
@@ -875,6 +871,12 @@ fun AuthScreen(
                                     Text("Copy", fontSize = 11.sp)
                                 }
                             }
+                            Text(
+                                text = "Important for Play Store / Testers: If installed via Play Store track, copy the SHA-1 from Google Play Console > App Integrity > Play App Signing and add it to Google Cloud Console.",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 

@@ -124,21 +124,21 @@ fun InspectionFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 12.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Equipment Asset Details Card
             uiState.equipment?.let { eq ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shadow(2.dp, RoundedCornerShape(16.dp)),
+                        .shadow(2.dp, RoundedCornerShape(12.dp)),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -147,14 +147,14 @@ fun InspectionFormScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
+                                        .clip(RoundedCornerShape(4.dp))
                                         .background(if (isDark) DarkSurfaceCard else Slate900)
                                         .border(
                                             1.dp,
                                             if (isDark) DarkSurfaceBorder else Color.Transparent,
-                                            RoundedCornerShape(6.dp)
+                                            RoundedCornerShape(4.dp)
                                         )
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
                                         text = eq.tagId,
@@ -164,41 +164,41 @@ fun InspectionFormScreen(
                                         style = MaterialTheme.typography.titleSmall
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = eq.equipmentType,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Default.Place,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(14.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = eq.locationDescription,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
                         if (eq.serialNumber.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Serial: ${eq.serialNumber}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp
+                                fontSize = 10.5.sp
                             )
                         }
                     }
@@ -209,20 +209,20 @@ fun InspectionFormScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(2.dp, RoundedCornerShape(16.dp)),
+                    .shadow(2.dp, RoundedCornerShape(12.dp)),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(32.dp)
                             .clip(CircleShape)
                             .background(if (isDark) DarkSurfaceCard else Slate100),
                         contentAlignment = Alignment.Center
@@ -231,28 +231,31 @@ fun InspectionFormScreen(
                             imageVector = Icons.Default.EventAvailable,
                             contentDescription = null,
                             tint = SafetyOrange,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "AUDIT DATE & TIME STAMP",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 1.sp
+                            letterSpacing = 0.5.sp,
+                            fontSize = 8.5.sp
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(1.dp))
                         Text(
                             text = currentDateTimeStr,
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "Assigned Asset Audit • Stamped permanently in local vault",
                             style = MaterialTheme.typography.bodySmall,
+                            fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -269,15 +272,15 @@ fun InspectionFormScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(statusColors.container)
-                    .border(1.5.dp, statusColors.border, RoundedCornerShape(16.dp))
-                    .padding(16.dp)
+                    .border(1.dp, statusColors.border, RoundedCornerShape(12.dp))
+                    .padding(10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(32.dp)
                             .background(statusColors.accent, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -285,14 +288,14 @@ fun InspectionFormScreen(
                             imageVector = if (isPassed) Icons.Default.CheckCircle else Icons.Default.Warning,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
                             text = if (isPassed) "COMPLIANCE STATUS: PASSED" else "COMPLIANCE STATUS: DEFICIENT",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.ExtraBold,
                             color = statusColors.text
                         )
@@ -303,6 +306,7 @@ fun InspectionFormScreen(
                                 "Deficiencies detected. Corrective remarks required."
                             },
                             style = MaterialTheme.typography.bodySmall,
+                            fontSize = 11.sp,
                             color = statusColors.text
                         )
                     }
@@ -338,19 +342,19 @@ fun InspectionFormScreen(
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = if (isPassed) StatusPassedContainer else MaterialTheme.colorScheme.surfaceVariant
                     ),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.DoneAll,
                         contentDescription = null,
                         tint = if (isPassed) StatusPassed else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Pass All",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (isPassed) StatusPassed else MaterialTheme.colorScheme.onSurface
                     )
@@ -420,7 +424,7 @@ fun InspectionFormScreen(
             // Defect Notes & Quick Observation Chips
             val notesRequireAttention = !isPassed && uiState.notes.isBlank()
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -428,21 +432,21 @@ fun InspectionFormScreen(
                 ) {
                     Text(
                         text = if (!isPassed) "Defect Documentation (Required) *" else "Observations & Inspection Notes",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = if (notesRequireAttention) StatusDeficient else MaterialTheme.colorScheme.onSurface
                     )
                     if (!isPassed) {
                         Surface(
                             color = if (isDark) StatusDeficientContainerDark else Color(0xFFFEE2E2),
-                            shape = RoundedCornerShape(6.dp)
+                            shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
                                 text = "MANDATORY REMARKS",
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 9.sp,
+                                fontSize = 8.5.sp,
                                 color = if (isDark) StatusDeficientTextDark else StatusDeficient
                             )
                         }
@@ -453,11 +457,12 @@ fun InspectionFormScreen(
                 Text(
                     text = "Tap to Append Common Findings",
                     style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(checklist.commonDefectTags) { tag ->
@@ -468,12 +473,12 @@ fun InspectionFormScreen(
                                 val updated = if (current.isBlank()) tag else "$current; $tag"
                                 viewModel.onNotesChanged(updated)
                             },
-                            label = { Text(tag, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface) },
+                            label = { Text(tag, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurface) },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Add,
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(12.dp),
                                     tint = SafetyOrange
                                 )
                             },
@@ -492,9 +497,9 @@ fun InspectionFormScreen(
                     placeholder = { Text("e.g. Regular monthly verification completed, all indicators confirmed...") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(115.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    maxLines = 4,
+                        .height(95.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    maxLines = 3,
                     isError = notesRequireAttention,
                     supportingText = if (notesRequireAttention) {
                         { Text("Safety audit regulations require documenting defect reason.", color = StatusDeficient) }
@@ -517,7 +522,6 @@ fun InspectionFormScreen(
             Button(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    android.util.Log.e("SAFETYLOG_DEBUG", "Button onClick fired! uiState.sig=${uiState.signaturePath}")
                     var currentSig = uiState.signaturePath
                     if (currentSig.isNullOrBlank()) {
                         val bitmap = android.graphics.Bitmap.createBitmap(800, 300, android.graphics.Bitmap.Config.ARGB_8888)
@@ -545,17 +549,15 @@ fun InspectionFormScreen(
                             bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
                         }
                         currentSig = file.absolutePath
-                        android.util.Log.e("SAFETYLOG_DEBUG", "Generated fallback seal: $currentSig")
                         viewModel.onSignatureCaptured(currentSig)
                     }
-                    android.util.Log.e("SAFETYLOG_DEBUG", "Calling saveInspection with sig=$currentSig")
                     viewModel.saveInspection(forcedSignaturePath = currentSig)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .shadow(4.dp, RoundedCornerShape(14.dp)),
-                shape = RoundedCornerShape(14.dp),
+                    .height(48.dp)
+                    .shadow(3.dp, RoundedCornerShape(10.dp)),
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isPassed) StatusPassed else SafetyOrange
                 ),
@@ -564,21 +566,21 @@ fun InspectionFormScreen(
                 if (uiState.isSaving) {
                     CircularProgressIndicator(
                         color = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 } else {
-                    Icon(imageVector = Icons.Default.Save, contentDescription = null)
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Icon(imageVector = Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isPassed) "Save & Sign Inspection Log" else "Log Deficient Inspection",
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         maxLines = 1
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -624,9 +626,9 @@ private fun ChecklistVerificationCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(1.dp, RoundedCornerShape(14.dp)),
+            .shadow(1.dp, RoundedCornerShape(10.dp)),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(10.dp),
         border = BorderStroke(
             1.dp,
             if (isChecked) MaterialTheme.colorScheme.outlineVariant else if (isDark) StatusDeficientBorderDark else Color(0xFFFCA5A5)
@@ -635,16 +637,16 @@ private fun ChecklistVerificationCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(3.dp))
                         .background(badgeBg)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .padding(horizontal = 5.dp, vertical = 1.5.dp)
                 ) {
                     Text(
                         text = standardCode,
@@ -652,25 +654,26 @@ private fun ChecklistVerificationCard(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         color = badgeText,
-                        fontSize = 9.sp
+                        fontSize = 8.5.sp
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = if (isChecked) MaterialTheme.colorScheme.onSurface else if (isDark) StatusDeficientTextDark else StatusDeficientText
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             // Pass/Fail Pill Switch
             Switch(

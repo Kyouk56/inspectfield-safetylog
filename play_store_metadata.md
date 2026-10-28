@@ -9,6 +9,7 @@
 | **Developer / Publishing Name** | N/A | `Hex Engine Labs` | - |
 | **Developer Contact Email** | N/A | `hexenginelabs@gmail.com` | - |
 | **Privacy Policy URL** | N/A | `https://kyouk56.github.io/inspectfield-safetylog/` | - |
+| **Account Deletion URL** | N/A | `https://kyouk56.github.io/inspectfield-safetylog/#account-deletion` | - |
 | **Package Name / App ID** | N/A | `com.safetylog.inspection.app` | - |
 
 ---
@@ -58,3 +59,17 @@ Inspect up to 5 safety assets free every calendar month, or upgrade to SafetyLog
   - `equipment inspection report`
   - `facility safety log`
   - `safety compliance PDF`
+
+---
+
+## 4. Release Notes / What's New (v1.0.2 - Build 5)
+
+*Character count: 425 / 500 max*
+
+```text
+• Google Credential Manager SSO: Direct one-tap sign-in with verified identity and secure fallback.
+• Real-Time Network Indicator: Dynamic online/offline connectivity monitoring for field inspections.
+• Vault Profile Synchronization: Thread-safe credential storage backed by hardware-isolated AES-256 encryption.
+• Compact Responsive UI: Optimized checklist and asset management viewports for rugged field devices.
+```
+

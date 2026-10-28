@@ -21,3 +21,6 @@ keystore.properties
 *.jks
 *.keystore
 app/keystore/*.jks
+
+# Tool caches
+.embark/

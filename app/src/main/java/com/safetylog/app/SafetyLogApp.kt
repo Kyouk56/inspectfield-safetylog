@@ -23,6 +23,7 @@ class SafetyLogApp : Application() {
         )
     }
     val reminderManager by lazy { com.safetylog.app.data.reminder.InspectionReminderManager(this) }
+    val networkMonitor by lazy { com.safetylog.app.util.NetworkMonitor(this) }
 
     override fun onCreate() {
         super.onCreate()

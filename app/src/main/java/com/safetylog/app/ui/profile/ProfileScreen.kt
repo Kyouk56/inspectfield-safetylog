@@ -46,6 +46,14 @@ fun ProfileScreen(
     LaunchedEffect(uiState.isSavedSuccess) {
         if (uiState.isSavedSuccess) {
             snackbarHostState.showSnackbar("Inspector & facility credentials updated successfully.")
+            viewModel.clearSaveSuccess()
+        }
+    }
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearErrorMessage()
         }
     }
 
@@ -411,6 +419,7 @@ fun ProfileScreen(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.saveProfile()
                 },
+                enabled = !uiState.isSaving,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp)
@@ -418,9 +427,17 @@ fun ProfileScreen(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
             ) {
-                Icon(imageVector = Icons.Default.Save, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Save Credentials to Local Vault", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                if (uiState.isSaving) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Icon(imageVector = Icons.Default.Save, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save Credentials to Local Vault", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

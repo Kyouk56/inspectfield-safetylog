@@ -84,6 +84,7 @@ object CrashLogVault {
             put("encryptedTrace", encryptedTrace)
             put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
             put("androidVersion", "API ${Build.VERSION.SDK_INT}")
+            put("appVersion", "${com.safetylog.app.BuildConfig.VERSION_NAME} (${com.safetylog.app.BuildConfig.VERSION_CODE})")
         }
 
         val existingStr = prefs.getString(KEY_CRASH_LOGS_JSON, "[]") ?: "[]"
@@ -133,6 +134,7 @@ object CrashLogVault {
         sb.append("       SAFETYLOG COMPLIANCE & AUDIT VAULT DIAGNOSTICS       \n")
         sb.append("============================================================\n")
         sb.append("Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss z", Locale.US).format(Date())}\n")
+        sb.append("App Version: ${com.safetylog.app.BuildConfig.VERSION_NAME} (Build ${com.safetylog.app.BuildConfig.VERSION_CODE})\n")
         sb.append("Device: ${Build.MANUFACTURER} ${Build.MODEL} (API ${Build.VERSION.SDK_INT})\n")
         sb.append("Total Stored Incidents: ${array.length()}\n")
         sb.append("Cloud Telemetry Opt-In: ${if (isCloudTelemetryEnabled(context)) "Enabled" else "Disabled (Privacy-First Local Vault)"}\n\n")

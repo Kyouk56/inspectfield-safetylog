@@ -236,7 +236,9 @@ class DashboardViewModel(
 
     fun setSubscriptionTier(tier: SubscriptionTier, seats: Int = 5) {
         val currentRole = uiState.value.userRole
-        if (!currentRole.canManageBilling) {
+        val currentTier = uiState.value.subscriptionTier
+        // In an active Enterprise organization, only Account Admins and the Owner can alter company billing/seats
+        if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) {
             return
         }
         billingRepository.setTier(tier)
@@ -244,6 +246,7 @@ class DashboardViewModel(
             billingRepository.setEnterpriseSeats(seats)
             // The user that pays for group subscriptions becomes Account Admin (unless they are the Owner)
             if (currentRole != UserRole.OWNER) {
+                _userRoleOverride.value = UserRole.ACCOUNT_ADMIN
                 authRepository.updateUserRole(UserRole.ACCOUNT_ADMIN)
             }
         }
@@ -251,13 +254,15 @@ class DashboardViewModel(
 
     fun launchBillingFlow(activity: Activity, tier: SubscriptionTier, seats: Int = 5): Boolean {
         val currentRole = uiState.value.userRole
-        if (!currentRole.canManageBilling) {
+        val currentTier = uiState.value.subscriptionTier
+        if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) {
             return false
         }
         val launched = billingRepository.launchBillingFlow(activity, tier, seats)
         if (!launched) {
             // In dev / test fallback, update role for enterprise simulation
             if (tier == SubscriptionTier.ENTERPRISE && currentRole != UserRole.OWNER) {
+                _userRoleOverride.value = UserRole.ACCOUNT_ADMIN
                 authRepository.updateUserRole(UserRole.ACCOUNT_ADMIN)
             }
         }
@@ -265,17 +270,23 @@ class DashboardViewModel(
     }
 
     fun cancelSubscription() {
-        if (!uiState.value.userRole.canManageBilling) return
+        val currentRole = uiState.value.userRole
+        val currentTier = uiState.value.subscriptionTier
+        if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) return
         billingRepository.cancelSubscription()
     }
 
     fun markPaymentFailed() {
-        if (!uiState.value.userRole.canManageBilling) return
+        val currentRole = uiState.value.userRole
+        val currentTier = uiState.value.subscriptionTier
+        if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) return
         billingRepository.markPaymentFailed()
     }
 
     fun reactivateSubscription() {
-        if (!uiState.value.userRole.canManageBilling) return
+        val currentRole = uiState.value.userRole
+        val currentTier = uiState.value.subscriptionTier
+        if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) return
         billingRepository.reactivateSubscription()
     }
 

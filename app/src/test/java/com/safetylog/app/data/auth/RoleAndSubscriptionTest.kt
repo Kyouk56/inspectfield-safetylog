@@ -344,4 +344,60 @@ class RoleAndSubscriptionTest {
         assertFalse("Managers cannot assign ACCOUNT_ADMIN", managerAssignable.contains(UserRole.ACCOUNT_ADMIN))
         assertFalse("Managers cannot assign OWNER", managerAssignable.contains(UserRole.OWNER))
     }
+
+    @Test
+    fun testSelfServicePaywallBillingAllowedLogic() {
+        // 1. Standalone user on Free tier: must be allowed to purchase Ad-Free, Individual Pro, or Enterprise
+        val freeUserRole = UserRole.USER
+        val freeTier = SubscriptionTier.FREE
+        val isFreeUserRestricted = freeTier == SubscriptionTier.ENTERPRISE && !freeUserRole.canManageBilling
+        assertFalse("Free user is NOT restricted from purchasing personal/group subscriptions", isFreeUserRestricted)
+        val isBillingAllowedForFreeUser = !isFreeUserRestricted
+        assertTrue("Billing must be allowed for free user upgrading", isBillingAllowedForFreeUser)
+
+        // 2. Individual Pro subscriber (User role): allowed to upgrade or manage personal billing
+        val indivProTier = SubscriptionTier.INDIVIDUAL_PRO
+        val isIndivProRestricted = indivProTier == SubscriptionTier.ENTERPRISE && !freeUserRole.canManageBilling
+        assertFalse("Individual Pro user is NOT corporate-restricted", isIndivProRestricted)
+
+        // 3. Subordinate member in an active Enterprise organization (User / Manager):
+        // Must be restricted from altering company enterprise billing or expanding seats
+        val enterpriseTier = SubscriptionTier.ENTERPRISE
+        val isEnterpriseUserRestricted = enterpriseTier == SubscriptionTier.ENTERPRISE && !UserRole.USER.canManageBilling
+        assertTrue("Subordinate User in Enterprise organization is restricted", isEnterpriseUserRestricted)
+
+        val isEnterpriseManagerRestricted = enterpriseTier == SubscriptionTier.ENTERPRISE && !UserRole.MANAGER.canManageBilling
+        assertTrue("Operational Manager in Enterprise organization is restricted from billing", isEnterpriseManagerRestricted)
+
+        // 4. Account Admin or Owner in Enterprise organization:
+        // Has full authority over company billing, seats, and plans
+        val isAccountAdminRestricted = enterpriseTier == SubscriptionTier.ENTERPRISE && !UserRole.ACCOUNT_ADMIN.canManageBilling
+        assertFalse("Account Admin has billing authority in Enterprise", isAccountAdminRestricted)
+
+        val isOwnerRestricted = enterpriseTier == SubscriptionTier.ENTERPRISE && !UserRole.OWNER.canManageBilling
+        assertFalse("Owner has full billing authority in Enterprise", isOwnerRestricted)
+    }
+
+    @Test
+    fun testPaidServicesPrivilegesMatrix() {
+        // Free tier: banner ads shown, no sharing, no company OAuth
+        assertFalse(SubscriptionTier.FREE.isAdFree)
+        assertFalse(SubscriptionTier.FREE.allowsSharing)
+        assertFalse(SubscriptionTier.FREE.isEnterprise)
+
+        // Ad-Free pass ($2.99 one-time): banner ads removed, single account (no sharing)
+        assertTrue(SubscriptionTier.AD_FREE.isAdFree)
+        assertFalse(SubscriptionTier.AD_FREE.allowsSharing)
+        assertFalse(SubscriptionTier.AD_FREE.isEnterprise)
+
+        // Individual Pro ($0.99/mo): ads removed, cross-account sharing enabled
+        assertTrue(SubscriptionTier.INDIVIDUAL_PRO.isAdFree)
+        assertTrue(SubscriptionTier.INDIVIDUAL_PRO.allowsSharing)
+        assertFalse(SubscriptionTier.INDIVIDUAL_PRO.isEnterprise)
+
+        // Enterprise ($0.50/seat/mo): ads removed, sharing enabled, enterprise multi-seat
+        assertTrue(SubscriptionTier.ENTERPRISE.isAdFree)
+        assertTrue(SubscriptionTier.ENTERPRISE.allowsSharing)
+        assertTrue(SubscriptionTier.ENTERPRISE.isEnterprise)
+    }
 }

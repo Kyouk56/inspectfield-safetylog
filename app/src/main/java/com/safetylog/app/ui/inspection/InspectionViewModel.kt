@@ -226,6 +226,15 @@ class InspectionViewModel(
         }
     }
 
+    fun setSubscriptionTier(tier: com.safetylog.app.data.auth.SubscriptionTier, seats: Int = 5) {
+        billingRepository.setTier(tier)
+        if (tier == com.safetylog.app.data.auth.SubscriptionTier.ENTERPRISE) {
+            billingRepository.setEnterpriseSeats(seats)
+        }
+        _uiState.update { it.copy(showPaywall = false) }
+        saveInspection()
+    }
+
     fun upgradeToProAndSave() {
         billingRepository.setProStatus(true)
         _uiState.update { it.copy(showPaywall = false) }

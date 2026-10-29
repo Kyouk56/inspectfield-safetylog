@@ -97,8 +97,11 @@ fun PaywallBottomSheet(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
 
-            // Billing restriction alert for Managers and Users
-            if (!userRole.canManageBilling) {
+            // Billing restriction alert for subordinate team members in an active Enterprise organization
+            val isCorporateMemberRestricted = currentTier == SubscriptionTier.ENTERPRISE && !userRole.canManageBilling
+            val isBillingAllowed = !isCorporateMemberRestricted
+
+            if (isCorporateMemberRestricted) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -114,13 +117,13 @@ fun PaywallBottomSheet(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Financial Operations Restricted",
+                                text = "Corporate Billing Restricted",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "As a ${userRole.title}, you can view plan specifications, but subscription purchases, cancellations, and seat expansion require Account Admin or Owner authority.",
+                                text = "As a ${userRole.title}, your organization's Enterprise plan, seats, and billing are managed by your Account Admin or Owner.",
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 15.sp
@@ -308,7 +311,6 @@ fun PaywallBottomSheet(
             Spacer(modifier = Modifier.height(20.dp))
 
             // Confirm / Upgrade Button
-            val isBillingAllowed = userRole.canManageBilling
             Button(
                 onClick = {
                     if (isBillingAllowed) {
@@ -338,8 +340,8 @@ fun PaywallBottomSheet(
                     tint = if (isBillingAllowed) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                val btnText = if (!isBillingAllowed) {
-                    "Account Admin or Owner Required"
+                val btnText = if (isCorporateMemberRestricted) {
+                    "Managed by Account Admin or Owner"
                 } else when (selectedTier) {
                     SubscriptionTier.AD_FREE -> "Activate Ad-Free Pass • $2.99"
                     SubscriptionTier.INDIVIDUAL_PRO -> "Subscribe Individual Share • $0.99/mo"

@@ -588,6 +588,9 @@ fun InspectionFormScreen(
     if (uiState.showPaywall) {
         PaywallBottomSheet(
             onDismissRequest = viewModel::dismissPaywall,
+            onSelectTier = { tier, seats ->
+                viewModel.setSubscriptionTier(tier, seats)
+            },
             onUpgradeClicked = viewModel::upgradeToProAndSave,
             onLaunchBilling = { act, tier, seats ->
                 viewModel.launchBillingFlow(act, tier, seats)

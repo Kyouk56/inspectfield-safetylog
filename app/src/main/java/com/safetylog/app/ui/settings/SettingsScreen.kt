@@ -246,7 +246,8 @@ fun SettingsScreen(
                             lineHeight = 18.sp
                         )
 
-                        if (uiState.userRole.canManageBilling) {
+                        val isDelinquentRestricted = uiState.subscriptionTier == SubscriptionTier.ENTERPRISE && !uiState.userRole.canManageBilling
+                        if (!isDelinquentRestricted) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1445,7 +1446,8 @@ fun SettingsScreen(
                                     }
                                     TextButton(
                                         onClick = {
-                                            if (uiState.userRole.canManageBilling) {
+                                            val isCorporateRestricted = uiState.subscriptionTier == SubscriptionTier.ENTERPRISE && !uiState.userRole.canManageBilling
+                                            if (!isCorporateRestricted) {
                                                 showPaywall = true
                                             } else {
                                                 Toast.makeText(context, "Adding seats is restricted to Account Admins and the Owner.", Toast.LENGTH_SHORT).show()
@@ -1625,7 +1627,8 @@ fun SettingsScreen(
                                 onClick = {
                                     if (!uiState.userRole.canManageTeam) return@Button
                                     if (isSeatsFull) {
-                                        if (uiState.userRole.canManageBilling) {
+                                        val isCorporateRestricted = uiState.subscriptionTier == SubscriptionTier.ENTERPRISE && !uiState.userRole.canManageBilling
+                                        if (!isCorporateRestricted) {
                                             Toast.makeText(context, "All $totalSeats company seats are in use. Add seats to invite more members.", Toast.LENGTH_LONG).show()
                                             showPaywall = true
                                         } else {
@@ -2379,8 +2382,9 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Self-Service Lifecycle Actions (Strictly gated to Owner & Account Admin)
-                    if (!uiState.userRole.canManageBilling) {
+                    // Self-Service Lifecycle Actions (Corporate lockdown applies only if Enterprise plan is active)
+                    val isCorporateMemberRestricted = uiState.subscriptionTier == SubscriptionTier.ENTERPRISE && !uiState.userRole.canManageBilling
+                    if (isCorporateMemberRestricted) {
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -2401,13 +2405,13 @@ fun SettingsScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "Billing & Financial Lockdown",
+                                        text = "Corporate Billing Restricted",
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "As a ${uiState.userRole.title}, you cannot modify subscriptions, seats, or payments. Contact an Account Admin or Owner.",
+                                        text = "As a ${uiState.userRole.title}, your organization's Enterprise subscription and seat expansion are managed by your Account Admin or Owner.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontSize = 11.sp

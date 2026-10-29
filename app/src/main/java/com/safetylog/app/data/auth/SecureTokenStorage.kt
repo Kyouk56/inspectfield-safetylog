@@ -99,6 +99,15 @@ class SecureTokenStorage(private val context: Context) {
         securePrefs.edit().putBoolean(PREF_FORCE_SANDBOX_AUTH, forced).apply()
     }
 
+    fun getActiveRole(): UserRole {
+        val roleStr = securePrefs.getString(PREF_ROLE, UserRole.OWNER.name)
+        return UserRole.fromLegacy(roleStr)
+    }
+
+    fun setActiveRole(role: UserRole) {
+        securePrefs.edit().putString(PREF_ROLE, role.name).apply()
+    }
+
     private var activeMasterKeyAlias: String = KEY_ALIAS
 
     val masterKeyAlias: String

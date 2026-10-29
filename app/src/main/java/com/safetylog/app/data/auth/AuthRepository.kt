@@ -29,6 +29,9 @@ class AuthRepository(
     private val _currentUser = MutableStateFlow<AuthUser?>(null)
     val currentUser: StateFlow<AuthUser?> = _currentUser.asStateFlow()
 
+    private val _assignedRole = MutableStateFlow(secureStorage.getActiveRole())
+    val assignedRole: StateFlow<UserRole> = _assignedRole.asStateFlow()
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -335,15 +338,14 @@ class AuthRepository(
     }
 
     fun updateUserRole(newRole: UserRole) {
+        secureStorage.setActiveRole(newRole)
+        _assignedRole.value = newRole
         val current = _currentUser.value
-        val updated = current?.copy(role = newRole) ?: createSandboxUser(
-            displayName = "Safety Inspector",
-            email = "inspector@safetylog.app",
-            provider = AuthProvider.GOOGLE,
-            role = newRole
-        )
-        secureStorage.saveUser(updated)
-        _currentUser.value = updated
+        if (current != null) {
+            val updated = current.copy(role = newRole)
+            secureStorage.saveUser(updated)
+            _currentUser.value = updated
+        }
     }
 
     private fun createSandboxUser(

@@ -114,7 +114,8 @@ class DashboardViewModel(
         authRepository.currentUser,
         _isAdminTestViewActive,
         billingRepository.teamMembers,
-        networkMonitor?.isOnline ?: MutableStateFlow(true)
+        networkMonitor?.isOnline ?: MutableStateFlow(true),
+        authRepository.assignedRole
     ) { args: Array<Any?> ->
         @Suppress("UNCHECKED_CAST")
         val summaries = args[0] as List<EquipmentWithLatestInspection>
@@ -131,8 +132,13 @@ class DashboardViewModel(
         @Suppress("UNCHECKED_CAST")
         val members = args[11] as? List<TeamMember> ?: emptyList()
         val online = args[12] as? Boolean ?: true
+        val assigned = args[13] as? UserRole ?: UserRole.OWNER
 
-        val role = authUser?.role ?: UserRole.OWNER
+        // Match authenticated user against active team members in roster, or fall back to user's assigned role
+        val matchingMember = authUser?.email?.trim()?.let { userEmail ->
+            members.find { it.email.equals(userEmail, ignoreCase = true) && it.isActive }
+        }
+        val role = matchingMember?.role ?: authUser?.role ?: assigned
 
         DashboardUiState(
             equipmentList = summaries,

@@ -62,14 +62,14 @@ Inspect up to 5 safety assets free every calendar month, or upgrade to SafetyLog
 
 ---
 
-## 4. Release Notes / What's New (v1.0.2 - Build 5)
+## 4. Release Notes / What's New (v1.0.3 - Build 6)
 
-*Character count: 425 / 500 max*
+*Character count: 432 / 500 max*
 
 ```text
+• Interactive Role & Entitlements: Tap the role badge in the top bar to inspect permissions and switch roles.
 • Google Credential Manager SSO: Direct one-tap sign-in with verified identity and secure fallback.
 • Real-Time Network Indicator: Dynamic online/offline connectivity monitoring for field inspections.
-• Vault Profile Synchronization: Thread-safe credential storage backed by hardware-isolated AES-256 encryption.
-• Compact Responsive UI: Optimized checklist and asset management viewports for rugged field devices.
+• Vault Profile Synchronization: Hardware-isolated AES-256 encrypted credential storage and team matching.
 ```
 

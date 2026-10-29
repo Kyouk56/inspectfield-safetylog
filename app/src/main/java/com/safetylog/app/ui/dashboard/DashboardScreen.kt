@@ -80,6 +80,8 @@ fun DashboardScreen(
     val logDateFormat = remember { SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US) }
     val listState = rememberLazyListState()
     var showAccountMenu by remember { mutableStateOf(false) }
+    var showRoleDialog by remember { mutableStateOf(false) }
+    var showNetworkInfoDialog by remember { mutableStateOf(false) }
     val isScrolledPastHero by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 2 ||
@@ -133,7 +135,13 @@ fun DashboardScreen(
                                     } else {
                                         if (isDarkTheme) Color(0xFF451A03) else Color(0xFFFEF3C7)
                                     },
-                                    border = BorderStroke(0.5.dp, if (uiState.isOnline) StatusPassed else SafetyOrange)
+                                    border = BorderStroke(0.5.dp, if (uiState.isOnline) StatusPassed else SafetyOrange),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            showNetworkInfoDialog = true
+                                        }
                                 ) {
                                     Text(
                                         text = if (uiState.isOnline) "ONLINE" else "OFFLINE",
@@ -152,24 +160,41 @@ fun DashboardScreen(
                                 }
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
-                                    color = Color(uiState.userRole.badgeColorHex)
+                                    color = Color(uiState.userRole.badgeColorHex),
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            showRoleDialog = true
+                                        }
                                 ) {
-                                    val badgeLabel = when (uiState.userRole) {
-                                        UserRole.OWNER -> "OWNER"
-                                        UserRole.ACCOUNT_ADMIN -> "ADMIN"
-                                        UserRole.MANAGER -> "MANAGER"
-                                        UserRole.USER -> "USER"
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                    ) {
+                                        val badgeLabel = when (uiState.userRole) {
+                                            UserRole.OWNER -> "OWNER"
+                                            UserRole.ACCOUNT_ADMIN -> "ADMIN"
+                                            UserRole.MANAGER -> "MANAGER"
+                                            UserRole.USER -> "USER"
+                                        }
+                                        Text(
+                                            text = badgeLabel,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White,
+                                            letterSpacing = 0.5.sp,
+                                            maxLines = 1,
+                                            softWrap = false
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "Change Role",
+                                            tint = Color.White.copy(alpha = 0.85f),
+                                            modifier = Modifier.size(10.dp)
+                                        )
                                     }
-                                    Text(
-                                        text = badgeLabel,
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White,
-                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                                        letterSpacing = 0.5.sp,
-                                        maxLines = 1,
-                                        softWrap = false
-                                    )
                                 }
                             }
                             Text(
@@ -750,6 +775,227 @@ fun DashboardScreen(
                 showPaywall = false
             }
         )
+    }
+
+    // Network Status Dialog
+    if (showNetworkInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showNetworkInfoDialog = false },
+            icon = {
+                Icon(
+                    imageVector = if (uiState.isOnline) Icons.Default.Wifi else Icons.Default.WifiOff,
+                    contentDescription = null,
+                    tint = if (uiState.isOnline) StatusPassed else SafetyOrange
+                )
+            },
+            title = {
+                Text(
+                    text = if (uiState.isOnline) "Vault Status: Live Online" else "Vault Status: Air-Gapped Offline",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Text(
+                    text = if (uiState.isOnline)
+                        "Device is securely connected to the internet. Real-time REST endpoints, webhooks, and Google Cloud Identity verification are operational."
+                    else
+                        "Device is running in disconnected air-gapped mode. All inspection audits and hardware AES-256 vault writes remain strictly local.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showNetworkInfoDialog = false }) {
+                    Text("Dismiss", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // Interactive Role & Entitlements Switcher Dialog
+    if (showRoleDialog) {
+        AlertDialog(
+            onDismissRequest = { showRoleDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Security,
+                    contentDescription = null,
+                    tint = Color(uiState.userRole.badgeColorHex),
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Active Role: ${uiState.userRole.title}",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = uiState.authUser?.email?.let { "Linked: $it" } ?: "Local Standalone Session",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Role Description
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(uiState.userRole.badgeColorHex).copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, Color(uiState.userRole.badgeColorHex).copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            text = uiState.userRole.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(10.dp),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    // Entitlements breakdown
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Role Entitlements & Permissions:",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        RolePermissionCheckItem(
+                            title = "Equipment Management",
+                            isGranted = uiState.userRole.canManageAssets,
+                            description = if (uiState.userRole.canManageAssets) "Add, edit, and organize equipment" else "Inspection viewing only"
+                        )
+                        RolePermissionCheckItem(
+                            title = "Billing & Subscription Management",
+                            isGranted = uiState.userRole.canManageBilling,
+                            description = if (uiState.userRole.canManageBilling) "Manage tier, seats, and billing" else "Restricted to Account Admin/Owner"
+                        )
+                        RolePermissionCheckItem(
+                            title = "Team Roster & Administration",
+                            isGranted = uiState.userRole.canManageTeam,
+                            description = if (uiState.userRole.canManageTeam) "Invite and manage team members" else "Restricted"
+                        )
+                        RolePermissionCheckItem(
+                            title = "Integration & Security Settings",
+                            isGranted = uiState.userRole.canManageSettings,
+                            description = if (uiState.userRole.canManageSettings) "Configure OAuth, sync & webhooks" else "Restricted"
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    // Switch Role Selector
+                    Text(
+                        text = "Switch Active Role (Testing & Simulation):",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        UserRole.entries.forEach { role ->
+                            val isSelected = uiState.userRole == role
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) Color(role.badgeColorHex).copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                border = BorderStroke(
+                                    if (isSelected) 1.5.dp else 1.dp,
+                                    if (isSelected) Color(role.badgeColorHex) else MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.switchTestRole(role)
+                                        Toast.makeText(context, "Switched role to ${role.title}", Toast.LENGTH_SHORT).show()
+                                        showRoleDialog = false
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color(role.badgeColorHex)
+                                        ) {
+                                            Text(
+                                                text = when (role) {
+                                                    UserRole.OWNER -> "OWNER"
+                                                    UserRole.ACCOUNT_ADMIN -> "ADMIN"
+                                                    UserRole.MANAGER -> "MANAGER"
+                                                    UserRole.USER -> "USER"
+                                                },
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = Color.White,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = role.title,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    }
+
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Active",
+                                            tint = Color(role.badgeColorHex),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRoleDialog = false }) {
+                    Text("Close", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun RolePermissionCheckItem(title: String, isGranted: Boolean, description: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Icon(
+            imageVector = if (isGranted) Icons.Default.CheckCircle else Icons.Default.Cancel,
+            contentDescription = null,
+            tint = if (isGranted) StatusPassed else MaterialTheme.colorScheme.outline,
+            modifier = Modifier.size(14.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isGranted) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

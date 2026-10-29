@@ -245,15 +245,39 @@ class AuthFlowAndCredentialTest {
 
     @Test
     fun testBuildConfigReleaseVersion() {
-        assertEquals("1.0.2", com.safetylog.app.BuildConfig.VERSION_NAME)
-        assertEquals(5, com.safetylog.app.BuildConfig.VERSION_CODE)
+        assertEquals("1.0.3", com.safetylog.app.BuildConfig.VERSION_NAME)
+        assertEquals(6, com.safetylog.app.BuildConfig.VERSION_CODE)
         assertEquals("com.safetylog.inspection.app", com.safetylog.app.BuildConfig.APPLICATION_ID)
     }
 
     @Test
     fun testCrashLogVaultVersionHeaderFormat() {
         val expectedHeaderLine = "App Version: ${com.safetylog.app.BuildConfig.VERSION_NAME} (Build ${com.safetylog.app.BuildConfig.VERSION_CODE})"
-        assertEquals("App Version: 1.0.2 (Build 5)", expectedHeaderLine)
+        assertEquals("App Version: 1.0.3 (Build 6)", expectedHeaderLine)
+    }
+
+    @Test
+    fun testUserRolePermissionsHierarchy() {
+        // Owner has full permissions
+        assertTrue(UserRole.OWNER.canManageAssets)
+        assertTrue(UserRole.OWNER.canManageBilling)
+        assertTrue(UserRole.OWNER.canManageTeam)
+        assertTrue(UserRole.OWNER.canManageSettings)
+
+        // Account Admin has asset, billing, settings
+        assertTrue(UserRole.ACCOUNT_ADMIN.canManageAssets)
+        assertTrue(UserRole.ACCOUNT_ADMIN.canManageBilling)
+        assertTrue(UserRole.ACCOUNT_ADMIN.canManageSettings)
+
+        // Manager has asset management
+        assertTrue(UserRole.MANAGER.canManageAssets)
+        assertFalse(UserRole.MANAGER.canManageBilling)
+
+        // Standard user has read/inspection-only
+        assertFalse(UserRole.USER.canManageAssets)
+        assertFalse(UserRole.USER.canManageBilling)
+        assertFalse(UserRole.USER.canManageTeam)
+        assertFalse(UserRole.USER.canManageSettings)
     }
 }
 

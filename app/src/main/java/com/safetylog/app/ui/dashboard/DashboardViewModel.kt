@@ -100,6 +100,7 @@ class DashboardViewModel(
     private val _searchQuery = MutableStateFlow("")
     private val _activeFilter = MutableStateFlow(FilterStatus.ALL)
     private val _isAdminTestViewActive = MutableStateFlow(false)
+    private val _userRoleOverride = MutableStateFlow<UserRole?>(null)
 
     val uiState: StateFlow<DashboardUiState> = combine(
         equipmentDao.getEquipmentSummaries(),
@@ -115,7 +116,8 @@ class DashboardViewModel(
         _isAdminTestViewActive,
         billingRepository.teamMembers,
         networkMonitor?.isOnline ?: MutableStateFlow(true),
-        authRepository.assignedRole
+        authRepository.assignedRole,
+        _userRoleOverride
     ) { args: Array<Any?> ->
         @Suppress("UNCHECKED_CAST")
         val summaries = args[0] as List<EquipmentWithLatestInspection>
@@ -133,17 +135,23 @@ class DashboardViewModel(
         val members = args[11] as? List<TeamMember> ?: emptyList()
         val online = args[12] as? Boolean ?: true
         val assigned = args[13] as? UserRole ?: UserRole.USER
+        val roleOverride = args[14] as? UserRole
 
-        // Match authenticated user against active team members in roster, or fall back to user's assigned role
+        // 1. Determine baseline natural role
         val matchingMember = authUser?.email?.trim()?.let { userEmail ->
             members.find { it.email.equals(userEmail, ignoreCase = true) && it.isActive }
         }
-        val rawRole = when {
+        val naturalRole = when {
             com.safetylog.app.data.auth.AuthorizationConfig.isAuthorizedOwner(authUser?.email) -> UserRole.OWNER
             matchingMember != null -> matchingMember.role
             authUser?.role != null -> authUser.role
             else -> assigned
         }
+
+        // 2. Explicit simulated or selected role override in session
+        val rawRole = roleOverride ?: naturalRole
+
+        // 3. Strict owner security invariant
         val role = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(rawRole, authUser?.email)
 
         DashboardUiState(
@@ -183,6 +191,7 @@ class DashboardViewModel(
     }
 
     fun signOut() {
+        _userRoleOverride.value = null
         viewModelScope.launch {
             authRepository.signOut()
         }
@@ -215,9 +224,14 @@ class DashboardViewModel(
     }
 
     fun switchTestRole(role: UserRole) {
-        val currentEmail = _uiState.value.authUser?.email
+        val currentEmail = authRepository.currentUser.value?.email ?: uiState.value.authUser?.email
         val sanitized = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(role, currentEmail)
+        _userRoleOverride.value = sanitized
         authRepository.updateUserRole(sanitized)
+    }
+
+    fun resetRoleToDefault() {
+        _userRoleOverride.value = null
     }
 
     fun setSubscriptionTier(tier: SubscriptionTier, seats: Int = 5) {

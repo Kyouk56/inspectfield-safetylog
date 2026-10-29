@@ -62,14 +62,14 @@ Inspect up to 5 safety assets free every calendar month, or upgrade to SafetyLog
 
 ---
 
-## 4. Release Notes / What's New (v1.0.4 - Build 7)
+## 4. Release Notes / What's New (v1.0.5 - Build 8)
 
-*Character count: 420 / 500 max*
+*Character count: 445 / 500 max*
 
 ```text
-• Hardened Role Security: Platform Owner authority restricted to authorized accounts with multi-role access control.
-• Interactive Indicators: Responsive status chips and interactive session badges across all app screens.
-• Google Credential Manager SSO: Direct one-tap sign-in with verified identity and fallback flow.
-• Hardware Keystore Vault: AES-256-GCM encrypted local storage and team sync matching.
+• Dynamic Role Governance: Seamless switching across Owner, Account Admin, Manager, and Field User with real-time UI permission gating.
+• Sovereign Ownership Invariant: Owner authority locked strictly to authorized master accounts; full simulation access for testing.
+• Interactive Indicators: Responsive role, network, and security diagnostic chips across all screens.
+• AES-256-GCM Hardware Vault: Hardware-backed session tokens and team roster synchronization.
 ```
 

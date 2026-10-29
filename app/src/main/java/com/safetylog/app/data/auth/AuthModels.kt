@@ -153,7 +153,7 @@ data class AuthUser(
     val displayName: String,
     val photoUrl: String? = null,
     val provider: AuthProvider = AuthProvider.GOOGLE,
-    val role: UserRole = UserRole.OWNER,
+    val role: UserRole = UserRole.USER,
     val idToken: String? = null,
     val accessToken: String? = null,
     val tokenExpiryEpochMs: Long = 0L,

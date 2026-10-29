@@ -32,7 +32,7 @@ fun PaywallBottomSheet(
     onDismissRequest: () -> Unit,
     currentTier: SubscriptionTier = SubscriptionTier.FREE,
     paymentStatus: PaymentStatus = PaymentStatus.ACTIVE,
-    userRole: UserRole = UserRole.OWNER,
+    userRole: UserRole = UserRole.USER,
     initialEnterpriseSeats: Int = 5,
     onSelectTier: (SubscriptionTier, Int) -> Unit = { _, _ -> },
     onCancelSubscription: () -> Unit = {},

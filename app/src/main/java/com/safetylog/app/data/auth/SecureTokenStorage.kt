@@ -100,12 +100,16 @@ class SecureTokenStorage(private val context: Context) {
     }
 
     fun getActiveRole(): UserRole {
-        val roleStr = securePrefs.getString(PREF_ROLE, UserRole.OWNER.name)
-        return UserRole.fromLegacy(roleStr)
+        val roleStr = securePrefs.getString(PREF_ROLE, UserRole.USER.name)
+        val rawRole = UserRole.fromLegacy(roleStr)
+        val savedEmail = securePrefs.getString(PREF_EMAIL, null)
+        return AuthorizationConfig.sanitizeRole(rawRole, savedEmail)
     }
 
     fun setActiveRole(role: UserRole) {
-        securePrefs.edit().putString(PREF_ROLE, role.name).apply()
+        val savedEmail = securePrefs.getString(PREF_EMAIL, null)
+        val sanitized = AuthorizationConfig.sanitizeRole(role, savedEmail)
+        securePrefs.edit().putString(PREF_ROLE, sanitized.name).apply()
     }
 
     private var activeMasterKeyAlias: String = KEY_ALIAS
@@ -317,6 +321,7 @@ class SecureTokenStorage(private val context: Context) {
         val tokenToHash = user.idToken ?: user.accessToken ?: user.userId
         val sha256 = computeSha256(tokenToHash)
 
+        val sanitizedRole = AuthorizationConfig.sanitizeRole(user.role, user.email)
         securePrefs.edit()
             .putString(PREF_USER_ID, user.userId)
             .putString(PREF_EMAIL, user.email)
@@ -329,7 +334,7 @@ class SecureTokenStorage(private val context: Context) {
             .putLong(PREF_EXPIRY, user.tokenExpiryEpochMs)
             .putLong(PREF_LAST_LOGIN, user.lastLoginEpochMs)
             .putBoolean(PREF_HARDWARE_BACKED, user.isHardwareEncrypted)
-            .putString(PREF_ROLE, user.role.name)
+            .putString(PREF_ROLE, sanitizedRole.name)
             .apply()
     }
 
@@ -347,8 +352,9 @@ class SecureTokenStorage(private val context: Context) {
         } catch (_: Exception) {
             AuthProvider.GOOGLE
         }
-        val roleStr = securePrefs.getString(PREF_ROLE, UserRole.OWNER.name)
-        val role = UserRole.fromLegacy(roleStr)
+        val roleStr = securePrefs.getString(PREF_ROLE, UserRole.USER.name)
+        val rawRole = UserRole.fromLegacy(roleStr)
+        val role = AuthorizationConfig.sanitizeRole(rawRole, email)
         val idToken = securePrefs.getString(PREF_ID_TOKEN, null)
         val accessToken = securePrefs.getString(PREF_ACCESS_TOKEN, null)
         val storedHash = securePrefs.getString(PREF_TOKEN_HASH, null)

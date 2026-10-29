@@ -194,13 +194,18 @@ class AuthRepository(
                 ).joinToString(" ").trim().takeIf { it.isNotBlank() }
                 val resolvedDisplayName = rawDisplayName ?: combinedNames ?: resolvedName
                 val userEmail = googleIdTokenCredential.id.trim().takeIf { it.isNotBlank() } ?: resolvedEmail
+                val assignedRole = if (AuthorizationConfig.isAuthorizedOwner(userEmail)) {
+                    UserRole.OWNER
+                } else {
+                    AuthorizationConfig.sanitizeRole(_currentUser.value?.role ?: secureStorage.getActiveRole(), userEmail)
+                }
                 val user = AuthUser(
                     userId = googleIdTokenCredential.id.trim().ifBlank { userEmail },
                     email = userEmail,
                     displayName = resolvedDisplayName,
                     photoUrl = googleIdTokenCredential.profilePictureUri?.toString(),
                     provider = AuthProvider.GOOGLE,
-                    role = _currentUser.value?.role ?: UserRole.OWNER,
+                    role = assignedRole,
                     idToken = googleIdTokenCredential.idToken,
                     accessToken = "oauth2_bearer_${UUID.randomUUID()}",
                     tokenExpiryEpochMs = System.currentTimeMillis() + (30L * 24 * 3600 * 1000), // 30-day session
@@ -338,11 +343,13 @@ class AuthRepository(
     }
 
     fun updateUserRole(newRole: UserRole) {
-        secureStorage.setActiveRole(newRole)
-        _assignedRole.value = newRole
+        val currentEmail = _currentUser.value?.email ?: secureStorage.loadUser()?.email
+        val sanitizedRole = AuthorizationConfig.sanitizeRole(newRole, currentEmail)
+        secureStorage.setActiveRole(sanitizedRole)
+        _assignedRole.value = sanitizedRole
         val current = _currentUser.value
         if (current != null) {
-            val updated = current.copy(role = newRole)
+            val updated = current.copy(role = sanitizedRole)
             secureStorage.saveUser(updated)
             _currentUser.value = updated
         }
@@ -352,8 +359,13 @@ class AuthRepository(
         displayName: String,
         email: String,
         provider: AuthProvider,
-        role: UserRole = UserRole.OWNER
+        role: UserRole = UserRole.USER
     ): AuthUser {
+        val resolvedRole = if (AuthorizationConfig.isAuthorizedOwner(email)) {
+            UserRole.OWNER
+        } else {
+            AuthorizationConfig.sanitizeRole(role, email)
+        }
         val uuid = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
         val thirtyDays = 30L * 24 * 3600 * 1000
@@ -363,7 +375,7 @@ class AuthRepository(
             displayName = displayName,
             photoUrl = null,
             provider = provider,
-            role = role,
+            role = resolvedRole,
             idToken = "jwt_id_token_${UUID.randomUUID()}.${secureStorage.computeSha256(email)}",
             accessToken = "bearer_acc_${UUID.randomUUID()}",
             tokenExpiryEpochMs = now + thirtyDays,

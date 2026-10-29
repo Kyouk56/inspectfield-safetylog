@@ -12,10 +12,14 @@ numbers, what you've found, and where to begin. Decide whether the task
 belongs in this conversation's Air worktree: leave the envelope as-is to have
 the task inherit it (same feature/branch), or add `worktree="separate"` to the
 opening tag when the work is unrelated to what this worktree is for, so the
-task starts outside it and picks its own. To run the task on a different model
-than the default, add `model="<model>"` to the opening tag with one of the
+task starts outside it and picks its own. Choose the task's model by adding
+`model="<model>"` to the opening tag with one of the
 models your air capabilities list for this agent; if the user named a model
-for the task, use it. When you need the task's results back, add
+for the task, use it. Without the attribute the task runs on the agent's
+default, often this chat's own model, so always set it, picking by cost: a
+cheaper model for mechanical or well-scoped work, a mid-tier model for
+ordinary work, and the most expensive / most capable model ONLY for highly
+complex work (hard design, subtle cross-cutting bugs). When you need the task's results back, add
 `result-schema="…"` to the opening tag saying what you need and in what shape
 (a sentence or two, no double quotes); the task then reports to you with a
 `send_message_to_agent` tool, and its results arrive as an

@@ -626,17 +626,42 @@ fun SettingsScreen(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    val isOwnerAuthorized = com.safetylog.app.data.auth.AuthorizationConfig.isAuthorizedOwner(uiState.authUser?.email)
+
                                     UserRole.entries.forEach { role ->
                                         val isSelected = uiState.userRole == role
+                                        val isRestrictedOwner = role == UserRole.OWNER && !isOwnerAuthorized
+
                                         FilterChip(
                                             selected = isSelected,
-                                            onClick = { dashboardViewModel.switchTestRole(role) },
+                                            onClick = {
+                                                if (isRestrictedOwner) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Restricted: Owner authority is reserved exclusively for j.desrosiers88@gmail.com and hexenginelabs@gmail.com",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                } else {
+                                                    dashboardViewModel.switchTestRole(role)
+                                                }
+                                            },
                                             label = {
-                                                Text(
-                                                    text = role.title,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                )
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = role.title,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                    if (isRestrictedOwner) {
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Icon(
+                                                            imageVector = Icons.Default.Lock,
+                                                            contentDescription = "Restricted",
+                                                            modifier = Modifier.size(11.dp),
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                    }
+                                                }
                                             },
                                             colors = FilterChipDefaults.filterChipColors(
                                                 selectedContainerColor = Color(role.badgeColorHex),

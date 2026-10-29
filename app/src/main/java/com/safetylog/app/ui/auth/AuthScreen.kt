@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -87,7 +88,17 @@ fun AuthScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
                                 color = if (uiState.isAuthenticated) StatusPassedLight.copy(alpha = 0.2f) else SafetyOrangeLight.copy(alpha = 0.2f),
-                                shape = RoundedCornerShape(6.dp)
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        val statusText = if (uiState.isAuthenticated) {
+                                            "Identity Vault is verified with ${uiState.currentUser?.provider?.displayName ?: "OAuth"} (${uiState.currentUser?.email})"
+                                        } else {
+                                            "Identity Vault is unlinked. Sign in below with Google or Corporate SSO to verify."
+                                        }
+                                        android.widget.Toast.makeText(context, statusText, android.widget.Toast.LENGTH_SHORT).show()
+                                    }
                             ) {
                                 Text(
                                     text = if (uiState.isAuthenticated) "VERIFIED" else "UNLINKED",
@@ -772,7 +783,7 @@ fun AuthScreen(
     if (showPaywall) {
         PaywallBottomSheet(
             onDismissRequest = { showPaywall = false },
-            userRole = uiState.currentUser?.role ?: UserRole.OWNER,
+            userRole = uiState.currentUser?.role ?: UserRole.USER,
             currentTier = uiState.subscriptionTier,
             paymentStatus = uiState.paymentStatus,
             onSelectTier = { tier, seats ->

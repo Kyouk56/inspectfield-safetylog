@@ -245,15 +245,48 @@ class AuthFlowAndCredentialTest {
 
     @Test
     fun testBuildConfigReleaseVersion() {
-        assertEquals("1.0.3", com.safetylog.app.BuildConfig.VERSION_NAME)
-        assertEquals(6, com.safetylog.app.BuildConfig.VERSION_CODE)
+        assertEquals("1.0.4", com.safetylog.app.BuildConfig.VERSION_NAME)
+        assertEquals(7, com.safetylog.app.BuildConfig.VERSION_CODE)
         assertEquals("com.safetylog.inspection.app", com.safetylog.app.BuildConfig.APPLICATION_ID)
     }
 
     @Test
     fun testCrashLogVaultVersionHeaderFormat() {
         val expectedHeaderLine = "App Version: ${com.safetylog.app.BuildConfig.VERSION_NAME} (Build ${com.safetylog.app.BuildConfig.VERSION_CODE})"
-        assertEquals("App Version: 1.0.3 (Build 6)", expectedHeaderLine)
+        assertEquals("App Version: 1.0.4 (Build 7)", expectedHeaderLine)
+    }
+
+    @Test
+    fun testOwnerEmailAuthorizationRules() {
+        // Only j.desrosiers88@gmail.com and hexenginelabs@gmail.com can be OWNER
+        assertTrue(AuthorizationConfig.isAuthorizedOwner("j.desrosiers88@gmail.com"))
+        assertTrue(AuthorizationConfig.isAuthorizedOwner("hexenginelabs@gmail.com"))
+        assertTrue(AuthorizationConfig.isAuthorizedOwner("J.DESROSIERS88@GMAIL.COM"))
+        assertTrue(AuthorizationConfig.isAuthorizedOwner("  hexenginelabs@gmail.com  "))
+
+        // Unauthorized emails
+        assertFalse(AuthorizationConfig.isAuthorizedOwner("unauthorized@safetylog.internal"))
+        assertFalse(AuthorizationConfig.isAuthorizedOwner("inspector.davis@safetylog.internal"))
+        assertFalse(AuthorizationConfig.isAuthorizedOwner("random.user@gmail.com"))
+        assertFalse(AuthorizationConfig.isAuthorizedOwner(""))
+        assertFalse(AuthorizationConfig.isAuthorizedOwner(null))
+
+        // Sanitization tests
+        assertEquals(UserRole.OWNER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, "j.desrosiers88@gmail.com"))
+        assertEquals(UserRole.OWNER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, "hexenginelabs@gmail.com"))
+        assertEquals(UserRole.USER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, "other@gmail.com"))
+        assertEquals(UserRole.USER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, null))
+
+        // Non-owner roles remain unconstrained
+        assertEquals(UserRole.ACCOUNT_ADMIN, AuthorizationConfig.sanitizeRole(UserRole.ACCOUNT_ADMIN, "admin@safetylog.internal"))
+        assertEquals(UserRole.MANAGER, AuthorizationConfig.sanitizeRole(UserRole.MANAGER, "manager@safetylog.internal"))
+        assertEquals(UserRole.USER, AuthorizationConfig.sanitizeRole(UserRole.USER, "technician@safetylog.internal"))
+    }
+
+    @Test
+    fun testDashboardUiStateDefaultRoleIsUser() {
+        val defaultState = DashboardUiState()
+        assertEquals(UserRole.USER, defaultState.userRole)
     }
 
     @Test

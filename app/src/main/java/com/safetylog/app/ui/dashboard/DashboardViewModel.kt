@@ -215,7 +215,7 @@ class DashboardViewModel(
     }
 
     fun switchTestRole(role: UserRole) {
-        val currentEmail = uiState.value.authUser?.email
+        val currentEmail = _uiState.value.authUser?.email
         val sanitized = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(role, currentEmail)
         authRepository.updateUserRole(sanitized)
     }

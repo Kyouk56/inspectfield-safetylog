@@ -274,4 +274,74 @@ class RoleAndSubscriptionTest {
         assertFalse(UserRole.MANAGER.canChangeAdminPermissions)
         assertFalse(UserRole.USER.canChangeAdminPermissions)
     }
+
+    @Test
+    fun testAuthUserDefaultRoleIsUserNotOwner() {
+        val user = AuthUser(
+            userId = "test_user_123",
+            email = "worker@company.com",
+            displayName = "Field Worker"
+        )
+        assertEquals("Default role for AuthUser must be USER, never OWNER", UserRole.USER, user.role)
+    }
+
+    @Test
+    fun testAuthorizedOwnerRoleSwitchingSimulation() {
+        val ownerEmail = "j.desrosiers88@gmail.com"
+        val coOwnerEmail = "hexenginelabs@gmail.com"
+
+        // Authorized owners can simulate and assume any of the 4 roles
+        for (email in listOf(ownerEmail, coOwnerEmail)) {
+            assertEquals(UserRole.OWNER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, email))
+            assertEquals(UserRole.ACCOUNT_ADMIN, AuthorizationConfig.sanitizeRole(UserRole.ACCOUNT_ADMIN, email))
+            assertEquals(UserRole.MANAGER, AuthorizationConfig.sanitizeRole(UserRole.MANAGER, email))
+            assertEquals(UserRole.USER, AuthorizationConfig.sanitizeRole(UserRole.USER, email))
+        }
+    }
+
+    @Test
+    fun testNonOwnerRoleSwitchingRejectsOwner() {
+        val unauthorizedEmail = "hacker@example.com"
+        val techEmail = "technician@safetylog.internal"
+
+        for (email in listOf(unauthorizedEmail, techEmail, null, "")) {
+            // Attempting to assume OWNER MUST be rejected and sanitized to USER
+            assertEquals(UserRole.USER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, email))
+
+            // Non-owner can switch between ACCOUNT_ADMIN, MANAGER, and USER for testing/delegation
+            assertEquals(UserRole.ACCOUNT_ADMIN, AuthorizationConfig.sanitizeRole(UserRole.ACCOUNT_ADMIN, email))
+            assertEquals(UserRole.MANAGER, AuthorizationConfig.sanitizeRole(UserRole.MANAGER, email))
+            assertEquals(UserRole.USER, AuthorizationConfig.sanitizeRole(UserRole.USER, email))
+        }
+    }
+
+    @Test
+    fun testTeamRosterAssignableRolesByCallerRole() {
+        // Owner and Account Admin can delegate ACCOUNT_ADMIN, MANAGER, and USER
+        val adminAssignable = if (UserRole.OWNER.canChangeAdminPermissions) {
+            listOf(UserRole.ACCOUNT_ADMIN, UserRole.MANAGER, UserRole.USER)
+        } else {
+            listOf(UserRole.MANAGER, UserRole.USER)
+        }
+        assertEquals(listOf(UserRole.ACCOUNT_ADMIN, UserRole.MANAGER, UserRole.USER), adminAssignable)
+        assertFalse("OWNER can NEVER be assigned to a team roster member", adminAssignable.contains(UserRole.OWNER))
+
+        val accountAdminAssignable = if (UserRole.ACCOUNT_ADMIN.canChangeAdminPermissions) {
+            listOf(UserRole.ACCOUNT_ADMIN, UserRole.MANAGER, UserRole.USER)
+        } else {
+            listOf(UserRole.MANAGER, UserRole.USER)
+        }
+        assertEquals(listOf(UserRole.ACCOUNT_ADMIN, UserRole.MANAGER, UserRole.USER), accountAdminAssignable)
+        assertFalse("OWNER can NEVER be assigned to a team roster member", accountAdminAssignable.contains(UserRole.OWNER))
+
+        // Manager can only delegate MANAGER and USER (cannot assign ACCOUNT_ADMIN)
+        val managerAssignable = if (UserRole.MANAGER.canChangeAdminPermissions) {
+            listOf(UserRole.ACCOUNT_ADMIN, UserRole.MANAGER, UserRole.USER)
+        } else {
+            listOf(UserRole.MANAGER, UserRole.USER)
+        }
+        assertEquals(listOf(UserRole.MANAGER, UserRole.USER), managerAssignable)
+        assertFalse("Managers cannot assign ACCOUNT_ADMIN", managerAssignable.contains(UserRole.ACCOUNT_ADMIN))
+        assertFalse("Managers cannot assign OWNER", managerAssignable.contains(UserRole.OWNER))
+    }
 }

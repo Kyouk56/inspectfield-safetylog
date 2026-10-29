@@ -101,6 +101,7 @@ class AuthRepository(
         )
         secureStorage.saveUser(user)
         _currentUser.value = user
+        _assignedRole.value = user.role
         _isLoading.value = false
         AuthResult.Success(user)
     }
@@ -216,6 +217,7 @@ class AuthRepository(
 
                 secureStorage.saveUser(user)
                 _currentUser.value = user
+                _assignedRole.value = user.role
                 _isLoading.value = false
                 AuthResult.Success(user)
             } else {
@@ -339,6 +341,7 @@ class AuthRepository(
         } catch (_: Exception) {}
         secureStorage.clearUser()
         _currentUser.value = null
+        _assignedRole.value = UserRole.USER
         _isLoading.value = false
     }
 

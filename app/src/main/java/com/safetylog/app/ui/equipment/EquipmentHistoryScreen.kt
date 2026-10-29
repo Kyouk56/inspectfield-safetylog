@@ -89,7 +89,7 @@ fun EquipmentHistoryScreen(
     val enterpriseSeats by billingRepository.enterpriseSeats.collectAsState()
     val paymentStatus by billingRepository.paymentStatus.collectAsState()
     val currentUser by authRepository.currentUser.collectAsState()
-    val userRole = currentUser?.role ?: UserRole.OWNER
+    val userRole = currentUser?.role ?: UserRole.USER
     var showPaywall by remember { mutableStateOf(false) }
 
     var isGeneratingPdf by remember { mutableStateOf(false) }

@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -42,6 +43,7 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
 
     LaunchedEffect(uiState.isSavedSuccess) {
         if (uiState.isSavedSuccess) {
@@ -188,7 +190,10 @@ fun ProfileScreen(
 
                         Surface(
                             color = if (authUser != null) StatusPassedLight.copy(alpha = 0.2f) else SafetyOrangeLight.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(6.dp)
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onNavigateToAuth() }
                         ) {
                             Text(
                                 text = if (authUser != null) "LINKED" else "UNLINKED",
@@ -237,7 +242,16 @@ fun ProfileScreen(
                                         Surface(
                                             shape = RoundedCornerShape(4.dp),
                                             color = Color(authUser.provider.brandColorHex).copy(alpha = 0.2f),
-                                            border = BorderStroke(0.5.dp, Color(authUser.provider.brandColorHex))
+                                            border = BorderStroke(0.5.dp, Color(authUser.provider.brandColorHex)),
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .clickable {
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        "Role: ${authUser.role.title} • ${authUser.role.description}",
+                                                        android.widget.Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
                                         ) {
                                             Text(
                                                 text = authUser.role.title,

@@ -65,6 +65,34 @@ enum class UserRole(
     }
 }
 
+/**
+ * Strict platform ownership and role-access control rules.
+ * Enforces that only verified owner accounts can possess or assume the OWNER role.
+ */
+object AuthorizationConfig {
+    val AUTHORIZED_OWNER_EMAILS = setOf(
+        "j.desrosiers88@gmail.com",
+        "hexenginelabs@gmail.com"
+    )
+
+    fun isAuthorizedOwner(email: String?): Boolean {
+        if (email.isNullOrBlank()) return false
+        return AUTHORIZED_OWNER_EMAILS.contains(email.trim().lowercase())
+    }
+
+    /**
+     * Sanitizes role assignment. If OWNER is requested, it is only permitted if the email
+     * is explicitly present in AUTHORIZED_OWNER_EMAILS; otherwise it automatically defaults
+     * down to USER (or the provided fallback role).
+     */
+    fun sanitizeRole(role: UserRole, email: String?, fallback: UserRole = UserRole.USER): UserRole {
+        if (role == UserRole.OWNER) {
+            return if (isAuthorizedOwner(email)) UserRole.OWNER else fallback
+        }
+        return role
+    }
+}
+
 enum class SubscriptionTier(
     val title: String,
     val subtitle: String,

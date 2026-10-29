@@ -42,7 +42,7 @@ data class DashboardUiState(
     val companyOAuthConfig: CompanyOAuthConfig = CompanyOAuthConfig(),
     val enterpriseSeats: Int = 5,
     val teamMembers: List<TeamMember> = emptyList(),
-    val userRole: UserRole = UserRole.OWNER,
+    val userRole: UserRole = UserRole.USER,
     val isAdminTestViewActive: Boolean = false,
     val authUser: com.safetylog.app.data.auth.AuthUser? = null,
     val inspectionsThisMonth: Int = 0,
@@ -132,13 +132,19 @@ class DashboardViewModel(
         @Suppress("UNCHECKED_CAST")
         val members = args[11] as? List<TeamMember> ?: emptyList()
         val online = args[12] as? Boolean ?: true
-        val assigned = args[13] as? UserRole ?: UserRole.OWNER
+        val assigned = args[13] as? UserRole ?: UserRole.USER
 
         // Match authenticated user against active team members in roster, or fall back to user's assigned role
         val matchingMember = authUser?.email?.trim()?.let { userEmail ->
             members.find { it.email.equals(userEmail, ignoreCase = true) && it.isActive }
         }
-        val role = matchingMember?.role ?: authUser?.role ?: assigned
+        val rawRole = when {
+            com.safetylog.app.data.auth.AuthorizationConfig.isAuthorizedOwner(authUser?.email) -> UserRole.OWNER
+            matchingMember != null -> matchingMember.role
+            authUser?.role != null -> authUser.role
+            else -> assigned
+        }
+        val role = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(rawRole, authUser?.email)
 
         DashboardUiState(
             equipmentList = summaries,
@@ -209,7 +215,9 @@ class DashboardViewModel(
     }
 
     fun switchTestRole(role: UserRole) {
-        authRepository.updateUserRole(role)
+        val currentEmail = uiState.value.authUser?.email
+        val sanitized = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(role, currentEmail)
+        authRepository.updateUserRole(sanitized)
     }
 
     fun setSubscriptionTier(tier: SubscriptionTier, seats: Int = 5) {

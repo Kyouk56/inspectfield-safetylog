@@ -897,11 +897,21 @@ fun DashboardScreen(
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val isOwnerAuthorized = com.safetylog.app.data.auth.AuthorizationConfig.isAuthorizedOwner(uiState.authUser?.email)
+
                         UserRole.entries.forEach { role ->
                             val isSelected = uiState.userRole == role
+                            val isRestrictedOwner = role == UserRole.OWNER && !isOwnerAuthorized
+
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) Color(role.badgeColorHex).copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                color = if (isSelected) {
+                                    Color(role.badgeColorHex).copy(alpha = 0.18f)
+                                } else if (isRestrictedOwner) {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                },
                                 border = BorderStroke(
                                     if (isSelected) 1.5.dp else 1.dp,
                                     if (isSelected) Color(role.badgeColorHex) else MaterialTheme.colorScheme.outlineVariant
@@ -910,10 +920,19 @@ fun DashboardScreen(
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        viewModel.switchTestRole(role)
-                                        Toast.makeText(context, "Switched role to ${role.title}", Toast.LENGTH_SHORT).show()
-                                        showRoleDialog = false
+                                        if (isRestrictedOwner) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            Toast.makeText(
+                                                context,
+                                                "Restricted: Platform Owner authority is reserved exclusively for j.desrosiers88@gmail.com and hexenginelabs@gmail.com",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        } else {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            viewModel.switchTestRole(role)
+                                            Toast.makeText(context, "Switched role to ${role.title}", Toast.LENGTH_SHORT).show()
+                                            showRoleDialog = false
+                                        }
                                     }
                             ) {
                                 Row(
@@ -923,7 +942,10 @@ fun DashboardScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                    ) {
                                         Surface(
                                             shape = RoundedCornerShape(4.dp),
                                             color = Color(role.badgeColorHex)
@@ -942,11 +964,37 @@ fun DashboardScreen(
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = role.title,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                        )
+                                        Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = role.title,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                )
+                                                if (isRestrictedOwner) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
+                                                    ) {
+                                                        Text(
+                                                            text = "RESTRICTED",
+                                                            fontSize = 8.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = MaterialTheme.colorScheme.error,
+                                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            if (isRestrictedOwner) {
+                                                Text(
+                                                    text = "Authorized owners only: j.desrosiers88@gmail.com, hexenginelabs@gmail.com",
+                                                    fontSize = 9.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
                                     }
 
                                     if (isSelected) {
@@ -955,6 +1003,13 @@ fun DashboardScreen(
                                             contentDescription = "Active",
                                             tint = Color(role.badgeColorHex),
                                             modifier = Modifier.size(18.dp)
+                                        )
+                                    } else if (isRestrictedOwner) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = "Restricted",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
                                 }
@@ -1220,7 +1275,10 @@ private fun LicenseQuotaCard(
 ) {
     val isDelinquent = !paymentStatus.isGoodStanding
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onManageSubscription() },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),

@@ -101,6 +101,10 @@ fun EquipmentHistoryScreen(
         profile = profileDao.getProfileOnce()
     }
 
+    LaunchedEffect(inspections) {
+        generatedPdfFile = null
+    }
+
     // Android Storage Access Framework for syncing directly to Google Drive, OneDrive, or local drives
     val createDocLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
@@ -184,8 +188,8 @@ fun EquipmentHistoryScreen(
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
             context.startActivity(Intent.createChooser(intent, "View Inspection Log"))
-        } catch (e: Exception) {
-            Toast.makeText(context, "Unable to open PDF viewer: ${e.message}", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            sharePdf(file)
         }
     }
 

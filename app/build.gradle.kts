@@ -129,7 +129,6 @@ dependencies {
     // Google Mobile Ads (AdMob) & Multi-Network Mediation Adapters (100% Free Developer SDKs)
     implementation("com.google.android.gms:play-services-ads:23.3.0")
     implementation("com.google.ads.mediation:facebook:6.18.0.0")
-    implementation("com.google.ads.mediation:applovin:13.0.1.1")
     implementation("com.google.ads.mediation:unity:4.12.5.0")
 
     // Unit Testing

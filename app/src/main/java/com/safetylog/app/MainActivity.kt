@@ -219,7 +219,8 @@ fun SafetyLogNavGraph(
                     inspectionDao = app.database.inspectionDao(),
                     equipmentDao = app.database.equipmentDao(),
                     profileDao = app.database.profileDao(),
-                    pdfGenerator = app.pdfGenerator
+                    pdfGenerator = app.pdfGenerator,
+                    authRepository = app.authRepository
                 )
             )
             ReportsScreen(

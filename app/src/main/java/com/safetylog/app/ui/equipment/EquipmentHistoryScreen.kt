@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.core.content.FileProvider
 import com.safetylog.app.data.BillingRepository
 import com.safetylog.app.data.auth.AuthRepository
@@ -793,6 +795,33 @@ private fun AuditLogHistoryCard(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
+                }
+            }
+
+            // Defect / Condition Photo Thumbnail
+            if (!record.photoUri.isNullOrBlank()) {
+                val photoFile = File(record.photoUri)
+                val exists = photoFile.exists()
+                if (exists || record.photoUri.startsWith("content://") || record.photoUri.startsWith("http")) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "DEFECT PHOTO EVIDENCE:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 9.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    AsyncImage(
+                        model = if (exists) photoFile else record.photoUri,
+                        contentDescription = "Defect Photo Evidence",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                    )
                 }
             }
 

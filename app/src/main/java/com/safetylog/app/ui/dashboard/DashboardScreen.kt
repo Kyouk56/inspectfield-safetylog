@@ -88,6 +88,7 @@ fun DashboardScreen(
             (listState.firstVisibleItemIndex == 2 && listState.firstVisibleItemScrollOffset > 60)
         }
     }
+    val canManageAssets = uiState.userRole.canManageAssets || uiState.subscriptionTier != SubscriptionTier.ENTERPRISE
 
     Scaffold(
         topBar = {
@@ -342,7 +343,7 @@ fun DashboardScreen(
             }
         },
         floatingActionButton = {
-            if (isScrolledPastHero && uiState.userRole.canManageAssets) {
+            if (isScrolledPastHero && canManageAssets) {
                 FloatingActionButton(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -613,7 +614,7 @@ fun DashboardScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                         )
                     }
-                    if (uiState.userRole.canManageAssets) {
+                    if (canManageAssets) {
                         Spacer(modifier = Modifier.width(8.dp))
                         FilledTonalButton(
                             onClick = {
@@ -645,7 +646,7 @@ fun DashboardScreen(
                 item {
                     EmptyAssetsStateCard(
                         isSearching = uiState.searchQuery.isNotBlank() || uiState.activeFilter != FilterStatus.ALL,
-                        userRole = uiState.userRole,
+                        canManageAssets = canManageAssets,
                         onAddClicked = onNavigateToAddEquipment
                     )
                 }
@@ -671,6 +672,7 @@ fun DashboardScreen(
         AssetActionBottomSheet(
             item = selected,
             userRole = uiState.userRole,
+            canManageAssets = canManageAssets,
             isDark = isDarkTheme,
             onDismiss = { selectedAssetForAction = null },
             onInspect = {
@@ -1804,6 +1806,7 @@ private fun EquipmentAssetCard(
 private fun AssetActionBottomSheet(
     item: EquipmentWithLatestInspection,
     userRole: UserRole,
+    canManageAssets: Boolean,
     isDark: Boolean,
     onDismiss: () -> Unit,
     onInspect: () -> Unit,
@@ -2041,7 +2044,7 @@ private fun AssetActionBottomSheet(
             }
 
             // Option: Edit Asset & Review Schedule (Gated to canManageAssets)
-            if (userRole.canManageAssets) {
+            if (canManageAssets) {
                 OutlinedCard(
                     onClick = onEdit,
                     modifier = Modifier.fillMaxWidth(),
@@ -2138,7 +2141,7 @@ private fun getEquipmentIcon(type: String): ImageVector {
 @Composable
 private fun EmptyAssetsStateCard(
     isSearching: Boolean,
-    userRole: UserRole,
+    canManageAssets: Boolean,
     onAddClicked: () -> Unit
 ) {
     Card(
@@ -2188,7 +2191,7 @@ private fun EmptyAssetsStateCard(
             )
             if (!isSearching) {
                 Spacer(modifier = Modifier.height(18.dp))
-                if (userRole.canManageAssets) {
+                if (canManageAssets) {
                     Button(
                         onClick = onAddClicked,
                         colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange),

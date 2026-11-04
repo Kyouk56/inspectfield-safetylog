@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.safetylog.app.data.BillingRepository
+import com.safetylog.app.data.auth.PaymentStatus
+import com.safetylog.app.data.auth.SubscriptionTier
+import com.safetylog.app.data.auth.UserRole
 import com.safetylog.app.data.dao.EquipmentDao
 import com.safetylog.app.data.dao.InspectionDao
 import com.safetylog.app.data.model.EquipmentItem
@@ -29,7 +32,11 @@ data class InspectionUiState(
     val isSaving: Boolean = false,
     val showPaywall: Boolean = false,
     val errorMessage: String? = null,
-    val isSavedSuccess: Boolean = false
+    val isSavedSuccess: Boolean = false,
+    val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
+    val paymentStatus: PaymentStatus = PaymentStatus.ACTIVE,
+    val userRole: UserRole = UserRole.USER,
+    val enterpriseSeats: Int = 1
 ) {
     val overallStatus: String
         get() = if (isPressureOk && isHoseIntact && isPinSealed && isSignagePresent && isAccessUnobstructed) {
@@ -57,6 +64,21 @@ class InspectionViewModel(
 
     init {
         loadEquipment()
+        viewModelScope.launch {
+            billingRepository.currentTier.collect { tier ->
+                _uiState.update { it.copy(subscriptionTier = tier) }
+            }
+        }
+        viewModelScope.launch {
+            billingRepository.paymentStatus.collect { status ->
+                _uiState.update { it.copy(paymentStatus = status) }
+            }
+        }
+        viewModelScope.launch {
+            billingRepository.enterpriseSeats.collect { seats ->
+                _uiState.update { it.copy(enterpriseSeats = seats) }
+            }
+        }
     }
 
     private fun loadEquipment() {
@@ -248,6 +270,22 @@ class InspectionViewModel(
         } else {
             upgradeToProAndSave()
         }
+    }
+
+    fun cancelSubscription() {
+        billingRepository.cancelSubscription()
+    }
+
+    fun reactivateSubscription() {
+        billingRepository.reactivateSubscription()
+    }
+
+    fun simulatePaymentFailed() {
+        billingRepository.markPaymentFailed()
+    }
+
+    fun simulatePaymentSuccess() {
+        billingRepository.reactivateSubscription()
     }
 
     class Factory(

@@ -27,6 +27,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -71,6 +76,24 @@ fun InspectionFormScreen(
         uiState.errorMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val photoFile = File(context.filesDir, "defect_${System.currentTimeMillis()}.jpg")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(photoFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                viewModel.onPhotoSelected(photoFile.absolutePath)
+            } catch (_: Exception) {
+                viewModel.onPhotoSelected(uri.toString())
+            }
         }
     }
 
@@ -513,6 +536,90 @@ fun InspectionFormScreen(
                 )
             }
 
+            // Defect / Condition Photo Attachment Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = null,
+                                tint = SafetyOrange,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Defect & Condition Photo",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (uiState.photoUri != null) {
+                            TextButton(
+                                onClick = { viewModel.onPhotoSelected(null) },
+                                colors = ButtonDefaults.textButtonColors(contentColor = StatusDeficient)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Remove", modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Remove", fontSize = 12.sp)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (uiState.photoUri != null) {
+                        val photoFile = File(uiState.photoUri ?: "")
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp))
+                        ) {
+                            AsyncImage(
+                                model = if (photoFile.exists()) photoFile else uiState.photoUri,
+                                contentDescription = "Attached Defect Photo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Replace Photo Evidence")
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp), tint = SafetyOrange)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Attach Photo (Evidence / Condition)", color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
+
             // Embedded Signature Pad
             SignaturePad(
                 onSignatureCaptured = viewModel::onSignatureCaptured
@@ -588,9 +695,17 @@ fun InspectionFormScreen(
     if (uiState.showPaywall) {
         PaywallBottomSheet(
             onDismissRequest = viewModel::dismissPaywall,
+            currentTier = uiState.subscriptionTier,
+            paymentStatus = uiState.paymentStatus,
+            userRole = uiState.userRole,
+            initialEnterpriseSeats = uiState.enterpriseSeats,
             onSelectTier = { tier, seats ->
                 viewModel.setSubscriptionTier(tier, seats)
             },
+            onCancelSubscription = viewModel::cancelSubscription,
+            onReactivateSubscription = viewModel::reactivateSubscription,
+            onSimulatePaymentFailed = viewModel::simulatePaymentFailed,
+            onSimulatePaymentSuccess = viewModel::simulatePaymentSuccess,
             onUpgradeClicked = viewModel::upgradeToProAndSave,
             onLaunchBilling = { act, tier, seats ->
                 viewModel.launchBillingFlow(act, tier, seats)

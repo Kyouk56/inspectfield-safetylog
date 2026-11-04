@@ -29,10 +29,21 @@
 # --- Google Play Billing Client ---
 -keep class com.android.billingclient.** { *; }
 
-# --- Google Mobile Ads (AdMob) ---
+# --- Google Mobile Ads (AdMob) & Unity Ads Mediation ---
 -keep class com.google.android.gms.ads.** { *; }
 -dontwarn com.google.android.gms.ads.**
 -keep public class com.google.android.gms.ads.internal.client.** { *; }
+-keep class com.google.ads.mediation.unity.** { *; }
+-keep class com.unity3d.ads.** { *; }
+-keep class com.unity3d.services.** { *; }
+-dontwarn com.unity3d.ads.**
+-dontwarn com.unity3d.services.**
+
+# --- Meta Audience Network Mediation ---
+-keep class com.google.ads.mediation.facebook.** { *; }
+-keep class com.facebook.ads.** { *; }
+-dontwarn com.facebook.ads.**
+-dontwarn com.facebook.infer.annotation.**
 
 # --- Domain & Auth Models ---
 -keep class com.safetylog.app.data.auth.** { *; }

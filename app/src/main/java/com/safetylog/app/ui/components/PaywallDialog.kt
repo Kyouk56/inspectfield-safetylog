@@ -314,12 +314,12 @@ fun PaywallBottomSheet(
             Button(
                 onClick = {
                     if (isBillingAllowed) {
+                        onSelectTier(selectedTier, enterpriseSeats)
                         if (onLaunchBilling != null && activity != null) {
                             onLaunchBilling(activity, selectedTier, enterpriseSeats)
-                        } else {
-                            onSelectTier(selectedTier, enterpriseSeats)
                         }
                         onUpgradeClicked()
+                        onDismissRequest()
                     }
                 },
                 enabled = isBillingAllowed,

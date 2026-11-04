@@ -144,7 +144,8 @@ enum class AuthProvider(val displayName: String, val brandColorHex: Long) {
     GOOGLE("Google Account / Cloud Identity", 0xFF4285F4),
     MICROSOFT("Microsoft Account / 365", 0xFF00A4EF),
     CORPORATE_SSO("Corporate SAML / OIDC Vault", 0xFF0F9D58),
-    ENTERPRISE_SSO("Corporate SAML / OIDC Vault", 0xFF0F9D58)
+    ENTERPRISE_SSO("Corporate SAML / OIDC Vault", 0xFF0F9D58),
+    EMAIL("Inspector Credentials / Email", 0xFFF97316)
 }
 
 data class AuthUser(

@@ -57,6 +57,9 @@ fun AuthScreen(
     var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
     var showClientIdDialog by remember { mutableStateOf(false) }
     var clientIdDraft by remember(uiState.googleClientId) { mutableStateOf(uiState.googleClientId ?: "") }
+    var showEmailSignIn by remember { mutableStateOf(false) }
+    var emailInputName by remember { mutableStateOf("") }
+    var emailInputAddress by remember { mutableStateOf("") }
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US) }
 
@@ -536,6 +539,76 @@ fun AuthScreen(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
+                            }
+                        }
+
+                        // Work Email / Inspector Account Sign In Option
+                        OutlinedButton(
+                            onClick = { showEmailSignIn = !showEmailSignIn },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(18.dp), tint = SafetyOrange)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (showEmailSignIn) "Hide Email Form" else "Sign In with Inspector Work Email",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        AnimatedVisibility(visible = showEmailSignIn) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Text(
+                                        text = "Inspector Work Credentials",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                    OutlinedTextField(
+                                        value = emailInputName,
+                                        onValueChange = { emailInputName = it },
+                                        label = { Text("Full Name") },
+                                        placeholder = { Text("e.g. John Desrosiers") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    OutlinedTextField(
+                                        value = emailInputAddress,
+                                        onValueChange = { emailInputAddress = it },
+                                        label = { Text("Work Email Address") },
+                                        placeholder = { Text("e.g. j.desrosiers88@gmail.com") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    Button(
+                                        onClick = {
+                                            viewModel.signInWithEmail(
+                                                name = emailInputName.ifBlank { "Certified Safety Inspector" },
+                                                email = emailInputAddress.ifBlank { "inspector@safetylog.app" }
+                                            )
+                                        },
+                                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
+                                    ) {
+                                        Icon(Icons.Default.VpnKey, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Sign In & Authenticate Vault", fontWeight = FontWeight.Bold)
+                                    }
+                                }
                             }
                         }
 

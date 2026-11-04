@@ -1,5 +1,6 @@
 package com.safetylog.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,6 +30,7 @@ import com.safetylog.app.ui.report.ReportViewModel
 import com.safetylog.app.ui.report.ReportsScreen
 import com.safetylog.app.ui.settings.SettingsScreen
 import com.safetylog.app.ui.theme.SafetyLogTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +40,18 @@ import com.safetylog.app.ui.theme.AppThemeMode
 import com.safetylog.app.ui.theme.ThemeManager
 
 class MainActivity : ComponentActivity() {
+
+    private val pendingNotificationData = MutableStateFlow<Pair<Long, String?>?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val id = intent.getLongExtra("equipmentId", -1L)
+        val action = intent.action
+        if (id > 0) {
+            pendingNotificationData.value = Pair(id, action)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,6 +70,10 @@ class MainActivity : ComponentActivity() {
                 AppThemeMode.LIGHT -> false
             }
 
+            val pendingNotification by pendingNotificationData.collectAsState()
+            val effectiveEquipmentId = pendingNotification?.first ?: notificationEquipmentId
+            val effectiveAction = pendingNotification?.second ?: notificationAction
+
             SafetyLogTheme(darkTheme = isDarkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -65,8 +83,8 @@ class MainActivity : ComponentActivity() {
                         app = app,
                         isDarkTheme = isDarkTheme,
                         themeMode = themeMode,
-                        initialEquipmentId = notificationEquipmentId,
-                        initialAction = notificationAction,
+                        initialEquipmentId = effectiveEquipmentId,
+                        initialAction = effectiveAction,
                         onToggleTheme = { ThemeManager.toggleTheme() },
                         onThemeModeChange = { ThemeManager.setThemeMode(it) }
                     )

@@ -24,6 +24,7 @@ class AuthFlowAndCredentialTest {
         assertEquals("Google Account / Cloud Identity", AuthProvider.GOOGLE.displayName)
         assertEquals("Microsoft Account / 365", AuthProvider.MICROSOFT.displayName)
         assertEquals("Corporate SAML / OIDC Vault", AuthProvider.CORPORATE_SSO.displayName)
+        assertEquals("Inspector Credentials / Email", AuthProvider.EMAIL.displayName)
     }
 
     @Test
@@ -311,6 +312,22 @@ class AuthFlowAndCredentialTest {
         assertFalse(UserRole.USER.canManageBilling)
         assertFalse(UserRole.USER.canManageTeam)
         assertFalse(UserRole.USER.canManageSettings)
+    }
+
+    @Test
+    fun testEmailAuthenticationUserCreation() {
+        val emailUser = AuthUser(
+            userId = "email_usr_123",
+            email = "inspector@safetylog.app",
+            displayName = "Senior Safety Tech",
+            provider = AuthProvider.EMAIL,
+            role = UserRole.OWNER,
+            idToken = "vault_token_abc"
+        )
+        assertEquals("SS", emailUser.initials)
+        assertEquals(AuthProvider.EMAIL, emailUser.provider)
+        assertTrue(emailUser.role.canManageAssets)
+        assertTrue(emailUser.isSessionActive)
     }
 }
 

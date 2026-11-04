@@ -161,6 +161,12 @@ class ProfileViewModel(
                     contactPhone = s.contactPhone.trim()
                 )
                 profileDao.upsertProfile(profile)
+                if (authRepository.currentUser.value == null && s.inspectorName.isNotBlank()) {
+                    authRepository.signInWithEmail(
+                        displayName = s.inspectorName.trim(),
+                        email = s.contactEmail.trim().ifBlank { "inspector@safetylog.app" }
+                    )
+                }
                 _uiState.update { it.copy(isSaving = false, isSavedSuccess = true, errorMessage = null) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isSaving = false, errorMessage = "Failed to save profile: ${e.message}") }

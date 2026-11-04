@@ -275,6 +275,27 @@ fun EquipmentFormScreen(
                         shape = RoundedCornerShape(12.dp),
                         leadingIcon = {
                             Icon(Icons.Default.Tag, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        },
+                        trailingIcon = {
+                            TextButton(
+                                onClick = {
+                                    val prefix = when {
+                                        uiState.equipmentType.contains("AED", ignoreCase = true) -> "AED"
+                                        uiState.equipmentType.contains("Hose", ignoreCase = true) -> "FH"
+                                        uiState.equipmentType.contains("Eye", ignoreCase = true) -> "EW"
+                                        uiState.equipmentType.contains("Alarm", ignoreCase = true) -> "FA"
+                                        else -> "FE"
+                                    }
+                                    val randomSuffix = (100..999).random()
+                                    viewModel.onTagIdChanged("$prefix-$randomSuffix")
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                },
+                                contentPadding = PaddingValues(horizontal = 8.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Generate", modifier = Modifier.size(14.dp), tint = SafetyOrange)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Generate", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SafetyOrange)
+                            }
                         }
                     )
 

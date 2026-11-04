@@ -3,6 +3,7 @@ package com.safetylog.app.ui.report
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.safetylog.app.data.auth.AuthRepository
 import com.safetylog.app.data.dao.EquipmentDao
 import com.safetylog.app.data.dao.InspectionDao
 import com.safetylog.app.data.dao.ProfileDao
@@ -47,7 +48,8 @@ class ReportViewModel(
     private val inspectionDao: InspectionDao,
     private val equipmentDao: EquipmentDao,
     private val profileDao: ProfileDao,
-    private val pdfGenerator: InspectionPdfGenerator
+    private val pdfGenerator: InspectionPdfGenerator,
+    private val authRepository: AuthRepository? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ReportUiState())
@@ -61,7 +63,24 @@ class ReportViewModel(
     private fun loadProfile() {
         viewModelScope.launch {
             val prof = profileDao.getProfileOnce()
-            _uiState.update { it.copy(profile = prof) }
+            val effectiveProfile = if (prof != null && prof.inspectorName.isNotBlank()) {
+                prof
+            } else {
+                val authUser = authRepository?.currentUser?.value
+                if (authUser != null) {
+                    InspectorProfile(
+                        id = prof?.id ?: 1,
+                        companyName = prof?.companyName?.takeIf { it.isNotBlank() } ?: "Safety Operations",
+                        inspectorName = prof?.inspectorName?.takeIf { it.isNotBlank() } ?: authUser.displayName.ifBlank { "Certified Technician" },
+                        certificationNumber = prof?.certificationNumber ?: "",
+                        contactEmail = prof?.contactEmail?.takeIf { it.isNotBlank() } ?: authUser.email,
+                        contactPhone = prof?.contactPhone ?: ""
+                    )
+                } else {
+                    prof
+                }
+            }
+            _uiState.update { it.copy(profile = effectiveProfile) }
         }
     }
 
@@ -161,11 +180,12 @@ class ReportViewModel(
         private val inspectionDao: InspectionDao,
         private val equipmentDao: EquipmentDao,
         private val profileDao: ProfileDao,
-        private val pdfGenerator: InspectionPdfGenerator
+        private val pdfGenerator: InspectionPdfGenerator,
+        private val authRepository: AuthRepository? = null
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return ReportViewModel(inspectionDao, equipmentDao, profileDao, pdfGenerator) as T
+            return ReportViewModel(inspectionDao, equipmentDao, profileDao, pdfGenerator, authRepository) as T
         }
     }
 }

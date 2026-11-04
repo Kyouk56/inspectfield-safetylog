@@ -40,6 +40,7 @@ fun SignaturePad(
     val paths = remember { mutableStateListOf<Path>() }
     var currentPath by remember { mutableStateOf<Path?>(null) }
     var isConfirmed by remember { mutableStateOf(false) }
+    var drawTrigger by remember { mutableLongStateOf(0L) }
 
     val isDark = MaterialTheme.colorScheme.background == DarkSurfaceBase
     val padBg = if (isDark) DarkSurfaceCard else Color(0xFFF8FAFC)
@@ -181,17 +182,23 @@ fun SignaturePad(
                                     val path = Path().apply { moveTo(offset.x, offset.y) }
                                     currentPath = path
                                     paths.add(path)
+                                    drawTrigger++
                                 },
                                 onDrag = { change, _ ->
+                                    change.consume()
                                     currentPath?.lineTo(change.position.x, change.position.y)
+                                    drawTrigger++
                                 },
                                 onDragEnd = {
                                     currentPath = null
+                                    drawTrigger++
                                     saveDrawnBitmap()
                                 }
                             )
                         }
                 ) {
+                    @Suppress("UNUSED_VARIABLE")
+                    val trigger = drawTrigger
                     paths.forEach { path ->
                         drawPath(
                             path = path,
@@ -230,6 +237,7 @@ fun SignaturePad(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         paths.clear()
+                        drawTrigger++
                         isConfirmed = false
                         onSignatureCaptured("")
                     },

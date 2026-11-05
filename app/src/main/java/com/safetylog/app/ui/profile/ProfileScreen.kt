@@ -432,7 +432,9 @@ fun ProfileScreen(
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.saveProfile()
                 },
-                enabled = !uiState.isSaving,
+                // Gated on isLoading: saving the empty pre-load form state would
+                // overwrite the stored credentials with blanks.
+                enabled = !uiState.isSaving && !uiState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp)
@@ -440,11 +442,17 @@ fun ProfileScreen(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
             ) {
-                if (uiState.isSaving) {
+                if (uiState.isSaving || uiState.isLoading) {
                     CircularProgressIndicator(
                         color = Color.White,
                         modifier = Modifier.size(22.dp),
                         strokeWidth = 2.5.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (uiState.isLoading) "Loading saved credentials…" else "Saving Credentials…",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
                     )
                 } else {
                     Icon(imageVector = Icons.Default.Save, contentDescription = null)

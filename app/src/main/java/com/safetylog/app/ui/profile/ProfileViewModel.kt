@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.Collections
 
 data class ProfileUiState(
@@ -39,6 +41,16 @@ data class ProfileUiState(
  * the form reopened blank. Tracking fields individually makes the merge lossless.
  */
 internal enum class ProfileField { COMPANY, NAME, CERT, EMAIL, PHONE }
+
+/** True when every credential field on the form is empty. */
+internal fun ProfileUiState.allFieldsBlank(): Boolean =
+    companyName.isBlank() && inspectorName.isBlank() && certificationNumber.isBlank() &&
+        contactEmail.isBlank() && contactPhone.isBlank()
+
+/** True when the persisted row still holds data that must not be overwritten by blanks. */
+internal fun InspectorProfile.hasStoredContent(): Boolean =
+    companyName.isNotBlank() || inspectorName.isNotBlank() || certificationNumber.isNotBlank() ||
+        contactEmail.isNotBlank() || contactPhone.isNotBlank()
 
 /**
  * Pure merge of persisted profile data with in-progress edits and session identity.
@@ -99,6 +111,23 @@ class ProfileViewModel(
     private val hasUserEdited: Boolean
         get() = synchronized(editedFields) { editedFields.isNotEmpty() }
 
+    /**
+     * Serializes the DB read against the DB write. Without this the async
+     * [loadProfile] started in `init` could still be in flight when the inspector
+     * taps Save, letting the read land after the write.
+     */
+    private val profileMutex = Mutex()
+
+    /**
+     * Whether the one-shot DB read has completed. A save must never run before
+     * this is true: the form renders empty strings while loading, so persisting
+     * them would replace the stored credentials with blanks.
+     */
+    private var loadCompleted: Boolean = false
+
+    /** Snapshot of the row as last read or written, used to detect destructive saves. */
+    private var persistedSnapshot: InspectorProfile? = null
+
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
@@ -149,31 +178,38 @@ class ProfileViewModel(
     private fun loadProfile() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "loadProfile: begin editedFields=$editedFields")
-                val prof = profileDao.getProfileOnce()
-                Log.d(
-                    TAG,
-                    "loadProfile: db result profile=${if (prof == null) "null" else "present"} " +
-                        "${mask("company", prof?.companyName.orEmpty())} " +
-                        "${mask("name", prof?.inspectorName.orEmpty())} " +
-                        "${mask("cert", prof?.certificationNumber.orEmpty())} " +
-                        "${mask("email", prof?.contactEmail.orEmpty())} " +
-                        "${mask("phone", prof?.contactPhone.orEmpty())}"
-                )
-                _uiState.update { current ->
-                    val auth = current.authUser ?: authRepository.currentUser.value
-                    if (prof != null && hasUserEdited) {
-                        Log.d(
-                            TAG,
-                            "loadProfile: merging persisted row with in-progress edits for $editedFields " +
-                                "(persisted values are never discarded)"
-                        )
+                Log.d(TAG, "loadProfile: awaiting mutex (loadCompleted=$loadCompleted) editedFields=$editedFields")
+                profileMutex.withLock {
+                    Log.d(TAG, "loadProfile: begin editedFields=$editedFields")
+                    val prof = profileDao.getProfileOnce()
+                    persistedSnapshot = prof
+                    Log.d(
+                        TAG,
+                        "loadProfile: db result profile=${if (prof == null) "null" else "present"} " +
+                            "${mask("company", prof?.companyName.orEmpty())} " +
+                            "${mask("name", prof?.inspectorName.orEmpty())} " +
+                            "${mask("cert", prof?.certificationNumber.orEmpty())} " +
+                            "${mask("email", prof?.contactEmail.orEmpty())} " +
+                            "${mask("phone", prof?.contactPhone.orEmpty())}"
+                    )
+                    _uiState.update { current ->
+                        val auth = current.authUser ?: authRepository.currentUser.value
+                        if (prof != null && hasUserEdited) {
+                            Log.d(
+                                TAG,
+                                "loadProfile: merging persisted row with in-progress edits for $editedFields " +
+                                    "(persisted values are never discarded)"
+                            )
+                        }
+                        mergePersistedProfile(current, prof, auth, synchronized(editedFields) { editedFields.toSet() })
                     }
-                    mergePersistedProfile(current, prof, auth, synchronized(editedFields) { editedFields.toSet() })
+                    loadCompleted = true
+                    Log.d(TAG, "loadProfile: end loadCompleted=true ${describe(_uiState.value)}")
                 }
-                Log.d(TAG, "loadProfile: end ${describe(_uiState.value)}")
             } catch (e: Exception) {
-                Log.e(TAG, "loadProfile: failed to read persisted profile", e)
+                // loadCompleted intentionally stays false: a failed read must never
+                // be followed by a write of the empty form state.
+                Log.e(TAG, "loadProfile: failed to read persisted profile (save stays gated)", e)
                 _uiState.update { it.copy(isLoading = false, errorMessage = "Error loading profile: ${e.message}") }
             }
         }
@@ -239,38 +275,76 @@ class ProfileViewModel(
 
     fun saveProfile() {
         viewModelScope.launch {
-            try {
-                _uiState.update { it.copy(isSaving = true, errorMessage = null) }
-                val s = _uiState.value
-                Log.d(TAG, "saveProfile: begin ${describe(s)}")
-                val profile = InspectorProfile(
-                    id = 1,
-                    companyName = s.companyName.trim(),
-                    inspectorName = s.inspectorName.trim(),
-                    certificationNumber = s.certificationNumber.trim(),
-                    contactEmail = s.contactEmail.trim(),
-                    contactPhone = s.contactPhone.trim()
+            // Fast reject before taking the lock so the button never appears to
+            // hang. Persisting pre-load state would write blanks over real rows.
+            if (!loadCompleted) {
+                Log.w(
+                    TAG,
+                    "saveProfile: rejected - persisted profile has not loaded yet " +
+                        "(isLoading=${_uiState.value.isLoading}); refusing to write empty form state"
                 )
-                profileDao.upsertProfile(profile)
-                Log.d(TAG, "saveProfile: persisted inspector_profiles id=${profile.id}")
-                if (authRepository.currentUser.value == null && s.inspectorName.isNotBlank()) {
-                    Log.w(
-                        TAG,
-                        "saveProfile: no active session -> minting NEW auth session from profile form " +
-                            "email=${mask("email", s.contactEmail)} (identity is unverified free-text, not a validated OAuth claim)"
+                _uiState.update {
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = "Credentials are still loading. Try saving again in a moment."
                     )
-                    authRepository.signInWithEmail(
-                        displayName = s.inspectorName.trim(),
-                        email = s.contactEmail.trim().ifBlank { "inspector@safetylog.app" }
-                    )
-                    Log.d(TAG, "saveProfile: minted session role=${authRepository.currentUser.value?.role}")
                 }
-                // The saved values are now the persisted truth, so every field is
-                // clean again. Leaving edits flagged dirty is what previously made
-                // a later reload discard the row.
-                synchronized(editedFields) { editedFields.clear() }
-                _uiState.update { it.copy(isSaving = false, isSavedSuccess = true, errorMessage = null) }
-                Log.d(TAG, "saveProfile: success, dirty fields cleared ${describe(_uiState.value)}")
+                return@launch
+            }
+            try {
+                profileMutex.withLock {
+                    _uiState.update { it.copy(isSaving = true, errorMessage = null) }
+                    val s = _uiState.value
+                    Log.d(
+                        TAG,
+                        "saveProfile: begin after loadCompleted=true ${describe(s)} " +
+                            "persistedSnapshot=${if (persistedSnapshot == null) "null" else "present"}"
+                    )
+                    val profile = InspectorProfile(
+                        id = 1,
+                        companyName = s.companyName.trim(),
+                        inspectorName = s.inspectorName.trim(),
+                        certificationNumber = s.certificationNumber.trim(),
+                        contactEmail = s.contactEmail.trim(),
+                        contactPhone = s.contactPhone.trim()
+                    )
+
+                    // Last line of defence: never replace a populated row with an
+                    // all-blank form. This is the exact data-loss signature.
+                    if (s.allFieldsBlank() && persistedSnapshot?.hasStoredContent() == true) {
+                        Log.e(
+                            TAG,
+                            "saveProfile: ABORTED destructive save - form is entirely blank but the " +
+                                "persisted row still has content; keeping stored credentials"
+                        )
+                        _uiState.update {
+                            it.copy(isSaving = false, errorMessage = "Nothing to save: all credential fields are empty.")
+                        }
+                        return@withLock
+                    }
+
+                    profileDao.upsertProfile(profile)
+                    persistedSnapshot = profile
+                    Log.d(TAG, "saveProfile: persisted inspector_profiles id=${profile.id}")
+                    if (authRepository.currentUser.value == null && s.inspectorName.isNotBlank()) {
+                        Log.w(
+                            TAG,
+                            "saveProfile: no active session -> minting NEW auth session from profile form " +
+                                "email=${mask("email", s.contactEmail)} (identity is unverified free-text, not a validated OAuth claim)"
+                        )
+                        authRepository.signInWithEmail(
+                            displayName = s.inspectorName.trim(),
+                            email = s.contactEmail.trim().ifBlank { "inspector@safetylog.app" }
+                        )
+                        Log.d(TAG, "saveProfile: minted session role=${authRepository.currentUser.value?.role}")
+                    }
+                    // The saved values are now the persisted truth, so every field is
+                    // clean again. Leaving edits flagged dirty is what previously made
+                    // a later reload discard the row.
+                    synchronized(editedFields) { editedFields.clear() }
+                    _uiState.update { it.copy(isSaving = false, isSavedSuccess = true, errorMessage = null) }
+                    Log.d(TAG, "saveProfile: success, dirty fields cleared ${describe(_uiState.value)}")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "saveProfile: failed to persist credentials", e)
                 _uiState.update { it.copy(isSaving = false, errorMessage = "Failed to save profile: ${e.message}") }

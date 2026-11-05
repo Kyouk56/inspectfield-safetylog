@@ -146,4 +146,51 @@ class ProfileMergeTest {
         // Email was never edited, so the session may still fill it.
         assertEquals("session@apex.example", merged.contactEmail)
     }
+
+    // --- Save-time guards (defect: save during the pre-load blank window) ---
+
+    @Test
+    fun `pre-load ui state counts as all blank`() {
+        // The form renders empty strings while isLoading is true. That state must
+        // never be treated as a legitimate value to persist over a real row.
+        assertTrue(ProfileUiState(isLoading = true).allFieldsBlank())
+    }
+
+    @Test
+    fun `any single entered field makes the form non-blank`() {
+        assertFalse(ProfileUiState(certificationNumber = "NICET-IV #894210").allFieldsBlank())
+        assertFalse(ProfileUiState(contactPhone = "555-0000").allFieldsBlank())
+    }
+
+    @Test
+    fun `whitespace only fields still count as blank`() {
+        assertTrue(
+            ProfileUiState(
+                companyName = "   ",
+                inspectorName = "\t",
+                certificationNumber = "",
+                contactEmail = " ",
+                contactPhone = ""
+            ).allFieldsBlank()
+        )
+    }
+
+    @Test
+    fun `populated persisted row is protected from a blank save`() {
+        assertTrue(persisted.hasStoredContent())
+    }
+
+    @Test
+    fun `empty persisted row is not protected because there is nothing to lose`() {
+        val empty = InspectorProfile(
+            id = 1,
+            companyName = "",
+            inspectorName = "",
+            certificationNumber = "",
+            contactEmail = "",
+            contactPhone = ""
+        )
+
+        assertFalse(empty.hasStoredContent())
+    }
 }

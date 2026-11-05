@@ -613,6 +613,11 @@ fun EquipmentHistoryScreen(
                     )
                 }
             }
+
+            // Bottom clearance spacer ensuring logs and buttons can always scroll clear of the ad banner
+            item {
+                Spacer(modifier = Modifier.height(72.dp))
+            }
         }
     }
 

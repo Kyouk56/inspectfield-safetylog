@@ -364,7 +364,7 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(start = 12.dp, top = 10.dp, end = 12.dp, bottom = 80.dp),
+            contentPadding = PaddingValues(start = 12.dp, top = 10.dp, end = 12.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Delinquency / Past-Due / Cancelled Alert Banner
@@ -663,6 +663,11 @@ fun DashboardScreen(
                         }
                     )
                 }
+            }
+
+            // Bottom breathing clearance spacer ensuring content, words, and cards can always scroll completely clear of the bottom banner and FAB
+            item {
+                Spacer(modifier = Modifier.height(72.dp))
             }
         }
     }
@@ -2147,7 +2152,7 @@ private fun EmptyAssetsStateCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 32.dp),
+            .padding(vertical = 10.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -2155,13 +2160,13 @@ private fun EmptyAssetsStateCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(32.dp),
+                .padding(horizontal = 20.dp, vertical = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(68.dp)
+                    .size(52.dp)
                     .background(SafetyOrangeContainer, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -2169,10 +2174,10 @@ private fun EmptyAssetsStateCard(
                     imageVector = Icons.Default.Shield,
                     contentDescription = null,
                     tint = SafetyOrange,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(28.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = if (isSearching) "No Safety Assets Found" else "No Equipment Registered In Vault",
                 style = MaterialTheme.typography.titleMedium,
@@ -2190,7 +2195,7 @@ private fun EmptyAssetsStateCard(
                 textAlign = TextAlign.Center
             )
             if (!isSearching) {
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 if (canManageAssets) {
                     Button(
                         onClick = onAddClicked,

@@ -50,3 +50,4 @@ class SafetyBannerAdConfigTest {
         assertEquals(50, requiredStandardBannerHeightDp)
     }
 }
+

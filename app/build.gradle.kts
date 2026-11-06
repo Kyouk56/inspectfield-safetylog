@@ -12,8 +12,8 @@ android {
         applicationId = "com.safetylog.inspection.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.0.10"
+        versionCode = 14
+        versionName = "1.0.11"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val admobAppId = project.findProperty("SAFETYLOG_ADMOB_APP_ID") as? String

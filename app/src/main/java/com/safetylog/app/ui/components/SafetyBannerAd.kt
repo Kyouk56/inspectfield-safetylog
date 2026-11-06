@@ -14,6 +14,7 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
+import com.safetylog.app.BuildConfig
 
 /**
  * Clean Google Mobile Ads (AdMob) Banner component.
@@ -27,7 +28,7 @@ fun SafetyBannerAd(
     isAdFree: Boolean,
     onRemoveAdsClicked: () -> Unit,
     modifier: Modifier = Modifier,
-    adUnitId: String = "ca-app-pub-3940256099942544/6300978111" // Google standard test banner ID
+    adUnitId: String = BuildConfig.ADMOB_BANNER_ID
 ) {
     if (isAdFree) return
 
@@ -38,7 +39,7 @@ fun SafetyBannerAd(
     if (adMobFailed) return
 
     Surface(
-        color = androidx.compose.material3.MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp,
         modifier = modifier
             .fillMaxWidth()
@@ -49,18 +50,21 @@ fun SafetyBannerAd(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (adMobLoaded) {
-                androidx.compose.material3.HorizontalDivider(
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                     thickness = 0.5.dp
                 )
             }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (adMobLoaded) 50.dp else 0.dp),
+                    .height(50.dp),
                 contentAlignment = Alignment.Center
             ) {
                 AndroidView(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
                     factory = { ctx ->
                         AdView(ctx).apply {
                             setAdSize(AdSize.BANNER)
@@ -83,7 +87,11 @@ fun SafetyBannerAd(
                             }
                         }
                     },
-                    modifier = Modifier.wrapContentSize()
+                    onRelease = { adView ->
+                        try {
+                            adView.destroy()
+                        } catch (_: Exception) {}
+                    }
                 )
             }
         }

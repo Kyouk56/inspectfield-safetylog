@@ -20,6 +20,11 @@ android {
             ?: System.getenv("SAFETYLOG_ADMOB_APP_ID")
             ?: "ca-app-pub-3940256099942544~3347511713"
         manifestPlaceholders["admobAppId"] = admobAppId
+
+        val admobBannerId = project.findProperty("SAFETYLOG_ADMOB_BANNER_ID") as? String
+            ?: System.getenv("SAFETYLOG_ADMOB_BANNER_ID")
+            ?: "ca-app-pub-3940256099942544/6300978111"
+        buildConfigField("String", "ADMOB_BANNER_ID", "\"$admobBannerId\"")
     }
 
     buildFeatures {

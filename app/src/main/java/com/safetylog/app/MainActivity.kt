@@ -3,11 +3,13 @@ package com.safetylog.app
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -68,6 +70,20 @@ class MainActivity : ComponentActivity() {
                 AppThemeMode.SYSTEM -> isSystemDark
                 AppThemeMode.DARK -> true
                 AppThemeMode.LIGHT -> false
+            }
+
+            DisposableEffect(isDarkTheme) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT
+                    ) { isDarkTheme },
+                    navigationBarStyle = SystemBarStyle.auto(
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT
+                    ) { isDarkTheme }
+                )
+                onDispose {}
             }
 
             val pendingNotification by pendingNotificationData.collectAsState()

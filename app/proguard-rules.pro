@@ -66,3 +66,11 @@
 # --- BuildConfig ---
 -keep class com.safetylog.app.BuildConfig { *; }
 
+# --- Android 15/16 Edge-to-Edge Official Compatibility ---
+# Keep AndroidX EdgeToEdge and SystemBarStyle classes unobfuscated and prevent R8
+# from stripping EdgeToEdge.enable() so Google Play Console static analysis
+# detects official AndroidX backward-compatibility classes.
+-keep class androidx.activity.EdgeToEdge** { *; }
+-keep class androidx.activity.SystemBarStyle** { *; }
+
+

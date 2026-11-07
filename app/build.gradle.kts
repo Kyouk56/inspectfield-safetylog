@@ -12,8 +12,8 @@ android {
         applicationId = "com.safetylog.inspection.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.0.11"
+        versionCode = 15
+        versionName = "1.0.12"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val admobAppId = project.findProperty("SAFETYLOG_ADMOB_APP_ID") as? String
@@ -93,17 +93,17 @@ android {
 
 dependencies {
     // Compose & Material 3
-    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
+    implementation(platform("androidx.compose:compose-bom:2025.02.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.activity:activity-compose:1.9.2")
-    implementation("androidx.navigation:navigation-compose:2.8.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.5")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.5")
+    implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.navigation:navigation-compose:2.8.8")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
     // Room Database
     implementation("androidx.room:room-runtime:2.7.0")
@@ -120,7 +120,7 @@ dependencies {
     implementation("com.android.billingclient:billing-ktx:8.0.0")
 
     // Android Core & File Handling
-    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
 
     // Android Security & Cryptography (AES-256 GCM backed by Android Keystore MasterKey)
@@ -132,7 +132,7 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
 
     // Google Mobile Ads (AdMob) & Multi-Network Mediation Adapters (100% Free Developer SDKs)
-    implementation("com.google.android.gms:play-services-ads:23.3.0")
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
     implementation("com.google.ads.mediation:facebook:6.18.0.0")
     implementation("com.google.ads.mediation:unity:4.12.5.0")
 

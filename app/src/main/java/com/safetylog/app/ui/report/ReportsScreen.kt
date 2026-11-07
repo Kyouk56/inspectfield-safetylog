@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.safetylog.app.ui.theme.*
 import java.io.File
 import java.text.SimpleDateFormat
@@ -41,7 +42,7 @@ fun ReportsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val isDark = MaterialTheme.colorScheme.background == DarkSurfaceBase
@@ -427,7 +428,10 @@ fun ReportsScreen(
                     }
                 }
             } else {
-                items(uiState.recordsWithEquipment) { (equipment, record) ->
+                items(
+                    items = uiState.recordsWithEquipment,
+                    key = { "${it.first.id}_${it.second.id}" }
+                ) { (equipment, record) ->
                     val isRecordPassed = record.overallStatus.equals("PASSED", ignoreCase = true)
                     val recordColors = getComplianceStatusColors(record.overallStatus, isDark = isDark)
 

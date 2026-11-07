@@ -1,5 +1,7 @@
 package com.safetylog.app.data.auth
 
+import androidx.compose.runtime.Immutable
+
 enum class UserRole(
     val title: String,
     val description: String,
@@ -148,6 +150,7 @@ enum class AuthProvider(val displayName: String, val brandColorHex: Long) {
     EMAIL("Inspector Credentials / Email", 0xFFF97316)
 }
 
+@Immutable
 data class AuthUser(
     val userId: String,
     val email: String,
@@ -222,6 +225,7 @@ enum class CompanyOAuthProvider(
     GOOGLE_WORKSPACE("Google Workspace Domain Lock", "OIDC OAuth 2.0", "company.com")
 }
 
+@Immutable
 data class CompanyOAuthConfig(
     val companyName: String = "",
     val corporateDomain: String = "",
@@ -239,6 +243,7 @@ data class CompanyOAuthConfig(
     val cloudDriveAutoBackup: Boolean = false
 )
 
+@Immutable
 data class TeamMember(
     val id: String = java.util.UUID.randomUUID().toString(),
     val email: String,

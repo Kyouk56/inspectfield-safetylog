@@ -1,6 +1,7 @@
 package com.safetylog.app.ui.profile
 
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -17,6 +18,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Collections
 
+@Immutable
 data class ProfileUiState(
     val companyName: String = "",
     val inspectorName: String = "",

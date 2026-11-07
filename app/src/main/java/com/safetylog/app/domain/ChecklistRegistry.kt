@@ -1,5 +1,8 @@
 package com.safetylog.app.domain
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class ChecklistItemDefinition(
     val index: Int,
     val title: String,
@@ -8,6 +11,7 @@ data class ChecklistItemDefinition(
     val failureTag: String
 )
 
+@Immutable
 data class EquipmentChecklist(
     val categoryName: String,
     val standardTitle: String,

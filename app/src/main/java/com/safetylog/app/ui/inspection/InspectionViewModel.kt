@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
 
+@androidx.compose.runtime.Immutable
 data class InspectionUiState(
     val equipment: EquipmentItem? = null,
     val isPressureOk: Boolean = true,

@@ -1,6 +1,7 @@
 package com.safetylog.app.ui.auth
 
 import android.content.Context
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@Immutable
 data class AuthUiState(
     val currentUser: AuthUser? = null,
     val isLoading: Boolean = false,

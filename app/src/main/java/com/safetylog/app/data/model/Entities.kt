@@ -1,10 +1,12 @@
 package com.safetylog.app.data.model
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Immutable
 @Entity(tableName = "inspector_profiles")
 data class InspectorProfile(
     @PrimaryKey val id: Int = 1,
@@ -15,6 +17,7 @@ data class InspectorProfile(
     val contactPhone: String
 )
 
+@Immutable
 @Entity(
     tableName = "equipment_items",
     indices = [Index(value = ["tagId"], unique = true)]
@@ -35,6 +38,7 @@ data class EquipmentItem(
     val reminderLeadDays: Int = 1                        // 0 = Day of review, 1 = 1 day before, 3 = 3 days before
 )
 
+@Immutable
 @Entity(
     tableName = "inspection_records",
     foreignKeys = [

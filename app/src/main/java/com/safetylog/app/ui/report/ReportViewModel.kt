@@ -1,5 +1,6 @@
 package com.safetylog.app.ui.report
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -15,12 +16,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Calendar
 
+@Immutable
 data class ReportUiState(
     val startDateMillis: Long = 0,
     val endDateMillis: Long = 0,
@@ -62,12 +66,11 @@ class ReportViewModel(
 
     private fun loadProfile() {
         viewModelScope.launch {
-            val prof = profileDao.getProfileOnce()
-            val effectiveProfile = if (prof != null && prof.inspectorName.isNotBlank()) {
-                prof
-            } else {
-                val authUser = authRepository?.currentUser?.value
-                if (authUser != null) {
+            val authFlow = authRepository?.currentUser ?: flowOf(null)
+            combine(profileDao.getProfile(), authFlow) { prof, authUser ->
+                if (prof != null && prof.inspectorName.isNotBlank()) {
+                    prof
+                } else if (authUser != null) {
                     InspectorProfile(
                         id = prof?.id ?: 1,
                         companyName = prof?.companyName?.takeIf { it.isNotBlank() } ?: "Safety Operations",
@@ -79,8 +82,15 @@ class ReportViewModel(
                 } else {
                     prof
                 }
+            }.collect { effectiveProfile ->
+                _uiState.update { current ->
+                    val profileChanged = current.profile != effectiveProfile
+                    current.copy(
+                        profile = effectiveProfile,
+                        generatedPdfFile = if (profileChanged) null else current.generatedPdfFile
+                    )
+                }
             }
-            _uiState.update { it.copy(profile = effectiveProfile) }
         }
     }
 

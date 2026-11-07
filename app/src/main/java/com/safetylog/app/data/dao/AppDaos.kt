@@ -1,11 +1,13 @@
 package com.safetylog.app.data.dao
 
+import androidx.compose.runtime.Immutable
 import androidx.room.*
 import com.safetylog.app.data.model.EquipmentItem
 import com.safetylog.app.data.model.InspectionRecord
 import com.safetylog.app.data.model.InspectorProfile
 import kotlinx.coroutines.flow.Flow
 
+@Immutable
 data class EquipmentWithLatestInspection(
     @Embedded val equipment: EquipmentItem,
     val lastInspectionDate: Long?,

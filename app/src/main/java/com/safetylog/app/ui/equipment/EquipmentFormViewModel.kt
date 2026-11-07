@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+@androidx.compose.runtime.Immutable
 data class EquipmentFormUiState(
     val id: Long = 0,
     val tagId: String = "",

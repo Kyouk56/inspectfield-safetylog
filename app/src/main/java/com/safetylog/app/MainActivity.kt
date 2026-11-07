@@ -36,8 +36,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.safetylog.app.ui.theme.AppThemeMode
 import com.safetylog.app.ui.theme.ThemeManager
 
@@ -62,9 +62,12 @@ class MainActivity : ComponentActivity() {
         val app = application as SafetyLogApp
         val notificationEquipmentId = intent?.getLongExtra("equipmentId", -1L) ?: -1L
         val notificationAction = intent?.action
+        if (notificationEquipmentId > 0 && pendingNotificationData.value == null) {
+            pendingNotificationData.value = Pair(notificationEquipmentId, notificationAction)
+        }
 
         setContent {
-            val themeMode by ThemeManager.themeMode.collectAsState()
+            val themeMode by ThemeManager.themeMode.collectAsStateWithLifecycle()
             val isSystemDark = isSystemInDarkTheme()
             val isDarkTheme = when (themeMode) {
                 AppThemeMode.SYSTEM -> isSystemDark
@@ -86,9 +89,9 @@ class MainActivity : ComponentActivity() {
                 onDispose {}
             }
 
-            val pendingNotification by pendingNotificationData.collectAsState()
-            val effectiveEquipmentId = pendingNotification?.first ?: notificationEquipmentId
-            val effectiveAction = pendingNotification?.second ?: notificationAction
+            val pendingNotification by pendingNotificationData.collectAsStateWithLifecycle()
+            val effectiveEquipmentId = pendingNotification?.first ?: -1L
+            val effectiveAction = pendingNotification?.second
 
             SafetyLogTheme(darkTheme = isDarkTheme) {
                 Surface(
@@ -101,6 +104,10 @@ class MainActivity : ComponentActivity() {
                         themeMode = themeMode,
                         initialEquipmentId = effectiveEquipmentId,
                         initialAction = effectiveAction,
+                        onNotificationConsumed = {
+                            pendingNotificationData.value = null
+                            intent?.removeExtra("equipmentId")
+                        },
                         onToggleTheme = { ThemeManager.toggleTheme() },
                         onThemeModeChange = { ThemeManager.setThemeMode(it) }
                     )
@@ -117,10 +124,26 @@ fun SafetyLogNavGraph(
     themeMode: AppThemeMode,
     initialEquipmentId: Long = -1L,
     initialAction: String? = null,
+    onNotificationConsumed: () -> Unit = {},
     onToggleTheme: () -> Unit,
     onThemeModeChange: (AppThemeMode) -> Unit
 ) {
     val navController = rememberNavController()
+
+    // Shared DashboardViewModel so DashboardScreen and SettingsScreen share a single
+    // reactive state source (including Owner Sandbox / Test View and Role overrides).
+    val sharedDashboardViewModel: DashboardViewModel = viewModel(
+        factory = DashboardViewModel.Factory(
+            equipmentDao = app.database.equipmentDao(),
+            inspectionDao = app.database.inspectionDao(),
+            entitlementManager = app.entitlementManager,
+            billingRepository = app.billingRepository,
+            authRepository = app.authRepository,
+            teamSyncEngine = app.teamSyncEngine,
+            reminderManager = app.reminderManager,
+            networkMonitor = app.networkMonitor
+        )
+    )
 
     androidx.compose.runtime.LaunchedEffect(initialEquipmentId, initialAction) {
         if (initialEquipmentId > 0) {
@@ -129,6 +152,7 @@ fun SafetyLogNavGraph(
             } else {
                 navController.navigate("inspect/$initialEquipmentId")
             }
+            onNotificationConsumed()
         }
     }
 
@@ -138,21 +162,8 @@ fun SafetyLogNavGraph(
     ) {
         // Dashboard
         composable("dashboard") {
-            val dashboardViewModel: DashboardViewModel = viewModel(
-                factory = DashboardViewModel.Factory(
-                    equipmentDao = app.database.equipmentDao(),
-                    inspectionDao = app.database.inspectionDao(),
-                    entitlementManager = app.entitlementManager,
-                    billingRepository = app.billingRepository,
-                    authRepository = app.authRepository,
-                    teamSyncEngine = app.teamSyncEngine,
-                    reminderManager = app.reminderManager,
-                    networkMonitor = app.networkMonitor
-                )
-            )
-
             DashboardScreen(
-                viewModel = dashboardViewModel,
+                viewModel = sharedDashboardViewModel,
                 isDarkTheme = isDarkTheme,
                 onToggleTheme = onToggleTheme,
                 onNavigateToAddEquipment = { navController.navigate("add_equipment") },
@@ -296,20 +307,8 @@ fun SafetyLogNavGraph(
 
         // Settings & System Control
         composable("settings") {
-            val dashboardViewModel: DashboardViewModel = viewModel(
-                factory = DashboardViewModel.Factory(
-                    equipmentDao = app.database.equipmentDao(),
-                    inspectionDao = app.database.inspectionDao(),
-                    entitlementManager = app.entitlementManager,
-                    billingRepository = app.billingRepository,
-                    authRepository = app.authRepository,
-                    teamSyncEngine = app.teamSyncEngine,
-                    reminderManager = app.reminderManager,
-                    networkMonitor = app.networkMonitor
-                )
-            )
             SettingsScreen(
-                dashboardViewModel = dashboardViewModel,
+                dashboardViewModel = sharedDashboardViewModel,
                 themeMode = themeMode,
                 onThemeModeChange = onThemeModeChange,
                 teamSyncEngine = app.teamSyncEngine,

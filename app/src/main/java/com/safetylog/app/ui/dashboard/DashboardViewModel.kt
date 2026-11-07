@@ -2,6 +2,7 @@ package com.safetylog.app.ui.dashboard
 
 import android.app.Activity
 import android.content.Intent
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -28,6 +29,7 @@ enum class FilterStatus {
     ALL, PASSED, DEFICIENT, DUE
 }
 
+@Immutable
 data class DashboardUiState(
     val equipmentList: List<EquipmentWithLatestInspection> = emptyList(),
     val searchQuery: String = "",

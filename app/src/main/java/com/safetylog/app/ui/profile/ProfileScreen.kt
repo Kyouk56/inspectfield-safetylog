@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.safetylog.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,7 +40,7 @@ fun ProfileScreen(
     onNavigateToAuth: () -> Unit = {},
     onNavigateBack: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = LocalHapticFeedback.current
     val context = androidx.compose.ui.platform.LocalContext.current

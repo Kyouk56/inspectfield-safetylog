@@ -31,16 +31,28 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.safetylog.app.data.BillingRepository
+import com.safetylog.app.data.auth.PaymentStatus
+import com.safetylog.app.data.auth.SubscriptionTier
+import com.safetylog.app.data.auth.UserRole
+import com.safetylog.app.ui.components.PaywallBottomSheet
+import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     viewModel: ProfileViewModel,
+    billingRepository: BillingRepository? = null,
     onNavigateToAuth: () -> Unit = {},
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isAdFree by remember(billingRepository) { billingRepository?.isAdFree ?: kotlinx.coroutines.flow.MutableStateFlow(false) }.collectAsStateWithLifecycle()
+    val currentTier by remember(billingRepository) { billingRepository?.currentTier ?: kotlinx.coroutines.flow.MutableStateFlow(SubscriptionTier.FREE) }.collectAsStateWithLifecycle()
+    val paymentStatus by remember(billingRepository) { billingRepository?.paymentStatus ?: kotlinx.coroutines.flow.MutableStateFlow(PaymentStatus.ACTIVE) }.collectAsStateWithLifecycle()
+    val enterpriseSeats by remember(billingRepository) { billingRepository?.enterpriseSeats ?: kotlinx.coroutines.flow.MutableStateFlow(5) }.collectAsStateWithLifecycle()
+    var showPaywall by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = LocalHapticFeedback.current
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -78,7 +90,15 @@ fun ProfileScreen(
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            if (!isAdFree) {
+                SafetyBannerAd(
+                    isAdFree = isAdFree,
+                    onRemoveAdsClicked = { showPaywall = true }
+                )
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -462,8 +482,33 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(64.dp))
         }
+    }
+
+    if (showPaywall && billingRepository != null) {
+        PaywallBottomSheet(
+            onDismissRequest = { showPaywall = false },
+            userRole = uiState.authUser?.role ?: UserRole.USER,
+            currentTier = currentTier,
+            paymentStatus = paymentStatus,
+            initialEnterpriseSeats = enterpriseSeats,
+            onSelectTier = { tier, seats ->
+                billingRepository.setTier(tier)
+                if (tier == SubscriptionTier.ENTERPRISE) {
+                    billingRepository.setEnterpriseSeats(seats)
+                }
+                showPaywall = false
+            },
+            onLaunchBilling = { act, tier, seats ->
+                billingRepository.launchBillingFlow(act, tier, seats)
+                showPaywall = false
+            },
+            onCancelSubscription = { billingRepository.cancelSubscription() },
+            onReactivateSubscription = { billingRepository.reactivateSubscription() },
+            onSimulatePaymentFailed = { billingRepository.markPaymentFailed() },
+            onSimulatePaymentSuccess = { billingRepository.reactivateSubscription() }
+        )
     }
 }
 

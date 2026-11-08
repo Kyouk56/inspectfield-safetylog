@@ -27,6 +27,8 @@ data class AuthUiState(
     val securityTelemetry: Map<String, String> = emptyMap(),
     val keystoreDiagnostics: KeystoreDiagnostics? = null,
     val canUseCompanyOAuth: Boolean = false,
+    val isAdFree: Boolean = false,
+    val enterpriseSeats: Int = 5,
     val paymentStatus: PaymentStatus = PaymentStatus.ACTIVE,
     val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
     val companyOAuthConfig: CompanyOAuthConfig = CompanyOAuthConfig(),
@@ -55,6 +57,8 @@ class AuthViewModel(
         _successMessage,
         combine(_keystoreDiagnostics, _isRunningDiagnostics) { diag, running -> Pair(diag, running) },
         billingRepository?.canUseCompanyOAuth ?: MutableStateFlow(false),
+        billingRepository?.isAdFree ?: MutableStateFlow(false),
+        billingRepository?.enterpriseSeats ?: MutableStateFlow(5),
         billingRepository?.paymentStatus ?: MutableStateFlow(PaymentStatus.ACTIVE),
         billingRepository?.currentTier ?: MutableStateFlow(SubscriptionTier.FREE),
         billingRepository?.companyOAuthConfig ?: MutableStateFlow(CompanyOAuthConfig()),
@@ -68,10 +72,12 @@ class AuthViewModel(
         val diagPair = args[4] as Pair<KeystoreDiagnostics?, Boolean>
         val (diagnostics, runningDiag) = diagPair
         val canCompanyOAuth = args[5] as Boolean
-        val payStatus = args[6] as PaymentStatus
-        val tier = args[7] as SubscriptionTier
-        val companyConfig = args[8] as CompanyOAuthConfig
-        val sandboxActive = args[9] as Boolean
+        val adFree = args[6] as Boolean
+        val seats = args[7] as Int
+        val payStatus = args[8] as PaymentStatus
+        val tier = args[9] as SubscriptionTier
+        val companyConfig = args[10] as CompanyOAuthConfig
+        val sandboxActive = args[11] as Boolean
 
         AuthUiState(
             currentUser = user,
@@ -82,6 +88,8 @@ class AuthViewModel(
             securityTelemetry = authRepository.securityTelemetry,
             keystoreDiagnostics = diagnostics,
             canUseCompanyOAuth = canCompanyOAuth,
+            isAdFree = adFree,
+            enterpriseSeats = seats,
             paymentStatus = payStatus,
             subscriptionTier = tier,
             companyOAuthConfig = companyConfig,
@@ -95,6 +103,8 @@ class AuthViewModel(
             currentUser = authRepository.currentUser.value,
             securityTelemetry = authRepository.securityTelemetry,
             canUseCompanyOAuth = billingRepository?.canUseCompanyOAuth?.value ?: false,
+            isAdFree = billingRepository?.isAdFree?.value ?: false,
+            enterpriseSeats = billingRepository?.enterpriseSeats?.value ?: 5,
             paymentStatus = billingRepository?.paymentStatus?.value ?: PaymentStatus.ACTIVE,
             subscriptionTier = billingRepository?.currentTier?.value ?: SubscriptionTier.FREE,
             companyOAuthConfig = billingRepository?.companyOAuthConfig?.value ?: CompanyOAuthConfig(),

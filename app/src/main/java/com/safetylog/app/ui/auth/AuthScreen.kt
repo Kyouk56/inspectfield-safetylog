@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.safetylog.app.data.auth.UserRole
 import com.safetylog.app.ui.components.PaywallBottomSheet
 import com.safetylog.app.ui.components.PrivacyPolicyDialog
+import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -116,7 +117,15 @@ fun AuthScreen(
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            if (!uiState.isAdFree) {
+                SafetyBannerAd(
+                    isAdFree = uiState.isAdFree,
+                    onRemoveAdsClicked = { showPaywall = true }
+                )
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -177,7 +186,7 @@ fun AuthScreen(
                 onShowPrivacyPolicy = { showPrivacyPolicyDialog = true }
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(64.dp))
         }
     }
 
@@ -187,6 +196,7 @@ fun AuthScreen(
             userRole = uiState.currentUser?.role ?: UserRole.USER,
             currentTier = uiState.subscriptionTier,
             paymentStatus = uiState.paymentStatus,
+            initialEnterpriseSeats = uiState.enterpriseSeats,
             onSelectTier = { tier, seats ->
                 viewModel.setSubscriptionTier(tier, seats)
                 showPaywall = false

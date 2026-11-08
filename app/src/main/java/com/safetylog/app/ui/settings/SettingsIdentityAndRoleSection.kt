@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
 import com.safetylog.app.data.auth.UserRole
 import com.safetylog.app.ui.dashboard.DashboardUiState
@@ -462,6 +463,255 @@ internal fun SettingsIdentityVaultCard(
                 Icon(Icons.Default.Policy, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Privacy Policy & Data Safety Disclosures", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun SettingsSubscriptionQuotasCard(
+    uiState: DashboardUiState,
+    dashboardViewModel: DashboardViewModel,
+    onShowPaywall: () -> Unit,
+    onShowCancelConfirmDialog: () -> Unit
+) {
+    val context = LocalContext.current
+
+    // 7. Subscriptions, Quotas & Self-Service Licensing
+    Card(
+        modifier = Modifier.fillMaxWidth().shadow(2.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFFEF3C7)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.WorkspacePremium, contentDescription = null, tint = SafetyAmber, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Subscription & Quotas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(uiState.subscriptionTier.title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = when (uiState.paymentStatus) {
+                        PaymentStatus.ACTIVE -> if (uiState.isAdFree) Color(0xFF10B981).copy(alpha = 0.15f) else SafetyOrange.copy(alpha = 0.15f)
+                        PaymentStatus.PAYMENT_FAILED -> StatusDeficient.copy(alpha = 0.15f)
+                        PaymentStatus.CANCELLED -> SafetyAmber.copy(alpha = 0.15f)
+                        PaymentStatus.GRACE_PERIOD -> SafetyAmber.copy(alpha = 0.15f)
+                    }
+                ) {
+                    Text(
+                        text = when (uiState.paymentStatus) {
+                            PaymentStatus.ACTIVE -> if (uiState.isAdFree) "ACTIVE AD-FREE" else "FREE (ADS)"
+                            PaymentStatus.PAYMENT_FAILED -> "PAST DUE"
+                            PaymentStatus.CANCELLED -> "CANCELLED"
+                            PaymentStatus.GRACE_PERIOD -> "GRACE PERIOD"
+                        },
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = when (uiState.paymentStatus) {
+                            PaymentStatus.ACTIVE -> if (uiState.isAdFree) Color(0xFF10B981) else SafetyOrange
+                            PaymentStatus.PAYMENT_FAILED -> StatusDeficient
+                            PaymentStatus.CANCELLED -> SafetyAmber
+                            PaymentStatus.GRACE_PERIOD -> SafetyAmber
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Payment Alert Box if Past Due or Cancelled
+            if (uiState.paymentStatus == PaymentStatus.PAYMENT_FAILED) {
+                Surface(shape = RoundedCornerShape(10.dp), color = StatusDeficient.copy(alpha = 0.12f), border = BorderStroke(1.dp, StatusDeficient)) {
+                    Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = StatusDeficient, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Payment past due! Recurring features locked to Free tier until payment is delivered.",
+                            style = MaterialTheme.typography.bodySmall, color = StatusDeficient, fontWeight = FontWeight.Bold, fontSize = 11.sp
+                        )
+                    }
+                }
+            } else if (uiState.paymentStatus == PaymentStatus.CANCELLED) {
+                Surface(shape = RoundedCornerShape(10.dp), color = SafetyAmber.copy(alpha = 0.12f), border = BorderStroke(1.dp, SafetyAmber)) {
+                    Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Info, contentDescription = null, tint = SafetyAmber, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Subscription cancelled. Account is running on Free usage (5 inspections/mo).",
+                            style = MaterialTheme.typography.bodySmall, color = SafetyAmber, fontWeight = FontWeight.Bold, fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = "Monthly Audit Usage: ${uiState.inspectionsThisMonth} of ${if (uiState.isProUser) "Unlimited" else "${uiState.freeLimit} free"} completed",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Self-Service Lifecycle Actions (Corporate lockdown applies only if Enterprise plan is active)
+            val isCorporateMemberRestricted = uiState.subscriptionTier == SubscriptionTier.ENTERPRISE && !uiState.userRole.canManageBilling
+            if (isCorporateMemberRestricted) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("Corporate Billing Restricted", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                text = "As a ${uiState.userRole.title}, your organization's Enterprise subscription and seat expansion are managed by your Account Admin or Owner.",
+                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            } else {
+                // Quick Self-Service Tier Selector
+                Text(
+                    text = "Active Plan Tier:",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    SubscriptionTier.entries.forEach { tier ->
+                        val isSelected = uiState.effectiveTier == tier
+                        val label = when (tier) {
+                            SubscriptionTier.FREE -> "Free (Ads)"
+                            SubscriptionTier.AD_FREE -> "Ad-Free $2.99"
+                            SubscriptionTier.INDIVIDUAL_PRO -> "Indiv $0.99/mo"
+                            SubscriptionTier.ENTERPRISE -> "Enterprise $0.50/seat"
+                        }
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                dashboardViewModel.setSubscriptionTier(tier, uiState.enterpriseSeats)
+                            },
+                            label = {
+                                Text(
+                                    text = label,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = SafetyOrange,
+                                selectedLabelColor = Color.White
+                            )
+                        )
+                    }
+                }
+
+                if (uiState.paymentStatus == PaymentStatus.PAYMENT_FAILED) {
+                    Button(
+                        onClick = {
+                            dashboardViewModel.reactivateSubscription()
+                            Toast.makeText(context, "Balance cleared. Features unlocked!", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusDeficient)
+                    ) {
+                        Icon(Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Pay Outstanding Balance & Restore Access", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                } else if (uiState.paymentStatus == PaymentStatus.CANCELLED) {
+                    Button(
+                        onClick = onShowPaywall,
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Reactivate Paid Subscription", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                } else if (uiState.subscriptionTier != SubscriptionTier.FREE && uiState.subscriptionTier != SubscriptionTier.AD_FREE) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = onShowPaywall,
+                            modifier = Modifier.weight(1.2f).height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
+                        ) {
+                            Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Manage Seats", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = onShowCancelConfirmDialog,
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDeficient),
+                            border = BorderStroke(1.dp, StatusDeficient.copy(alpha = 0.5f))
+                        ) {
+                            Text("Cancel Sub", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                } else {
+                    Button(
+                        onClick = onShowPaywall,
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (uiState.isAdFree) "Manage Plan & Team Seats" else "Upgrade / Unlock Functions",
+                            fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White
+                        )
+                    }
+                }
+
+                // Self-Service Billing Test Controls
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Text("Self-Service Lifecycle Simulation:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            dashboardViewModel.markPaymentFailed()
+                            Toast.makeText(context, "Simulated payment failure: Features locked to free use", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) { Text("Fail Pay", fontSize = 11.sp, maxLines = 1) }
+                    OutlinedButton(
+                        onClick = {
+                            dashboardViewModel.cancelSubscription()
+                            Toast.makeText(context, "Simulated cancel: Features locked to free use", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) { Text("Cancel", fontSize = 11.sp, maxLines = 1) }
+                    OutlinedButton(
+                        onClick = {
+                            dashboardViewModel.reactivateSubscription()
+                            Toast.makeText(context, "Simulated success: Features restored", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                    ) { Text("Restore", fontSize = 11.sp, maxLines = 1) }
+                }
             }
         }
     }

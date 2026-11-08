@@ -49,5 +49,28 @@ class SafetyBannerAdConfigTest {
         val requiredStandardBannerHeightDp = 50
         assertEquals(50, requiredStandardBannerHeightDp)
     }
+
+    @Test
+    fun testSubscriptionTierEntitlements() {
+        // Free Tier: ad-supported, no sharing, not enterprise
+        assertFalse(SubscriptionTier.FREE.isAdFree)
+        assertFalse(SubscriptionTier.FREE.allowsSharing)
+        assertFalse(SubscriptionTier.FREE.isEnterprise)
+
+        // Ad-Free One-Time Pass ($2.99): ad-free, no sharing, not enterprise
+        assertTrue(SubscriptionTier.AD_FREE.isAdFree)
+        assertFalse(SubscriptionTier.AD_FREE.allowsSharing)
+        assertFalse(SubscriptionTier.AD_FREE.isEnterprise)
+
+        // Individual Pro Subscription ($0.99/mo): ad-free, allows sharing, not enterprise
+        assertTrue(SubscriptionTier.INDIVIDUAL_PRO.isAdFree)
+        assertTrue(SubscriptionTier.INDIVIDUAL_PRO.allowsSharing)
+        assertFalse(SubscriptionTier.INDIVIDUAL_PRO.isEnterprise)
+
+        // Enterprise Seat Subscription ($0.50/seat/mo): ad-free, allows sharing, enterprise RBAC
+        assertTrue(SubscriptionTier.ENTERPRISE.isAdFree)
+        assertTrue(SubscriptionTier.ENTERPRISE.allowsSharing)
+        assertTrue(SubscriptionTier.ENTERPRISE.isEnterprise)
+    }
 }
 

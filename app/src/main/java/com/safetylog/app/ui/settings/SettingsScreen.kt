@@ -46,6 +46,7 @@ import com.safetylog.app.data.auth.UserRole
 import com.safetylog.app.data.sync.TeamSyncEngine
 import com.safetylog.app.ui.components.PaywallBottomSheet
 import com.safetylog.app.ui.components.PrivacyPolicyDialog
+import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.dashboard.DashboardViewModel
 import com.safetylog.app.ui.theme.*
 import com.safetylog.app.util.CrashLogVault
@@ -180,6 +181,14 @@ fun SettingsScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             )
+        },
+        bottomBar = {
+            if (!uiState.isAdFree) {
+                SafetyBannerAd(
+                    isAdFree = uiState.isAdFree,
+                    onRemoveAdsClicked = { showPaywall = true }
+                )
+            }
         }
     ) { innerPadding ->
         Column(
@@ -437,7 +446,7 @@ fun SettingsScreen(
                 onShowPrivacyPolicy = { showPrivacyPolicyDialog = true }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(64.dp))
         }
     }
 

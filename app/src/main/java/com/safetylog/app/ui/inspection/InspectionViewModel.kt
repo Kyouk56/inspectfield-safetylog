@@ -34,6 +34,7 @@ data class InspectionUiState(
     val showPaywall: Boolean = false,
     val errorMessage: String? = null,
     val isSavedSuccess: Boolean = false,
+    val isAdFree: Boolean = false,
     val subscriptionTier: SubscriptionTier = SubscriptionTier.FREE,
     val paymentStatus: PaymentStatus = PaymentStatus.ACTIVE,
     val userRole: UserRole = UserRole.USER,
@@ -65,6 +66,11 @@ class InspectionViewModel(
 
     init {
         loadEquipment()
+        viewModelScope.launch {
+            billingRepository.isAdFree.collect { adFree ->
+                _uiState.update { it.copy(isAdFree = adFree) }
+            }
+        }
         viewModelScope.launch {
             billingRepository.currentTier.collect { tier ->
                 _uiState.update { it.copy(subscriptionTier = tier) }
@@ -132,6 +138,10 @@ class InspectionViewModel(
 
     fun onSignatureCaptured(path: String) {
         _uiState.update { it.copy(signaturePath = path, errorMessage = null) }
+    }
+
+    fun openPaywall() {
+        _uiState.update { it.copy(showPaywall = true) }
     }
 
     fun dismissPaywall() {

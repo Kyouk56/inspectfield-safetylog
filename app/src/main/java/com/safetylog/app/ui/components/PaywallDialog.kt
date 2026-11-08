@@ -214,10 +214,26 @@ fun PaywallBottomSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            // Plan 0: Standard Free (Banner Ad-Supported)
+            SubscriptionTierCard(
+                tier = SubscriptionTier.FREE,
+                isSelected = selectedTier == SubscriptionTier.FREE,
+                isCurrentPlan = currentTier == SubscriptionTier.FREE || !paymentStatus.isGoodStanding,
+                headline = "Standard Free",
+                price = "Free",
+                frequency = "Banner Ad-Supported",
+                bullet1 = "Up to 5 monthly equipment inspection logs with bottom banner sponsorship",
+                bullet2 = "Offline Room database & hardware AES-256 inspector credentials",
+                onClick = { selectedTier = SubscriptionTier.FREE }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             // Plan 1: Ad-Free Flat Rate ($2.99)
             SubscriptionTierCard(
                 tier = SubscriptionTier.AD_FREE,
                 isSelected = selectedTier == SubscriptionTier.AD_FREE,
+                isCurrentPlan = currentTier == SubscriptionTier.AD_FREE && paymentStatus.isGoodStanding,
                 headline = "Ad-Free License",
                 price = "$2.99",
                 frequency = "One-Time Flat Rate",
@@ -232,11 +248,12 @@ fun PaywallBottomSheet(
             SubscriptionTierCard(
                 tier = SubscriptionTier.INDIVIDUAL_PRO,
                 isSelected = selectedTier == SubscriptionTier.INDIVIDUAL_PRO,
+                isCurrentPlan = currentTier == SubscriptionTier.INDIVIDUAL_PRO && paymentStatus.isGoodStanding,
                 isRecommended = true,
                 headline = "Individual Share & Sync",
                 price = "$0.99",
                 frequency = "per month",
-                bullet1 = "Share inspection logs & export vaults between your connected devices",
+                bullet1 = "Removes all banner ads + share inspection logs & PDF vaults across accounts",
                 bullet2 = "Personal OAuth identity linking (Google / Microsoft) & audit signatures",
                 onClick = { selectedTier = SubscriptionTier.INDIVIDUAL_PRO }
             )
@@ -247,11 +264,12 @@ fun PaywallBottomSheet(
             SubscriptionTierCard(
                 tier = SubscriptionTier.ENTERPRISE,
                 isSelected = selectedTier == SubscriptionTier.ENTERPRISE,
+                isCurrentPlan = currentTier == SubscriptionTier.ENTERPRISE && paymentStatus.isGoodStanding,
                 headline = "Enterprise Organization",
                 price = "$0.50",
                 frequency = "per person / month",
                 bullet1 = "🏢 Company-Specific OAuth: Configure corporate SAML 2.0, Microsoft Entra, Okta, or Google Workspace",
-                bullet2 = "Enterprise Team Sync: Custom REST endpoints & encrypted deployment package export",
+                bullet2 = "Removes all banner ads + Enterprise Team Sync, REST endpoints & seat management",
                 onClick = { selectedTier = SubscriptionTier.ENTERPRISE }
             ) {
                 // Interactive Seat Counter for Enterprise
@@ -356,8 +374,8 @@ fun PaywallBottomSheet(
                 )
             }
 
-            // Self-Service Cancel Subscription Option (Only Account Admins & Owner)
-            if (isBillingAllowed && currentTier != SubscriptionTier.FREE && currentTier != SubscriptionTier.AD_FREE && paymentStatus.isGoodStanding) {
+            // Self-Service Cancel / Revert to Free Option (Only Account Admins & Owner when in Enterprise)
+            if (isBillingAllowed && currentTier != SubscriptionTier.FREE && paymentStatus.isGoodStanding) {
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { showCancelConfirmDialog = true },
@@ -368,7 +386,11 @@ fun PaywallBottomSheet(
                 ) {
                     Icon(Icons.Default.Cancel, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Cancel Subscription (Lock to Free)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(
+                        text = if (currentTier == SubscriptionTier.AD_FREE) "Revert to Standard Free (Ad-Supported)" else "Cancel Subscription (Lock to Free)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
                 }
             }
 
@@ -473,6 +495,7 @@ fun PaywallBottomSheet(
 private fun SubscriptionTierCard(
     tier: SubscriptionTier,
     isSelected: Boolean,
+    isCurrentPlan: Boolean = false,
     isRecommended: Boolean = false,
     headline: String,
     price: String,
@@ -493,7 +516,11 @@ private fun SubscriptionTierCard(
         shape = RoundedCornerShape(14.dp),
         border = BorderStroke(
             width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) SafetyOrange else Slate700
+            color = when {
+                isSelected -> SafetyOrange
+                isCurrentPlan -> StatusPassedLight
+                else -> Slate700
+            }
         )
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -502,7 +529,7 @@ private fun SubscriptionTierCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     RadioButton(
                         selected = isSelected,
                         onClick = onClick,
@@ -520,18 +547,36 @@ private fun SubscriptionTierCard(
                     )
                 }
 
-                if (isRecommended) {
-                    Surface(
-                        color = SafetyOrange,
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = "POPULAR",
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (isCurrentPlan) {
+                        Surface(
+                            color = StatusPassed.copy(alpha = 0.25f),
+                            border = BorderStroke(0.5.dp, StatusPassedLight),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "CURRENT PLAN",
+                                color = StatusPassedLight,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (isRecommended) {
+                        Surface(
+                            color = SafetyOrange,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "POPULAR",
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
             }

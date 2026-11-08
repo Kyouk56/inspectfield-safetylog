@@ -188,6 +188,7 @@ fun SafetyLogNavGraph(
             )
             EquipmentFormScreen(
                 viewModel = formViewModel,
+                billingRepository = app.billingRepository,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -208,6 +209,7 @@ fun SafetyLogNavGraph(
             )
             EquipmentFormScreen(
                 viewModel = formViewModel,
+                billingRepository = app.billingRepository,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -270,6 +272,7 @@ fun SafetyLogNavGraph(
             )
             ReportsScreen(
                 viewModel = reportViewModel,
+                billingRepository = app.billingRepository,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToProfile = { navController.navigate("profile") }
             )
@@ -285,6 +288,7 @@ fun SafetyLogNavGraph(
             )
             ProfileScreen(
                 viewModel = profileViewModel,
+                billingRepository = app.billingRepository,
                 onNavigateToAuth = { navController.navigate("auth") },
                 onNavigateBack = { navController.popBackStack() }
             )

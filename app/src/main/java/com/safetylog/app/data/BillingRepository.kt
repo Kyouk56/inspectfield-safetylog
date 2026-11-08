@@ -31,7 +31,9 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     private val _enterpriseSeats = MutableStateFlow(prefs.getInt(KEY_ENTERPRISE_SEATS, 5).coerceAtLeast(1))
     val enterpriseSeats: StateFlow<Int> = _enterpriseSeats.asStateFlow()
 
-    private val _hasOneTimeAdFree = MutableStateFlow(prefs.getBoolean(KEY_ONE_TIME_AD_FREE, false))
+    private val _hasOneTimeAdFree = MutableStateFlow(
+        prefs.getBoolean(KEY_ONE_TIME_AD_FREE, false) && _currentTier.value == SubscriptionTier.AD_FREE
+    )
     val hasOneTimeAdFree: StateFlow<Boolean> = _hasOneTimeAdFree.asStateFlow()
 
     private val _companyOAuthConfig = MutableStateFlow(loadInitialCompanyOAuthConfig())
@@ -351,11 +353,15 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
 
     private fun handleValidPurchase(purchase: Purchase) {
         val prods = purchase.products
+        if (prods.contains(SKU_AD_FREE)) {
+            _hasOneTimeAdFree.value = true
+            prefs.edit().putBoolean(KEY_ONE_TIME_AD_FREE, true).apply()
+        }
         when {
-            prods.contains(SKU_ENTERPRISE_SEAT) -> setTier(SubscriptionTier.ENTERPRISE)
-            prods.contains(SKU_INDIVIDUAL_PRO) -> setTier(SubscriptionTier.INDIVIDUAL_PRO)
-            prods.contains(SKU_AD_FREE) -> setTier(SubscriptionTier.AD_FREE)
-            else -> setTier(SubscriptionTier.INDIVIDUAL_PRO)
+            prods.contains(SKU_ENTERPRISE_SEAT) -> setTier(SubscriptionTier.ENTERPRISE, preserveOneTimeAdFree = true)
+            prods.contains(SKU_INDIVIDUAL_PRO) -> setTier(SubscriptionTier.INDIVIDUAL_PRO, preserveOneTimeAdFree = true)
+            prods.contains(SKU_AD_FREE) -> setTier(SubscriptionTier.AD_FREE, preserveOneTimeAdFree = true)
+            else -> setTier(SubscriptionTier.INDIVIDUAL_PRO, preserveOneTimeAdFree = true)
         }
 
         try {
@@ -364,15 +370,19 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
         } catch (_: Exception) {}
     }
 
-    fun setTier(tier: SubscriptionTier) {
-        if (tier == SubscriptionTier.AD_FREE) {
-            _hasOneTimeAdFree.value = true
-            prefs.edit().putBoolean(KEY_ONE_TIME_AD_FREE, true).apply()
+    fun setTier(tier: SubscriptionTier, preserveOneTimeAdFree: Boolean = false) {
+        val isOneTimeAdFree = when {
+            tier == SubscriptionTier.AD_FREE -> true
+            tier == SubscriptionTier.FREE -> false
+            preserveOneTimeAdFree -> _hasOneTimeAdFree.value
+            else -> false
         }
+        _hasOneTimeAdFree.value = isOneTimeAdFree
 
         prefs.edit()
             .putString(KEY_SUBSCRIPTION_TIER, tier.name)
             .putString(KEY_PAYMENT_STATUS, PaymentStatus.ACTIVE.name)
+            .putBoolean(KEY_ONE_TIME_AD_FREE, isOneTimeAdFree)
             .putBoolean(KEY_IS_PRO, tier != SubscriptionTier.FREE)
             .apply()
 
@@ -399,13 +409,29 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     // --- Self-Service Lifecycle Methods ---
 
     fun cancelSubscription() {
-        prefs.edit().putString(KEY_PAYMENT_STATUS, PaymentStatus.CANCELLED.name).apply()
+        if (_currentTier.value == SubscriptionTier.AD_FREE || _currentTier.value == SubscriptionTier.FREE) {
+            setTier(SubscriptionTier.FREE)
+            return
+        }
+        _hasOneTimeAdFree.value = false
+        prefs.edit()
+            .putBoolean(KEY_ONE_TIME_AD_FREE, false)
+            .putString(KEY_PAYMENT_STATUS, PaymentStatus.CANCELLED.name)
+            .apply()
         _paymentStatus.value = PaymentStatus.CANCELLED
         recalculateEntitlements()
     }
 
     fun markPaymentFailed() {
-        prefs.edit().putString(KEY_PAYMENT_STATUS, PaymentStatus.PAYMENT_FAILED.name).apply()
+        if (_currentTier.value == SubscriptionTier.AD_FREE || _currentTier.value == SubscriptionTier.FREE) {
+            setTier(SubscriptionTier.FREE)
+            return
+        }
+        _hasOneTimeAdFree.value = false
+        prefs.edit()
+            .putBoolean(KEY_ONE_TIME_AD_FREE, false)
+            .putString(KEY_PAYMENT_STATUS, PaymentStatus.PAYMENT_FAILED.name)
+            .apply()
         _paymentStatus.value = PaymentStatus.PAYMENT_FAILED
         recalculateEntitlements()
     }

@@ -30,6 +30,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.safetylog.app.data.BillingRepository
+import com.safetylog.app.data.auth.PaymentStatus
+import com.safetylog.app.data.auth.SubscriptionTier
+import com.safetylog.app.data.auth.UserRole
+import com.safetylog.app.ui.components.PaywallBottomSheet
+import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.theme.*
 import java.io.File
 import java.text.SimpleDateFormat
@@ -39,10 +45,17 @@ import java.util.*
 @Composable
 fun ReportsScreen(
     viewModel: ReportViewModel,
+    billingRepository: BillingRepository? = null,
     onNavigateBack: () -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isAdFree by remember(billingRepository) { billingRepository?.isAdFree ?: kotlinx.coroutines.flow.MutableStateFlow(false) }.collectAsStateWithLifecycle()
+    val canShare by remember(billingRepository) { billingRepository?.canShareBetweenAccounts ?: kotlinx.coroutines.flow.MutableStateFlow(true) }.collectAsStateWithLifecycle()
+    val currentTier by remember(billingRepository) { billingRepository?.currentTier ?: kotlinx.coroutines.flow.MutableStateFlow(SubscriptionTier.FREE) }.collectAsStateWithLifecycle()
+    val paymentStatus by remember(billingRepository) { billingRepository?.paymentStatus ?: kotlinx.coroutines.flow.MutableStateFlow(PaymentStatus.ACTIVE) }.collectAsStateWithLifecycle()
+    val enterpriseSeats by remember(billingRepository) { billingRepository?.enterpriseSeats ?: kotlinx.coroutines.flow.MutableStateFlow(5) }.collectAsStateWithLifecycle()
+    var showPaywall by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val isDark = MaterialTheme.colorScheme.background == DarkSurfaceBase
@@ -81,7 +94,15 @@ fun ReportsScreen(
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            if (!isAdFree) {
+                SafetyBannerAd(
+                    isAdFree = isAdFree,
+                    onRemoveAdsClicked = { showPaywall = true }
+                )
+            }
+        }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -326,7 +347,13 @@ fun ReportsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Button(
-                                    onClick = { sharePdf(context, pdfFile) },
+                                    onClick = {
+                                        if (billingRepository != null && !canShare) {
+                                            showPaywall = true
+                                        } else {
+                                            sharePdf(context, pdfFile)
+                                        }
+                                    },
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(48.dp),
@@ -520,9 +547,34 @@ fun ReportsScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(72.dp))
             }
         }
+    }
+
+    if (showPaywall && billingRepository != null) {
+        PaywallBottomSheet(
+            onDismissRequest = { showPaywall = false },
+            userRole = UserRole.ACCOUNT_ADMIN,
+            currentTier = currentTier,
+            paymentStatus = paymentStatus,
+            initialEnterpriseSeats = enterpriseSeats,
+            onSelectTier = { tier, seats ->
+                billingRepository.setTier(tier)
+                if (tier == SubscriptionTier.ENTERPRISE) {
+                    billingRepository.setEnterpriseSeats(seats)
+                }
+                showPaywall = false
+            },
+            onLaunchBilling = { act, tier, seats ->
+                billingRepository.launchBillingFlow(act, tier, seats)
+                showPaywall = false
+            },
+            onCancelSubscription = { billingRepository.cancelSubscription() },
+            onReactivateSubscription = { billingRepository.reactivateSubscription() },
+            onSimulatePaymentFailed = { billingRepository.markPaymentFailed() },
+            onSimulatePaymentSuccess = { billingRepository.reactivateSubscription() }
+        )
     }
 }
 

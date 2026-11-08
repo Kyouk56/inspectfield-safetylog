@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.safetylog.app.domain.ChecklistRegistry
 import com.safetylog.app.ui.components.PaywallBottomSheet
+import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.components.SignaturePad
 import com.safetylog.app.ui.theme.*
 import java.io.File
@@ -122,7 +123,15 @@ fun InspectionFormScreen(
                 )
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            if (!uiState.isAdFree) {
+                SafetyBannerAd(
+                    isAdFree = uiState.isAdFree,
+                    onRemoveAdsClicked = viewModel::openPaywall
+                )
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -393,7 +402,7 @@ fun InspectionFormScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(64.dp))
         }
     }
 

@@ -24,6 +24,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.safetylog.app.ui.theme.*
@@ -42,7 +44,7 @@ fun SignaturePad(
     var isConfirmed by remember { mutableStateOf(false) }
     var drawTrigger by remember { mutableLongStateOf(0L) }
 
-    val isDark = MaterialTheme.colorScheme.background == DarkSurfaceBase
+    val isDark = LocalIsDarkTheme.current
     val padBg = if (isDark) DarkSurfaceCard else Color(0xFFF8FAFC)
     val inkColor = if (isDark) Color.White else Color(0xFF0F172A)
     val guideColor = if (isDark) Slate400 else Slate500
@@ -175,6 +177,9 @@ fun SignaturePad(
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
+                        .semantics {
+                            contentDescription = "Technician signature drawing pad. Draw your signature with a finger or stylus."
+                        }
                         .pointerInput(Unit) {
                             detectDragGestures(
                                 onDragStart = { offset ->

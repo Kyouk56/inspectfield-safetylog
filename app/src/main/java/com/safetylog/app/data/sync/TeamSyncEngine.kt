@@ -72,11 +72,9 @@ class TeamSyncEngine(
     suspend fun exportEncryptedTeamPackage(): Result<File> = withContext(Dispatchers.IO) {
         try {
             val allEquipment = equipmentDao.getAllEquipment()
-            val allInspections = mutableListOf<InspectionRecord>()
-            allEquipment.forEach { eq ->
-                val records = inspectionDao.getInspectionsInRange(0L, System.currentTimeMillis() + 100000L)
-                allInspections.addAll(records.filter { it.equipmentId == eq.id })
-            }
+            val equipmentById = allEquipment.associateBy { it.id }
+            val records = inspectionDao.getInspectionsInRange(0L, System.currentTimeMillis() + 100000L)
+            val allInspections = records.filter { it.equipmentId in equipmentById }
 
             val rootJson = JSONObject().apply {
                 put("version", 2)
@@ -103,7 +101,7 @@ class TeamSyncEngine(
                 val insArray = JSONArray()
                 allInspections.forEach { ins ->
                     insArray.put(JSONObject().apply {
-                        put("equipmentTag", allEquipment.find { it.id == ins.equipmentId }?.tagId ?: "")
+                        put("equipmentTag", equipmentById[ins.equipmentId]?.tagId ?: "")
                         put("timestamp", ins.timestamp)
                         put("isPressureOk", ins.isPressureOk)
                         put("isHoseIntact", ins.isHoseIntact)
@@ -187,9 +185,10 @@ class TeamSyncEngine(
      */
     suspend fun syncWithEnterpriseRestServer(): SyncResult = withContext(Dispatchers.IO) {
         val endpoint = getCustomRestEndpoint()
+        var conn: HttpURLConnection? = null
         try {
             val url = URL(endpoint)
-            val conn = (url.openConnection() as HttpURLConnection).apply {
+            conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 8000
                 readTimeout = 8000
@@ -221,6 +220,8 @@ class TeamSyncEngine(
             }
         } catch (e: Exception) {
             SyncResult.Error("REST Sync error: ${e.localizedMessage ?: "Unable to reach server"}")
+        } finally {
+            conn?.disconnect()
         }
     }
 

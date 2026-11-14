@@ -98,7 +98,9 @@ class InspectionReminderManager(private val context: Context) {
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            equipment.id.toInt(),
+            // Use hashCode() instead of toInt(): id values beyond Int range would silently
+            // truncate with toInt() and collide with other equipment's PendingIntents.
+            equipment.id.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -129,7 +131,8 @@ class InspectionReminderManager(private val context: Context) {
         }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            equipmentId.toInt(),
+            // Must match scheduleReminder()'s request code derivation (hashCode, not toInt()).
+            equipmentId.hashCode(),
             intent,
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )

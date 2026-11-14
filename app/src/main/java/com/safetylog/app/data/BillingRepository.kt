@@ -32,7 +32,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     val enterpriseSeats: StateFlow<Int> = _enterpriseSeats.asStateFlow()
 
     private val _hasOneTimeAdFree = MutableStateFlow(
-        prefs.getBoolean(KEY_ONE_TIME_AD_FREE, false) && _currentTier.value == SubscriptionTier.AD_FREE
+        prefs.getBoolean(KEY_ONE_TIME_AD_FREE, false)
     )
     val hasOneTimeAdFree: StateFlow<Boolean> = _hasOneTimeAdFree.asStateFlow()
 
@@ -370,10 +370,9 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
         } catch (_: Exception) {}
     }
 
-    fun setTier(tier: SubscriptionTier, preserveOneTimeAdFree: Boolean = false) {
+    fun setTier(tier: SubscriptionTier, preserveOneTimeAdFree: Boolean = true) {
         val isOneTimeAdFree = when {
             tier == SubscriptionTier.AD_FREE -> true
-            tier == SubscriptionTier.FREE -> false
             preserveOneTimeAdFree -> _hasOneTimeAdFree.value
             else -> false
         }
@@ -413,9 +412,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
             setTier(SubscriptionTier.FREE)
             return
         }
-        _hasOneTimeAdFree.value = false
         prefs.edit()
-            .putBoolean(KEY_ONE_TIME_AD_FREE, false)
             .putString(KEY_PAYMENT_STATUS, PaymentStatus.CANCELLED.name)
             .apply()
         _paymentStatus.value = PaymentStatus.CANCELLED
@@ -427,9 +424,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
             setTier(SubscriptionTier.FREE)
             return
         }
-        _hasOneTimeAdFree.value = false
         prefs.edit()
-            .putBoolean(KEY_ONE_TIME_AD_FREE, false)
             .putString(KEY_PAYMENT_STATUS, PaymentStatus.PAYMENT_FAILED.name)
             .apply()
         _paymentStatus.value = PaymentStatus.PAYMENT_FAILED

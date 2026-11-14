@@ -12,12 +12,14 @@ import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,15 +49,20 @@ internal fun EquipmentAssetCard(
     val now = System.currentTimeMillis()
     val isOverdue = eq.nextReviewTimestamp in 1..<now
 
-    val protocolName = eq.assignedChecklist.ifBlank {
+    val defaultProtocolName = remember(eq.equipmentType) {
         ChecklistRegistry.getChecklistForType(eq.equipmentType).categoryName
     }
+    val protocolName = eq.assignedChecklist.ifBlank { defaultProtocolName }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(2.dp, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
+            .clickable(
+                onClickLabel = "Manage ${eq.tagId}",
+                role = Role.Button,
+                onClick = onClick
+            ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -298,7 +305,7 @@ internal fun EquipmentAssetCard(
                             onClick = onDirectInspect,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(34.dp),
+                                .heightIn(min = 48.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange),
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 6.dp)
@@ -322,7 +329,7 @@ internal fun EquipmentAssetCard(
                             onClick = onClick,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(34.dp),
+                                .heightIn(min = 48.dp),
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             colors = ButtonDefaults.outlinedButtonColors(

@@ -13,10 +13,13 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.safetylog.app.data.dao.ProfileDao
 import com.safetylog.app.data.model.InspectorProfile
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -29,17 +32,38 @@ class AuthRepository(
     private val _currentUser = MutableStateFlow<AuthUser?>(null)
     val currentUser: StateFlow<AuthUser?> = _currentUser.asStateFlow()
 
-    private val _assignedRole = MutableStateFlow(secureStorage.getActiveRole())
+    private val _assignedRole = MutableStateFlow(UserRole.USER)
     val assignedRole: StateFlow<UserRole> = _assignedRole.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    /**
+     * Cached cryptographic telemetry for the security badges.
+     *
+     * Computing telemetry performs a live AES-GCM round-trip plus Keystore KeyInfo inspection,
+     * which is far too expensive to run on every property read. The result is therefore cached
+     * behind a StateFlow, refreshed once on init and on demand via [refreshSecurityTelemetry].
+     */
+    private val _securityTelemetry = MutableStateFlow<Map<String, String>>(emptyMap())
     val securityTelemetry: Map<String, String>
-        get() = secureStorage.getSecurityTelemetry()
+        get() = _securityTelemetry.value
+
+    /** Application-lifetime scope used only for non-blocking background initialization. */
+    private val repoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun runKeystoreDiagnostics(): KeystoreDiagnostics {
         return secureStorage.runDiagnostics()
+    }
+
+    /**
+     * Recomputes the cryptographic security telemetry off the main thread and republishes it
+     * to the cached [securityTelemetry] StateFlow.
+     */
+    fun refreshSecurityTelemetry() {
+        repoScope.launch {
+            _securityTelemetry.value = secureStorage.getSecurityTelemetry()
+        }
     }
 
     fun encryptSensitiveData(bytes: ByteArray): EncryptedPayload {
@@ -51,13 +75,22 @@ class AuthRepository(
     }
 
     init {
-        // Load persisted encrypted session upon startup
-        val persistedUser = secureStorage.loadUser()
-        if (persistedUser != null && persistedUser.isSessionActive) {
-            _currentUser.value = persistedUser
-        } else if (persistedUser != null && !persistedUser.isSessionActive) {
-            // Expired session; purge securely
-            secureStorage.clearUser()
+        // Restore persisted encrypted session OFF the blocking main path: loading decrypts
+        // EncryptedSharedPreferences and runs a SHA-256 integrity check, which would otherwise
+        // stall the main thread of whichever caller first touches this repository.
+        repoScope.launch {
+            val persistedUser = secureStorage.loadUser()
+            if (persistedUser != null && persistedUser.isSessionActive) {
+                _currentUser.value = persistedUser
+                _assignedRole.value = persistedUser.role
+            } else {
+                if (persistedUser != null && !persistedUser.isSessionActive) {
+                    // Expired session; purge securely
+                    secureStorage.clearUser()
+                }
+                _assignedRole.value = secureStorage.getActiveRole()
+            }
+            refreshSecurityTelemetry()
         }
     }
 
@@ -92,18 +125,21 @@ class AuthRepository(
         provider: AuthProvider = AuthProvider.GOOGLE
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
-        val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
-        val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "demo.inspector@safetylog.app"
-        val user = createSandboxUser(
-            displayName = resolvedName,
-            email = resolvedEmail,
-            provider = provider
-        )
-        secureStorage.saveUser(user)
-        _currentUser.value = user
-        _assignedRole.value = user.role
-        _isLoading.value = false
-        AuthResult.Success(user)
+        try {
+            val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
+            val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "demo.inspector@safetylog.app"
+            val user = createSandboxUser(
+                displayName = resolvedName,
+                email = resolvedEmail,
+                provider = provider
+            )
+            secureStorage.saveUser(user)
+            _currentUser.value = user
+            _assignedRole.value = user.role
+            AuthResult.Success(user)
+        } finally {
+            _isLoading.value = false
+        }
     }
 
     private fun Context.findActivity(): Activity? = when (this) {
@@ -132,25 +168,47 @@ class AuthRepository(
         fallbackEmail: String? = null
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
-        val effectiveClientId = serverClientId?.trim()?.ifBlank { null } ?: getEffectiveGoogleClientId()?.trim()
-        val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
-        val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "inspector@safetylog.app"
+        try {
+            val effectiveClientId = serverClientId?.trim()?.ifBlank { null } ?: getEffectiveGoogleClientId()?.trim()
+            val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
+            val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "inspector@safetylog.app"
 
-        if (isSandboxMode() || effectiveClientId.isNullOrBlank()) {
-            val user = createSandboxUser(
-                displayName = resolvedName,
-                email = resolvedEmail,
-                provider = AuthProvider.GOOGLE
-            )
-            secureStorage.saveUser(user)
-            _currentUser.value = user
+            if (isSandboxMode() || effectiveClientId.isNullOrBlank()) {
+                val user = createSandboxUser(
+                    displayName = resolvedName,
+                    email = resolvedEmail,
+                    provider = AuthProvider.GOOGLE
+                )
+                secureStorage.saveUser(user)
+                _currentUser.value = user
+                AuthResult.Success(user)
+            } else {
+                signInWithGoogleLive(
+                    hostContext = context,
+                    effectiveClientId = effectiveClientId,
+                    resolvedName = resolvedName,
+                    resolvedEmail = resolvedEmail
+                )
+            }
+        } finally {
             _isLoading.value = false
-            return@withContext AuthResult.Success(user)
         }
+    }
 
-        val hostActivity = context.findActivity()
+    /**
+     * Executes the live Google OAuth credential flow against Credential Manager.
+     * Only called when Sandbox Mode is off AND a Web Client ID is configured, so real
+     * misconfiguration / authentication failures are surfaced as [AuthResult.Error]
+     * instead of being silently downgraded to an unverified sandbox session.
+     */
+    private suspend fun signInWithGoogleLive(
+        hostContext: Context,
+        effectiveClientId: String,
+        resolvedName: String,
+        resolvedEmail: String
+    ): AuthResult = withContext(Dispatchers.IO) {
+        val hostActivity = hostContext.findActivity()
         if (hostActivity == null || hostActivity.isFinishing || hostActivity.isDestroyed) {
-            _isLoading.value = false
             return@withContext AuthResult.Error("Google Sign-In requires an active, visible Activity context.")
         }
         val rawNonce = UUID.randomUUID().toString()
@@ -218,27 +276,21 @@ class AuthRepository(
                 secureStorage.saveUser(user)
                 _currentUser.value = user
                 _assignedRole.value = user.role
-                _isLoading.value = false
                 AuthResult.Success(user)
             } else {
-                _isLoading.value = false
                 AuthResult.Error("Unsupported credential type returned from Google Credential Manager (${credential::class.java.simpleName}).")
             }
         } catch (e: Exception) {
-            _isLoading.value = false
             if (isCancellation(e)) {
                 AuthResult.Cancelled
             } else {
-                // Seamless fallback to hardware-encrypted inspector session
-                val user = createSandboxUser(
-                    displayName = resolvedName,
-                    email = resolvedEmail,
-                    provider = AuthProvider.GOOGLE
+                // Live OAuth is explicitly configured: a genuine misconfiguration or
+                // authentication failure must not be silently masked by a sandbox session.
+                AuthResult.Error(
+                    "Google Sign-In failed: ${e.localizedMessage ?: e.message ?: e.javaClass.simpleName}. " +
+                        "Verify the Google Cloud Web Client ID, or enable Sandbox Mode for offline testing.",
+                    e
                 )
-                secureStorage.saveUser(user)
-                _currentUser.value = user
-                _assignedRole.value = user.role
-                AuthResult.Success(user)
             }
         }
     }
@@ -253,19 +305,22 @@ class AuthRepository(
         role: UserRole = UserRole.USER
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
-        val resolvedName = displayName.trim().ifBlank { "Certified Safety Inspector" }
-        val resolvedEmail = email.trim().ifBlank { "inspector@safetylog.app" }
-        val user = createSandboxUser(
-            displayName = resolvedName,
-            email = resolvedEmail,
-            provider = AuthProvider.EMAIL,
-            role = role
-        )
-        secureStorage.saveUser(user)
-        _currentUser.value = user
-        _assignedRole.value = user.role
-        _isLoading.value = false
-        AuthResult.Success(user)
+        try {
+            val resolvedName = displayName.trim().ifBlank { "Certified Safety Inspector" }
+            val resolvedEmail = email.trim().ifBlank { "inspector@safetylog.app" }
+            val user = createSandboxUser(
+                displayName = resolvedName,
+                email = resolvedEmail,
+                provider = AuthProvider.EMAIL,
+                role = role
+            )
+            secureStorage.saveUser(user)
+            _currentUser.value = user
+            _assignedRole.value = user.role
+            AuthResult.Success(user)
+        } finally {
+            _isLoading.value = false
+        }
     }
 
     /**
@@ -284,11 +339,12 @@ class AuthRepository(
             )
             secureStorage.saveUser(user)
             _currentUser.value = user
-            _isLoading.value = false
+            _assignedRole.value = user.role
             AuthResult.Success(user)
         } catch (e: Exception) {
-            _isLoading.value = false
             AuthResult.Error("Microsoft Authentication failed: ${e.message}", e)
+        } finally {
+            _isLoading.value = false
         }
     }
 
@@ -310,11 +366,12 @@ class AuthRepository(
             )
             secureStorage.saveUser(user)
             _currentUser.value = user
-            _isLoading.value = false
+            _assignedRole.value = user.role
             AuthResult.Success(user)
         } catch (e: Exception) {
-            _isLoading.value = false
             AuthResult.Error("Corporate SSO failed: ${e.message}", e)
+        } finally {
+            _isLoading.value = false
         }
     }
 
@@ -361,12 +418,15 @@ class AuthRepository(
     suspend fun signOut() = withContext(Dispatchers.IO) {
         _isLoading.value = true
         try {
-            credentialManager.clearCredentialState(ClearCredentialStateRequest())
-        } catch (_: Exception) {}
-        secureStorage.clearUser()
-        _currentUser.value = null
-        _assignedRole.value = UserRole.USER
-        _isLoading.value = false
+            try {
+                credentialManager.clearCredentialState(ClearCredentialStateRequest())
+            } catch (_: Exception) {}
+            secureStorage.clearUser()
+            _currentUser.value = null
+            _assignedRole.value = UserRole.USER
+        } finally {
+            _isLoading.value = false
+        }
     }
 
     fun updateUserRole(newRole: UserRole) {

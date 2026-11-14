@@ -114,6 +114,22 @@ class SecureTokenStorage(private val context: Context) {
 
     private var activeMasterKeyAlias: String = KEY_ALIAS
 
+    /**
+     * In-memory cache of the decrypted auth token so hot-path callers do not re-read
+     * EncryptedSharedPreferences and re-run the SHA-256 integrity verification on every
+     * [getAuthToken] call. Populated by [saveUser]/[loadUser], invalidated by [clearUser].
+     */
+    @Volatile
+    private var cachedAuthToken: String? = null
+
+    @Volatile
+    private var isAuthTokenCacheValid: Boolean = false
+
+    private fun cacheAuthToken(user: AuthUser?) {
+        cachedAuthToken = user?.idToken ?: user?.accessToken
+        isAuthTokenCacheValid = user != null
+    }
+
     val masterKeyAlias: String
         get() = activeMasterKeyAlias
 
@@ -336,6 +352,8 @@ class SecureTokenStorage(private val context: Context) {
             .putBoolean(PREF_HARDWARE_BACKED, user.isHardwareEncrypted)
             .putString(PREF_ROLE, sanitizedRole.name)
             .apply()
+
+        cacheAuthToken(user)
     }
 
     /**
@@ -372,7 +390,7 @@ class SecureTokenStorage(private val context: Context) {
             }
         }
 
-        return AuthUser(
+        val user = AuthUser(
             userId = userId,
             email = email,
             displayName = displayName,
@@ -386,12 +404,16 @@ class SecureTokenStorage(private val context: Context) {
             isHardwareEncrypted = isHardware,
             keyAlias = activeMasterKeyAlias
         )
+        cacheAuthToken(user)
+        return user
     }
 
     /**
      * Securely purges all encrypted tokens and session data, while preserving persistent device & client ID configs
      */
     fun clearUser() {
+        isAuthTokenCacheValid = false
+        cachedAuthToken = null
         val savedClientId = getCustomGoogleClientId()
         val savedSandboxForced = isSandboxAuthForced()
         val deviceId = securePrefs.getString("device_unique_id", null)
@@ -407,8 +429,14 @@ class SecureTokenStorage(private val context: Context) {
         }
     }
 
+    /**
+     * Returns the cached auth token when available; falls back to a single [loadUser]
+     * pass (which repopulates the cache) instead of re-reading prefs and recomputing
+     * the SHA-256 integrity check on every call.
+     */
     fun getAuthToken(): String? {
-        val user = loadUser()
+        if (isAuthTokenCacheValid) return cachedAuthToken
+        val user = loadUser() // populates the token cache on success
         return user?.idToken ?: user?.accessToken
     }
 

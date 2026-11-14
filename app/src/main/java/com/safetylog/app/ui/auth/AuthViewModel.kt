@@ -125,6 +125,8 @@ class AuthViewModel(
             }
             _keystoreDiagnostics.value = diag
             _isRunningDiagnostics.value = false
+            // Republish cached security telemetry on demand (diagnostics were just verified)
+            authRepository.refreshSecurityTelemetry()
             if (diag.isFunctional) {
                 if (showSuccessSnackbar) {
                     _successMessage.value = "Keystore verified: Hardware AES-256 cipher operational (${diag.latencyMs}ms)"

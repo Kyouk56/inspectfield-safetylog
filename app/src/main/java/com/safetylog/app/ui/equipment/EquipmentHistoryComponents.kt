@@ -17,7 +17,12 @@ import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -389,14 +394,17 @@ internal fun AuditLogHistoryCard(
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val bitmap = remember(record.signaturePath) {
-                        try {
-                            BitmapFactory.decodeFile(record.signaturePath)
-                        } catch (_: Exception) { null }
+                    val signatureBitmap by produceState<ImageBitmap?>(initialValue = null, key1 = record.signaturePath) {
+                        value = withContext(Dispatchers.IO) {
+                            try {
+                                val opts = BitmapFactory.Options().apply { inSampleSize = 2 }
+                                BitmapFactory.decodeFile(record.signaturePath, opts)?.asImageBitmap()
+                            } catch (_: Exception) { null }
+                        }
                     }
-                    if (bitmap != null) {
+                    if (signatureBitmap != null) {
                         Image(
-                            bitmap = bitmap.asImageBitmap(),
+                            bitmap = signatureBitmap!!,
                             contentDescription = "Technician Signature",
                             modifier = Modifier
                                 .height(40.dp)

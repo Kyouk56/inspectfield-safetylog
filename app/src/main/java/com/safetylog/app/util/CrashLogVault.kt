@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
 import com.safetylog.app.data.auth.SecureTokenStorage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -155,6 +157,16 @@ object CrashLogVault {
 
         return reportFile
     }
+
+    /**
+     * IO-safe suspend variant of [exportDiagnosticReport]: prefs/JSON reads, Keystore
+     * decryption of every stored stack trace, and file writing all run on Dispatchers.IO,
+     * so it can be awaited safely from coroutines without blocking the caller's thread.
+     */
+    suspend fun exportDiagnosticReportAsync(context: Context, secureStorage: SecureTokenStorage): File =
+        withContext(Dispatchers.IO) {
+            exportDiagnosticReport(context, secureStorage)
+        }
 
     fun clearVault(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

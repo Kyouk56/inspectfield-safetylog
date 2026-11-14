@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.safetylog.app.BuildConfig
 import com.safetylog.app.ui.theme.*
 
 @Composable
@@ -287,46 +288,51 @@ internal fun GoogleOAuthClientIdDialog(
                     }
                 }
 
-                // Mode Switch: Live vs Sandbox
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (uiState.isSandboxMode) SafetyOrange.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, if (uiState.isSandboxMode) SafetyOrange.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                // Mode Switch: Live vs Sandbox.
+                // Emulator/sandbox demo control: debug builds only, never shown in release.
+                if (BuildConfig.DEBUG) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (uiState.isSandboxMode) SafetyOrange.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, if (uiState.isSandboxMode) SafetyOrange.copy(alpha = 0.4f) else MaterialTheme.colorScheme.outlineVariant)
                     ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text("Force Emulator Sandbox Mode", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Text(
-                                text = "Bypasses Google Play Services and simulates a verified local audit session for testing.",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text("Force Emulator Sandbox Mode", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text(
+                                    text = "Bypasses Google Play Services and simulates a verified local audit session for testing.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(checked = uiState.isSandboxMode, onCheckedChange = onSetSandboxMode)
                         }
-                        Switch(checked = uiState.isSandboxMode, onCheckedChange = onSetSandboxMode)
                     }
                 }
 
-                // Direct sandbox login button inside dialog
-                Button(
-                    onClick = {
-                        onSignInSandbox()
-                        onDismiss()
-                    },
-                    modifier = Modifier.fillMaxWidth().height(38.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
-                ) {
-                    Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Sign In Now (Offline Sandbox)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                // Direct sandbox login button inside dialog (debug builds only)
+                if (BuildConfig.DEBUG) {
+                    Button(
+                        onClick = {
+                            onSignInSandbox()
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(38.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
+                    ) {
+                        Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Sign In Now (Offline Sandbox)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 Text(

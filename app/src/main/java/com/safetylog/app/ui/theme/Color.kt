@@ -1,6 +1,5 @@
 package com.safetylog.app.ui.theme
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
@@ -85,7 +84,7 @@ data class StatusColorScheme(
 )
 
 @Composable
-fun getComplianceStatusColors(status: String?, isDark: Boolean = MaterialTheme.colorScheme.background == DarkSurfaceBase): StatusColorScheme {
+fun getComplianceStatusColors(status: String?, isDark: Boolean = LocalIsDarkTheme.current): StatusColorScheme {
     val isPassed = status.equals("PASSED", ignoreCase = true)
     val isDeficient = status.equals("DEFICIENT", ignoreCase = true)
 

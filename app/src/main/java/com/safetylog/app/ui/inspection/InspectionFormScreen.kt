@@ -336,9 +336,10 @@ fun InspectionFormScreen(
                     placeholder = { Text("e.g. Regular monthly verification completed, all indicators confirmed...") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(95.dp),
+                        .heightIn(min = 95.dp),
                     shape = RoundedCornerShape(10.dp),
-                    maxLines = 3,
+                    minLines = 3,
+                    maxLines = 4,
                     isError = notesRequireAttention,
                     supportingText = if (notesRequireAttention) {
                         { Text("Safety audit regulations require documenting defect reason.", color = StatusDeficient) }

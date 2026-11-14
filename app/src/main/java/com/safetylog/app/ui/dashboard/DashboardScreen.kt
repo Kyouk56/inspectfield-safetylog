@@ -1,6 +1,5 @@
 package com.safetylog.app.ui.dashboard
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,6 +34,7 @@ import com.safetylog.app.data.model.EquipmentItem
 import com.safetylog.app.ui.components.PaywallBottomSheet
 import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.theme.*
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -56,6 +56,8 @@ fun DashboardScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var equipmentToDelete by remember { mutableStateOf<EquipmentItem?>(null) }
     var selectedAssetForAction by remember { mutableStateOf<EquipmentWithLatestInspection?>(null) }
     var showPaywall by remember { mutableStateOf(false) }
@@ -73,6 +75,7 @@ fun DashboardScreen(
     val canManageAssets = uiState.userRole.canManageAssets || uiState.subscriptionTier != SubscriptionTier.ENTERPRISE
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -297,7 +300,9 @@ fun DashboardScreen(
                                     onClick = {
                                         showAccountMenu = false
                                         viewModel.signOut()
-                                        Toast.makeText(context, "Signed out successfully", Toast.LENGTH_SHORT).show()
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Signed out successfully")
+                                        }
                                     },
                                     leadingIcon = {
                                         Icon(
@@ -440,7 +445,7 @@ fun DashboardScreen(
                             ),
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            modifier = Modifier.height(34.dp)
+                            modifier = Modifier.heightIn(min = 48.dp)
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -509,10 +514,14 @@ fun DashboardScreen(
                     try {
                         context.startActivity(intent)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "No calendar application installed", Toast.LENGTH_SHORT).show()
+                        scope.launch {
+                            snackbarHostState.showSnackbar("No calendar application installed")
+                        }
                     }
                 } else {
-                    Toast.makeText(context, "Please set a valid inspection due date first", Toast.LENGTH_SHORT).show()
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Please set a valid inspection due date first")
+                    }
                 }
             },
             onEdit = {

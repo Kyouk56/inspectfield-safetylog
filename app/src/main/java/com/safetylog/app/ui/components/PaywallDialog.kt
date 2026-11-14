@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -214,115 +217,117 @@ fun PaywallBottomSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Plan 0: Standard Free (Banner Ad-Supported)
-            SubscriptionTierCard(
-                tier = SubscriptionTier.FREE,
-                isSelected = selectedTier == SubscriptionTier.FREE,
-                isCurrentPlan = currentTier == SubscriptionTier.FREE || !paymentStatus.isGoodStanding,
-                headline = "Standard Free",
-                price = "Free",
-                frequency = "Banner Ad-Supported",
-                bullet1 = "Up to 5 monthly equipment inspection logs with bottom banner sponsorship",
-                bullet2 = "Offline Room database & hardware AES-256 inspector credentials",
-                onClick = { selectedTier = SubscriptionTier.FREE }
-            )
+            Column(modifier = Modifier.selectableGroup()) {
+                // Plan 0: Standard Free (Banner Ad-Supported)
+                SubscriptionTierCard(
+                    tier = SubscriptionTier.FREE,
+                    isSelected = selectedTier == SubscriptionTier.FREE,
+                    isCurrentPlan = currentTier == SubscriptionTier.FREE || !paymentStatus.isGoodStanding,
+                    headline = "Standard Free",
+                    price = "Free",
+                    frequency = "Banner Ad-Supported",
+                    bullet1 = "Up to 5 monthly equipment inspection logs with bottom banner sponsorship",
+                    bullet2 = "Offline Room database & hardware AES-256 inspector credentials",
+                    onClick = { selectedTier = SubscriptionTier.FREE }
+                )
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-            // Plan 1: Ad-Free Flat Rate ($2.99)
-            SubscriptionTierCard(
-                tier = SubscriptionTier.AD_FREE,
-                isSelected = selectedTier == SubscriptionTier.AD_FREE,
-                isCurrentPlan = currentTier == SubscriptionTier.AD_FREE && paymentStatus.isGoodStanding,
-                headline = "Ad-Free License",
-                price = "$2.99",
-                frequency = "One-Time Flat Rate",
-                bullet1 = "Removes all banner ads across the entire app permanently",
-                bullet2 = "Unlimited offline inspection logs for single technician",
-                onClick = { selectedTier = SubscriptionTier.AD_FREE }
-            )
+                // Plan 1: Ad-Free Flat Rate ($2.99)
+                SubscriptionTierCard(
+                    tier = SubscriptionTier.AD_FREE,
+                    isSelected = selectedTier == SubscriptionTier.AD_FREE,
+                    isCurrentPlan = currentTier == SubscriptionTier.AD_FREE && paymentStatus.isGoodStanding,
+                    headline = "Ad-Free License",
+                    price = "$2.99",
+                    frequency = "One-Time Flat Rate",
+                    bullet1 = "Removes all banner ads across the entire app permanently",
+                    bullet2 = "Unlimited offline inspection logs for single technician",
+                    onClick = { selectedTier = SubscriptionTier.AD_FREE }
+                )
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-            // Plan 2: Individual Share & Sync ($0.99/mo)
-            SubscriptionTierCard(
-                tier = SubscriptionTier.INDIVIDUAL_PRO,
-                isSelected = selectedTier == SubscriptionTier.INDIVIDUAL_PRO,
-                isCurrentPlan = currentTier == SubscriptionTier.INDIVIDUAL_PRO && paymentStatus.isGoodStanding,
-                isRecommended = true,
-                headline = "Individual Share & Sync",
-                price = "$0.99",
-                frequency = "per month",
-                bullet1 = "Removes all banner ads + share inspection logs & PDF vaults across accounts",
-                bullet2 = "Personal OAuth identity linking (Google / Microsoft) & audit signatures",
-                onClick = { selectedTier = SubscriptionTier.INDIVIDUAL_PRO }
-            )
+                // Plan 2: Individual Share & Sync ($0.99/mo)
+                SubscriptionTierCard(
+                    tier = SubscriptionTier.INDIVIDUAL_PRO,
+                    isSelected = selectedTier == SubscriptionTier.INDIVIDUAL_PRO,
+                    isCurrentPlan = currentTier == SubscriptionTier.INDIVIDUAL_PRO && paymentStatus.isGoodStanding,
+                    isRecommended = true,
+                    headline = "Individual Share & Sync",
+                    price = "$0.99",
+                    frequency = "per month",
+                    bullet1 = "Removes all banner ads + share inspection logs & PDF vaults across accounts",
+                    bullet2 = "Personal OAuth identity linking (Google / Microsoft) & audit signatures",
+                    onClick = { selectedTier = SubscriptionTier.INDIVIDUAL_PRO }
+                )
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-            // Plan 3: Enterprise Organization ($0.50/person/mo)
-            SubscriptionTierCard(
-                tier = SubscriptionTier.ENTERPRISE,
-                isSelected = selectedTier == SubscriptionTier.ENTERPRISE,
-                isCurrentPlan = currentTier == SubscriptionTier.ENTERPRISE && paymentStatus.isGoodStanding,
-                headline = "Enterprise Organization",
-                price = "$0.50",
-                frequency = "per person / month",
-                bullet1 = "🏢 Company-Specific OAuth: Configure corporate SAML 2.0, Microsoft Entra, Okta, or Google Workspace",
-                bullet2 = "Removes all banner ads + Enterprise Team Sync, REST endpoints & seat management",
-                onClick = { selectedTier = SubscriptionTier.ENTERPRISE }
-            ) {
-                // Interactive Seat Counter for Enterprise
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp)
-                        .background(Slate950, RoundedCornerShape(10.dp))
-                        .padding(10.dp)
+                // Plan 3: Enterprise Organization ($0.50/person/mo)
+                SubscriptionTierCard(
+                    tier = SubscriptionTier.ENTERPRISE,
+                    isSelected = selectedTier == SubscriptionTier.ENTERPRISE,
+                    isCurrentPlan = currentTier == SubscriptionTier.ENTERPRISE && paymentStatus.isGoodStanding,
+                    headline = "Enterprise Organization",
+                    price = "$0.50",
+                    frequency = "per person / month",
+                    bullet1 = "🏢 Company-Specific OAuth: Configure corporate SAML 2.0, Microsoft Entra, Okta, or Google Workspace",
+                    bullet2 = "Removes all banner ads + Enterprise Team Sync, REST endpoints & seat management",
+                    onClick = { selectedTier = SubscriptionTier.ENTERPRISE }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Interactive Seat Counter for Enterprise
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp)
+                            .background(Slate950, RoundedCornerShape(10.dp))
+                            .padding(10.dp)
                     ) {
-                        Text(
-                            text = "Organization Seats:",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Slate300,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = { if (userRole.canManageBilling && enterpriseSeats > 1) enterpriseSeats-- },
-                                enabled = userRole.canManageBilling,
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = if (userRole.canManageBilling) SafetyOrangeLight else Slate600)
-                            }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "$enterpriseSeats persons",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 8.dp)
+                                text = "Organization Seats:",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Slate300,
+                                fontWeight = FontWeight.SemiBold
                             )
-                            IconButton(
-                                onClick = { if (userRole.canManageBilling) enterpriseSeats++ },
-                                enabled = userRole.canManageBilling,
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Increase", tint = if (userRole.canManageBilling) SafetyOrangeLight else Slate600)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { if (userRole.canManageBilling && enterpriseSeats > 1) enterpriseSeats-- },
+                                    enabled = userRole.canManageBilling,
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = if (userRole.canManageBilling) SafetyOrangeLight else Slate600)
+                                }
+                                Text(
+                                    text = "$enterpriseSeats persons",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+                                IconButton(
+                                    onClick = { if (userRole.canManageBilling) enterpriseSeats++ },
+                                    enabled = userRole.canManageBilling,
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = "Increase", tint = if (userRole.canManageBilling) SafetyOrangeLight else Slate600)
+                                }
                             }
                         }
+                        val totalMonthly = enterpriseSeats * 0.50f
+                        Text(
+                            text = "Total: $enterpriseSeats users × $0.50 = \$${String.format(java.util.Locale.US, "%.2f", totalMonthly)}/month",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = StatusPassedLight,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
-                    val totalMonthly = enterpriseSeats * 0.50f
-                    Text(
-                        text = "Total: $enterpriseSeats users × $0.50 = \$${String.format(java.util.Locale.US, "%.2f", totalMonthly)}/month",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = StatusPassedLight,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
                 }
             }
 
@@ -379,7 +384,7 @@ fun PaywallBottomSheet(
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { showCancelConfirmDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDeficient),
                     border = BorderStroke(1.dp, StatusDeficient.copy(alpha = 0.5f)),
                     shape = RoundedCornerShape(12.dp)
@@ -418,7 +423,7 @@ fun PaywallBottomSheet(
                                 onClick = {
                                     onSimulatePaymentFailed()
                                 },
-                                modifier = Modifier.weight(1f).height(36.dp),
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                                 contentPadding = PaddingValues(horizontal = 4.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
@@ -428,7 +433,7 @@ fun PaywallBottomSheet(
                                 onClick = {
                                     onCancelSubscription()
                                 },
-                                modifier = Modifier.weight(1f).height(36.dp),
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                                 contentPadding = PaddingValues(horizontal = 4.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
@@ -438,7 +443,7 @@ fun PaywallBottomSheet(
                                 onClick = {
                                     onSimulatePaymentSuccess()
                                 },
-                                modifier = Modifier.weight(1f).height(36.dp),
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                                 contentPadding = PaddingValues(horizontal = 4.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = StatusPassed),
                                 shape = RoundedCornerShape(8.dp)
@@ -509,7 +514,11 @@ private fun SubscriptionTierCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable { onClick() },
+            .selectable(
+                selected = isSelected,
+                role = Role.RadioButton,
+                onClick = onClick
+            ),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) Slate900 else Slate850
         ),

@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.safetylog.app.BuildConfig
 import com.safetylog.app.R
 import com.safetylog.app.data.auth.AuthUser
 import com.safetylog.app.data.auth.PaymentStatus
@@ -204,7 +205,7 @@ internal fun SignInHeroCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (uiState.isSandboxMode) "Offline Sandbox Active" else if (!serverClientId.isNullOrBlank()) "Live Google OAuth Ready" else "Standard Local Authentication",
+                        text = if (uiState.isSandboxMode) "Offline Sandbox Active" else if (!serverClientId.isNullOrBlank()) "Live Google OAuth Ready" else "Google Sign-In not configured",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (uiState.isSandboxMode) SafetyOrange else if (!serverClientId.isNullOrBlank()) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
@@ -294,16 +295,19 @@ internal fun SignInHeroCard(
                 }
             }
 
-            // Sandbox quick sign-in button for instant test access
-            OutlinedButton(
-                onClick = { viewModel.signInSandbox() },
-                modifier = Modifier.fillMaxWidth().height(42.dp),
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Quick Demo Sign-In (Sandbox Mode)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            // Sandbox quick sign-in button for instant test access.
+            // Demo/sandbox entry point: only surfaced in debug builds, never in release.
+            if (BuildConfig.DEBUG) {
+                OutlinedButton(
+                    onClick = { viewModel.signInSandbox() },
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Quick Demo Sign-In (Sandbox Mode)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
 
             // Secondary Action: Sign in with Microsoft

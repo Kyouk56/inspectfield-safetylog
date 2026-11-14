@@ -338,9 +338,10 @@ fun EquipmentHistoryScreen(
                                                 producePdf { shareInspectionPdf(context, it, equipment?.tagId) }
                                             }
                                         },
+                                        enabled = !isGeneratingPdf,
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(42.dp),
+                                            .height(48.dp),
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                         shape = RoundedCornerShape(12.dp),
                                         contentPadding = PaddingValues(horizontal = 8.dp)
@@ -353,9 +354,10 @@ fun EquipmentHistoryScreen(
                                     // View PDF
                                     OutlinedButton(
                                         onClick = { producePdf { viewInspectionPdf(context, it, equipment?.tagId) } },
+                                        enabled = !isGeneratingPdf,
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(42.dp),
+                                            .height(48.dp),
                                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                         shape = RoundedCornerShape(12.dp),
                                         contentPadding = PaddingValues(horizontal = 8.dp)

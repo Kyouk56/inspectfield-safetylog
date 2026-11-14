@@ -52,21 +52,23 @@ data class DashboardUiState(
     val isOnline: Boolean = true,
     val isLoading: Boolean = true
 ) {
-    val totalCount: Int get() = equipmentList.size
-    val passedCount: Int get() = equipmentList.count { it.lastInspectionStatus.equals("PASSED", ignoreCase = true) }
-    val deficientCount: Int get() = equipmentList.count { it.lastInspectionStatus.equals("DEFICIENT", ignoreCase = true) }
-    val dueCount: Int get() = equipmentList.count { item ->
+    // Counts and the filtered list are computed once per state instance instead of on every
+    // recomposition/read. Being body initializers (not custom getters) keeps `copy()` correct.
+    val totalCount: Int = equipmentList.size
+    val passedCount: Int = equipmentList.count { it.lastInspectionStatus.equals("PASSED", ignoreCase = true) }
+    val deficientCount: Int = equipmentList.count { it.lastInspectionStatus.equals("DEFICIENT", ignoreCase = true) }
+    val dueCount: Int = equipmentList.count { item ->
         item.lastInspectionDate == null || (item.equipment.nextReviewTimestamp in 1..<System.currentTimeMillis())
     }
 
-    val isSubscriptionDelinquentOrCancelled: Boolean
-        get() = subscriptionTier != SubscriptionTier.FREE &&
+    val isSubscriptionDelinquentOrCancelled: Boolean =
+        subscriptionTier != SubscriptionTier.FREE &&
                 subscriptionTier != SubscriptionTier.AD_FREE &&
                 !paymentStatus.isGoodStanding
 
-    val filteredList: List<EquipmentWithLatestInspection> get() {
+    val filteredList: List<EquipmentWithLatestInspection> = run {
         val now = System.currentTimeMillis()
-        return equipmentList.filter { item ->
+        equipmentList.filter { item ->
             val matchesSearch = searchQuery.isBlank() ||
                 item.equipment.tagId.contains(searchQuery, ignoreCase = true) ||
                 item.equipment.locationDescription.contains(searchQuery, ignoreCase = true) ||
@@ -82,11 +84,45 @@ data class DashboardUiState(
         }
     }
 
-    val monthlyProgressFraction: Float get() {
-        if (effectiveTier != SubscriptionTier.FREE) return 1f
-        return (inspectionsThisMonth.toFloat() / freeLimit.toFloat()).coerceIn(0f, 1f)
-    }
+    val monthlyProgressFraction: Float =
+        if (effectiveTier != SubscriptionTier.FREE) {
+            1f
+        } else {
+            (inspectionsThisMonth.toFloat() / freeLimit.toFloat()).coerceIn(0f, 1f)
+        }
 }
+
+private data class EquipmentCoreState(
+    val summaries: List<EquipmentWithLatestInspection>,
+    val query: String,
+    val filter: FilterStatus
+)
+
+private data class SubscriptionState(
+    val tier: SubscriptionTier,
+    val effective: SubscriptionTier,
+    val payStatus: PaymentStatus
+)
+
+private data class TeamState(
+    val seats: Int,
+    val companyConfig: CompanyOAuthConfig,
+    val countThisMonth: Int,
+    val members: List<TeamMember>
+)
+
+private data class EntitlementState(
+    val subscription: SubscriptionState,
+    val team: TeamState
+)
+
+private data class AuthState(
+    val authUser: com.safetylog.app.data.auth.AuthUser?,
+    val isTestView: Boolean,
+    val online: Boolean,
+    val assigned: UserRole,
+    val roleOverride: UserRole?
+)
 
 class DashboardViewModel(
     private val equipmentDao: EquipmentDao,
@@ -104,40 +140,54 @@ class DashboardViewModel(
     private val _isAdminTestViewActive = MutableStateFlow(false)
     private val _userRoleOverride = MutableStateFlow<UserRole?>(null)
 
-    val uiState: StateFlow<DashboardUiState> = combine(
+    private val equipmentCoreFlow: Flow<EquipmentCoreState> = combine(
         equipmentDao.getEquipmentSummaries(),
         _searchQuery,
-        _activeFilter,
-        billingRepository.currentTier,
-        billingRepository.effectiveTier,
-        billingRepository.paymentStatus,
-        billingRepository.enterpriseSeats,
-        billingRepository.companyOAuthConfig,
-        entitlementManager.countInspectionsThisMonthFlow(),
+        _activeFilter
+    ) { summaries, query, filter ->
+        EquipmentCoreState(summaries, query, filter)
+    }
+
+    private val entitlementFlow: Flow<EntitlementState> = combine(
+        combine(
+            billingRepository.currentTier,
+            billingRepository.effectiveTier,
+            billingRepository.paymentStatus
+        ) { tier, effective, payStatus ->
+            SubscriptionState(tier, effective, payStatus)
+        },
+        combine(
+            billingRepository.enterpriseSeats,
+            billingRepository.companyOAuthConfig,
+            entitlementManager.countInspectionsThisMonthFlow(),
+            billingRepository.teamMembers
+        ) { seats, companyConfig, countThisMonth, members ->
+            TeamState(seats, companyConfig, countThisMonth, members)
+        }
+    ) { subscription, team ->
+        EntitlementState(subscription, team)
+    }
+
+    private val authStateFlow: Flow<AuthState> = combine(
         authRepository.currentUser,
         _isAdminTestViewActive,
-        billingRepository.teamMembers,
         networkMonitor?.isOnline ?: MutableStateFlow(true),
         authRepository.assignedRole,
         _userRoleOverride
-    ) { args: Array<Any?> ->
-        @Suppress("UNCHECKED_CAST")
-        val summaries = args[0] as List<EquipmentWithLatestInspection>
-        val query = args[1] as String
-        val filter = args[2] as FilterStatus
-        val tier = args[3] as SubscriptionTier
-        val effective = args[4] as SubscriptionTier
-        val payStatus = args[5] as PaymentStatus
-        val seats = args[6] as Int
-        val companyConfig = args[7] as CompanyOAuthConfig
-        val countThisMonth = args[8] as Int
-        val authUser = args[9] as? com.safetylog.app.data.auth.AuthUser
-        val isTestView = args[10] as Boolean
-        @Suppress("UNCHECKED_CAST")
-        val members = args[11] as? List<TeamMember> ?: emptyList()
-        val online = args[12] as? Boolean ?: true
-        val assigned = args[13] as? UserRole ?: UserRole.USER
-        val roleOverride = args[14] as? UserRole
+    ) { authUser, isTestView, online, assigned, roleOverride ->
+        AuthState(authUser, isTestView, online, assigned, roleOverride)
+    }
+
+    val uiState: StateFlow<DashboardUiState> = combine(
+        equipmentCoreFlow,
+        entitlementFlow,
+        authStateFlow
+    ) { core, entitlement, auth ->
+        val tier = entitlement.subscription.tier
+        val effective = entitlement.subscription.effective
+        val payStatus = entitlement.subscription.payStatus
+        val members = entitlement.team.members
+        val authUser = auth.authUser
 
         // 1. Determine baseline natural role
         val matchingMember = authUser?.email?.trim()?.let { userEmail ->
@@ -147,19 +197,19 @@ class DashboardViewModel(
             com.safetylog.app.data.auth.AuthorizationConfig.isAuthorizedOwner(authUser?.email) -> UserRole.OWNER
             matchingMember != null -> matchingMember.role
             authUser?.role != null -> authUser.role
-            else -> assigned
+            else -> auth.assigned
         }
 
         // 2. Explicit simulated or selected role override in session
-        val rawRole = roleOverride ?: naturalRole
+        val rawRole = auth.roleOverride ?: naturalRole
 
         // 3. Strict owner security invariant
         val role = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(rawRole, authUser?.email)
 
         DashboardUiState(
-            equipmentList = summaries,
-            searchQuery = query,
-            activeFilter = filter,
+            equipmentList = core.summaries,
+            searchQuery = core.query,
+            activeFilter = core.filter,
             isProUser = effective != SubscriptionTier.FREE,
             subscriptionTier = tier,
             effectiveTier = effective,
@@ -167,15 +217,15 @@ class DashboardViewModel(
             isAdFree = effective.isAdFree,
             canShareBetweenAccounts = effective.allowsSharing,
             canUseCompanyOAuth = effective.isEnterprise && payStatus.isGoodStanding,
-            companyOAuthConfig = companyConfig,
-            enterpriseSeats = seats,
+            companyOAuthConfig = entitlement.team.companyConfig,
+            enterpriseSeats = entitlement.team.seats,
             teamMembers = members,
             userRole = role,
-            isAdminTestViewActive = isTestView,
+            isAdminTestViewActive = auth.isTestView,
             authUser = authUser,
-            inspectionsThisMonth = countThisMonth,
+            inspectionsThisMonth = entitlement.team.countThisMonth,
             freeLimit = entitlementManager.FREE_MONTHLY_LIMIT,
-            isOnline = online,
+            isOnline = auth.online,
             isLoading = false
         )
     }.stateIn(

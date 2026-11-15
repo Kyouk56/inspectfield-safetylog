@@ -195,7 +195,7 @@ class InspectionViewModel(
 
                 val currentEq = currentState.equipment
                 val protocol = if (!currentEq?.assignedChecklist.isNullOrBlank()) {
-                    com.safetylog.app.domain.ChecklistRegistry.getChecklistByName(currentEq!!.assignedChecklist)
+                    com.safetylog.app.domain.ChecklistRegistry.getChecklistByName(currentEq.assignedChecklist)
                 } else {
                     com.safetylog.app.domain.ChecklistRegistry.getChecklistForType(currentEq?.equipmentType ?: "")
                 }

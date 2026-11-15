@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.safetylog.app"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.safetylog.inspection.app"
@@ -92,52 +92,52 @@ android {
 }
 
 dependencies {
-    // Compose & Material 3
-    implementation(platform("androidx.compose:compose-bom:2025.02.00"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.activity:activity-compose:1.10.1")
-    implementation("androidx.navigation:navigation-compose:2.8.8")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    // Compose & Material 3 (versions managed by the Compose BOM)
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.ui.graphics)
+    implementation(libs.compose.ui.tooling.preview)
+    debugImplementation(libs.compose.ui.tooling)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons.extended)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Room Database
-    implementation("androidx.room:room-runtime:2.7.0")
-    implementation("androidx.room:room-ktx:2.7.0")
-    ksp("androidx.room:room-compiler:2.7.0")
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation(libs.kotlinx.coroutines.android)
 
     // Image Loading
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation(libs.coil.compose)
 
     // In-App Purchases
-    implementation("com.android.billingclient:billing-ktx:8.0.0")
+    implementation(libs.androidx.billing.ktx)
 
     // Android Core & File Handling
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.documentfile)
 
     // Android Security & Cryptography (AES-256 GCM backed by Android Keystore MasterKey)
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation(libs.androidx.security.crypto)
 
     // Google Credential Manager & OAuth Identity
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     // Google Mobile Ads (AdMob) & Multi-Network Mediation Adapters (100% Free Developer SDKs)
-    implementation("com.google.android.gms:play-services-ads:23.6.0")
-    implementation("com.google.ads.mediation:facebook:6.18.0.0")
-    implementation("com.google.ads.mediation:unity:4.12.5.0")
+    implementation(libs.play.services.ads)
+    implementation(libs.mediation.facebook)
+    implementation(libs.mediation.unity)
 
     // Unit Testing
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.json:json:20240303")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation(libs.junit)
+    testImplementation(libs.json)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

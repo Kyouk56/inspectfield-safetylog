@@ -168,8 +168,8 @@ class ProfileViewModel(
                         }
                         current.copy(
                             authUser = user,
-                            inspectorName = if (canFillName) user!!.displayName else current.inspectorName,
-                            contactEmail = if (canFillEmail) user!!.email else current.contactEmail
+                            inspectorName = if (canFillName) user.displayName else current.inspectorName,
+                            contactEmail = if (canFillEmail) user.email else current.contactEmail
                         )
                     }
                 }

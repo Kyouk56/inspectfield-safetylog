@@ -7,8 +7,6 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import java.security.KeyStore
 import java.security.MessageDigest
 import javax.crypto.Cipher
@@ -56,8 +54,8 @@ data class KeystoreDiagnostics(
  * Hardware-backed secure storage for OAuth tokens, identity credentials,
  * and sensitive inspection audit trails.
  *
- * Utilizes the Android Keystore system with MasterKey AES-256-GCM encryption,
- * StrongBox HSM / TEE isolation, and SHA-256 constant-time integrity verification.
+ * Uses direct Android Keystore AES-256-GCM encryption backed by standard
+ * SharedPreferences (no deprecated MasterKey / EncryptedSharedPreferences).
  */
 class SecureTokenStorage(private val context: Context) {
 
@@ -66,6 +64,7 @@ class SecureTokenStorage(private val context: Context) {
         private const val PREFS_FILE_NAME = "safetylog_secure_auth_vault"
         private const val KEY_ALIAS = "_safetylog_keystore_master_key_"
         private const val DATA_CIPHER_ALIAS = "_safetylog_direct_aes_key_"
+        private const val DEFAULT_MASTER_KEY_ALIAS = "_androidx_security_master_key_"
 
         private const val PREF_USER_ID = "sec_auth_user_id"
         private const val PREF_EMAIL = "sec_auth_email"
@@ -116,8 +115,7 @@ class SecureTokenStorage(private val context: Context) {
 
     /**
      * In-memory cache of the decrypted auth token so hot-path callers do not re-read
-     * EncryptedSharedPreferences and re-run the SHA-256 integrity verification on every
-     * [getAuthToken] call. Populated by [saveUser]/[loadUser], invalidated by [clearUser].
+     * prefs and re-run the SHA-256 integrity verification on every [getAuthToken] call.
      */
     @Volatile
     private var cachedAuthToken: String? = null
@@ -133,7 +131,7 @@ class SecureTokenStorage(private val context: Context) {
     val masterKeyAlias: String
         get() = activeMasterKeyAlias
 
-    private val masterKey: MasterKey by lazy {
+    private val masterKey: SecretKey by lazy {
         createMasterKey()
     }
 
@@ -142,18 +140,131 @@ class SecureTokenStorage(private val context: Context) {
     }
 
     /**
-     * Initializes MasterKey with StrongBox HSM preference, falling back gracefully
-     * to hardware TEE or OEM MasterKey schemes.
+     * Transparently encrypting SharedPreferences backed by standard SharedPreferences
+     * and a direct Android Keystore AES-256-GCM key.
      */
-    private fun createMasterKey(): MasterKey {
-        // 1. Attempt StrongBox HSM (Dedicated hardware security module, e.g. Titan M, Knox Vault)
+    private inner class EncryptedPrefs(private val delegate: SharedPreferences) : SharedPreferences {
+
+        private fun storageKey(key: String): String = "k_" + computeSha256(key)
+
+        private fun encryptValue(value: String): String = this@SecureTokenStorage.encryptString(value)
+
+        private fun decryptValue(stored: String?): String? {
+            if (stored == null) return null
+            return this@SecureTokenStorage.decryptString(stored)
+        }
+
+        override fun contains(key: String): Boolean = delegate.contains(storageKey(key))
+
+        override fun getAll(): MutableMap<String, *> = mutableMapOf<String, Any?>()
+
+        override fun getString(key: String, defValue: String?): String? {
+            val stored = delegate.getString(storageKey(key), null)
+            if (stored == null) return defValue
+            return decryptValue(stored) ?: defValue
+        }
+
+        override fun getInt(key: String, defValue: Int): Int =
+            getString(key, null)?.toIntOrNull() ?: defValue
+
+        override fun getLong(key: String, defValue: Long): Long =
+            getString(key, null)?.toLongOrNull() ?: defValue
+
+        override fun getFloat(key: String, defValue: Float): Float =
+            getString(key, null)?.toFloatOrNull() ?: defValue
+
+        override fun getBoolean(key: String, defValue: Boolean): Boolean =
+            getString(key, null)?.toBooleanStrictOrNull() ?: defValue
+
+        override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? = defValues
+
+        override fun edit(): SharedPreferences.Editor = EncryptedEditor(delegate.edit())
+
+        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+
+        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+
+        private inner class EncryptedEditor(private val delegate: SharedPreferences.Editor) : SharedPreferences.Editor {
+            override fun putString(key: String, value: String?): SharedPreferences.Editor {
+                if (value == null) {
+                    delegate.remove(storageKey(key))
+                } else {
+                    delegate.putString(storageKey(key), encryptValue(value))
+                }
+                return this
+            }
+
+            override fun putInt(key: String, value: Int): SharedPreferences.Editor =
+                putString(key, value.toString())
+
+            override fun putLong(key: String, value: Long): SharedPreferences.Editor =
+                putString(key, value.toString())
+
+            override fun putFloat(key: String, value: Float): SharedPreferences.Editor =
+                putString(key, value.toString())
+
+            override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor =
+                putString(key, value.toString())
+
+            override fun putStringSet(key: String, values: Set<String>?): SharedPreferences.Editor {
+                if (values == null) {
+                    delegate.remove(storageKey(key))
+                } else {
+                    delegate.putString(storageKey(key), encryptValue(values.joinToString("\u0000")))
+                }
+                return this
+            }
+
+            override fun remove(key: String): SharedPreferences.Editor {
+                delegate.remove(storageKey(key))
+                return this
+            }
+
+            override fun clear(): SharedPreferences.Editor {
+                delegate.clear()
+                return this
+            }
+
+            override fun commit(): Boolean = delegate.commit()
+
+            override fun apply() = delegate.apply()
+        }
+    }
+
+    /**
+     * Initializes standard SharedPreferences wrapped with direct Keystore encryption,
+     * auto-recovering if Keystore corruption occurs
+     */
+    private fun initSecurePrefs(): SharedPreferences {
+        return try {
+            val delegate = context.getSharedPreferences(PREFS_FILE_NAME, Context.MODE_PRIVATE)
+            EncryptedPrefs(delegate)
+        } catch (e: Exception) {
+            resetKeystoreAndVault()
+            val delegate = context.getSharedPreferences(PREFS_FILE_NAME, Context.MODE_PRIVATE)
+            EncryptedPrefs(delegate)
+        }
+    }
+
+    /**
+     * Proactively initializes and verifies the Android Keystore MasterKey and AES-256 data cipher.
+     */
+    fun initVault(): Boolean {
+        return try {
+            val prefs = securePrefs
+            getOrCreateDataCipherKey()
+            masterKey
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun createMasterKey(): SecretKey {
+        // 1. Attempt StrongBox HSM
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
-                val key = MasterKey.Builder(context, KEY_ALIAS)
-                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                    .setUserAuthenticationRequired(false)
-                    .setRequestStrongBoxBacked(true)
-                    .build()
+                val key = getOrCreateKeystoreKey(KEY_ALIAS, true)
                 activeMasterKeyAlias = KEY_ALIAS
                 return key
             } catch (_: Exception) {
@@ -161,81 +272,31 @@ class SecureTokenStorage(private val context: Context) {
             }
         }
 
-        // 2. Hardware TEE (Trusted Execution Environment) with custom alias
+        // 2. Hardware TEE
         try {
-            val key = MasterKey.Builder(context, KEY_ALIAS)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .setUserAuthenticationRequired(false)
-                .setRequestStrongBoxBacked(false)
-                .build()
+            val key = getOrCreateKeystoreKey(KEY_ALIAS, false)
             activeMasterKeyAlias = KEY_ALIAS
             return key
         } catch (_: Exception) {
             // 3. Fallback for emulator or specific OEM keystore driver quirks
-            activeMasterKeyAlias = MasterKey.DEFAULT_MASTER_KEY_ALIAS
-            return MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
+            activeMasterKeyAlias = DEFAULT_MASTER_KEY_ALIAS
+            return getOrCreateDataCipherKey()
         }
     }
 
-    /**
-     * Creates EncryptedSharedPreferences, auto-recovering if Keystore corruption occurs
-     */
-    private fun initSecurePrefs(): SharedPreferences {
-        return try {
-            EncryptedSharedPreferences.create(
-                context,
-                PREFS_FILE_NAME,
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (e: Exception) {
-            // Self-heal on keystore or corrupted sharedpreferences
-            resetKeystoreAndVault()
-            EncryptedSharedPreferences.create(
-                context,
-                PREFS_FILE_NAME,
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        }
-    }
-
-    /**
-     * Proactively initializes and verifies the Android Keystore MasterKey and AES-256 data cipher.
-     * Ensures every individual user is cryptographically protected by default from first launch.
-     */
-    fun initVault(): Boolean {
-        return try {
-            val prefs = securePrefs
-            getOrCreateDataCipherKey()
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    /**
-     * Gets or creates a dedicated direct hardware AES-256-GCM key inside Android KeyStore
-     */
-    @Synchronized
-    fun getOrCreateDataCipherKey(): SecretKey {
+    private fun getOrCreateKeystoreKey(alias: String, strongBox: Boolean): SecretKey {
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE_PROVIDER).apply { load(null) }
-        if (keyStore.containsAlias(DATA_CIPHER_ALIAS)) {
-            val entry = keyStore.getKey(DATA_CIPHER_ALIAS, null) as? SecretKey
+        if (keyStore.containsAlias(alias)) {
+            val entry = keyStore.getKey(alias, null) as? SecretKey
             if (entry != null) return entry
         }
 
         val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE_PROVIDER)
 
-        // Attempt StrongBox first on API 28+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 val strongBoxSpec = KeyGenParameterSpec.Builder(
-                    DATA_CIPHER_ALIAS,
+                    alias,
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                 )
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -246,12 +307,12 @@ class SecureTokenStorage(private val context: Context) {
                 keyGenerator.init(strongBoxSpec)
                 return keyGenerator.generateKey()
             } catch (_: Exception) {
-                // StrongBox not supported; proceed to standard hardware TEE
+                // fall through to standard
             }
         }
 
         val standardSpec = KeyGenParameterSpec.Builder(
-            DATA_CIPHER_ALIAS,
+            alias,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
         )
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -261,6 +322,22 @@ class SecureTokenStorage(private val context: Context) {
 
         keyGenerator.init(standardSpec)
         return keyGenerator.generateKey()
+    }
+
+    /**
+     * Gets or creates a dedicated direct hardware AES-256-GCM key inside Android KeyStore
+     */
+    @Synchronized
+    fun getOrCreateDataCipherKey(): SecretKey {
+        // Attempt StrongBox first on API 28+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                return getOrCreateKeystoreKey(DATA_CIPHER_ALIAS, true)
+            } catch (_: Exception) {
+                // StrongBox not supported; proceed to standard hardware TEE
+            }
+        }
+        return getOrCreateKeystoreKey(DATA_CIPHER_ALIAS, false)
     }
 
     /**

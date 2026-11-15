@@ -1,5 +1,6 @@
 package com.safetylog.app.ui.auth
 
+import android.content.ClipData
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,14 +23,15 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.safetylog.app.BuildConfig
 import com.safetylog.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun KeystoreDiagnosticsCard(
@@ -217,7 +220,8 @@ internal fun GoogleOAuthClientIdDialog(
     onSaveClientId: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val coroutineScope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -259,7 +263,16 @@ internal fun GoogleOAuthClientIdDialog(
                             Text("Release SHA-1: 62:FC:B5...EE:21", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
                             TextButton(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString("62:FC:B5:63:A9:32:68:10:95:77:C7:78:6D:01:8F:34:14:74:EE:21"))
+                                    coroutineScope.launch {
+                                        clipboard.setClipEntry(
+                                            ClipEntry(
+                                                ClipData.newPlainText(
+                                                    "Release SHA-1",
+                                                    "62:FC:B5:63:A9:32:68:10:95:77:C7:78:6D:01:8F:34:14:74:EE:21"
+                                                )
+                                            )
+                                        )
+                                    }
                                     Toast.makeText(context, "Copied Release SHA-1", Toast.LENGTH_SHORT).show()
                                 },
                                 contentPadding = PaddingValues(0.dp)
@@ -271,7 +284,16 @@ internal fun GoogleOAuthClientIdDialog(
                             Text("Debug SHA-1: 0E:58:7D...51:34", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
                             TextButton(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString("0E:58:7D:5D:00:F0:17:83:73:A2:72:C4:25:1D:29:AC:DD:CD:51:34"))
+                                    coroutineScope.launch {
+                                        clipboard.setClipEntry(
+                                            ClipEntry(
+                                                ClipData.newPlainText(
+                                                    "Debug SHA-1",
+                                                    "0E:58:7D:5D:00:F0:17:83:73:A2:72:C4:25:1D:29:AC:DD:CD:51:34"
+                                                )
+                                            )
+                                        )
+                                    }
                                     Toast.makeText(context, "Copied Debug SHA-1", Toast.LENGTH_SHORT).show()
                                 },
                                 contentPadding = PaddingValues(0.dp)

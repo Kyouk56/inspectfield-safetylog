@@ -88,7 +88,7 @@ fun InspectionFormScreen(
     val checklist = remember(uiState.equipment) {
         val eq = uiState.equipment
         if (!eq?.assignedChecklist.isNullOrBlank()) {
-            ChecklistRegistry.getChecklistByName(eq!!.assignedChecklist)
+            ChecklistRegistry.getChecklistByName(eq.assignedChecklist)
         } else {
             ChecklistRegistry.getChecklistForType(eq?.equipmentType ?: "")
         }

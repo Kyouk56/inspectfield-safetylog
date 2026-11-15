@@ -76,6 +76,7 @@ val VerifiedEmeraldDark = Color(0xFF047857)
 val CardBorderLight = Color(0xFFE2E8F0)
 val CardBorderDark = Color(0xFF2B3A53)
 
+@androidx.compose.runtime.Immutable
 data class StatusColorScheme(
     val accent: Color,
     val container: Color,

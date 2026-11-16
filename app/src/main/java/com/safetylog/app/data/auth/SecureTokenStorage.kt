@@ -97,17 +97,40 @@ class SecureTokenStorage(private val context: Context) {
         securePrefs.edit().putBoolean(PREF_FORCE_SANDBOX_AUTH, forced).apply()
     }
 
-    fun getActiveRole(): UserRole {
-        val roleStr = securePrefs.getString(PREF_ROLE, UserRole.USER.name)
-        val rawRole = UserRole.fromLegacy(roleStr)
-        val savedEmail = securePrefs.getString(PREF_EMAIL, null)
-        return AuthorizationConfig.sanitizeRole(rawRole, savedEmail)
+    /**
+     * Role storage is keyed by the account email so that a role chosen for one account
+     * cannot leak into another account's session after sign-out / sign-in.
+     */
+    private fun roleStorageKey(email: String?): String {
+        val normalized = email?.trim()?.lowercase().orEmpty()
+        return if (normalized.isBlank()) {
+            PREF_ROLE
+        } else {
+            PREF_ROLE + "_" + computeSha256(normalized).take(12)
+        }
     }
 
-    fun setActiveRole(role: UserRole) {
-        val savedEmail = securePrefs.getString(PREF_EMAIL, null)
-        val sanitized = AuthorizationConfig.sanitizeRole(role, savedEmail)
-        securePrefs.edit().putString(PREF_ROLE, sanitized.name).apply()
+    fun getActiveRole(email: String? = null): UserRole {
+        val resolvedEmail = email ?: securePrefs.getString(PREF_EMAIL, null)
+        val key = roleStorageKey(resolvedEmail)
+        val stored = securePrefs.getString(key, null)
+        val roleStr = stored ?: securePrefs.getString(PREF_ROLE, UserRole.USER.name)
+        // Transparent migration: if a legacy global role exists for this account, copy it
+        // into the account-keyed slot so subsequent reads are unambiguous.
+        if (stored == null && resolvedEmail != null) {
+            val legacy = securePrefs.getString(PREF_ROLE, null)
+            if (legacy != null) {
+                securePrefs.edit().putString(key, legacy).apply()
+            }
+        }
+        val rawRole = UserRole.fromLegacy(roleStr)
+        return AuthorizationConfig.sanitizeRole(rawRole, resolvedEmail)
+    }
+
+    fun setActiveRole(role: UserRole, email: String? = null) {
+        val resolvedEmail = email ?: securePrefs.getString(PREF_EMAIL, null)
+        val sanitized = AuthorizationConfig.sanitizeRole(role, resolvedEmail)
+        securePrefs.edit().putString(roleStorageKey(resolvedEmail), sanitized.name).apply()
     }
 
     private var activeMasterKeyAlias: String = KEY_ALIAS
@@ -427,7 +450,7 @@ class SecureTokenStorage(private val context: Context) {
             .putLong(PREF_EXPIRY, user.tokenExpiryEpochMs)
             .putLong(PREF_LAST_LOGIN, user.lastLoginEpochMs)
             .putBoolean(PREF_HARDWARE_BACKED, user.isHardwareEncrypted)
-            .putString(PREF_ROLE, sanitizedRole.name)
+            .putString(roleStorageKey(user.email), sanitizedRole.name)
             .apply()
 
         cacheAuthToken(user)
@@ -447,7 +470,8 @@ class SecureTokenStorage(private val context: Context) {
         } catch (_: Exception) {
             AuthProvider.GOOGLE
         }
-        val roleStr = securePrefs.getString(PREF_ROLE, UserRole.USER.name)
+        val roleStr = securePrefs.getString(roleStorageKey(email), null)
+            ?: securePrefs.getString(PREF_ROLE, UserRole.USER.name)
         val rawRole = UserRole.fromLegacy(roleStr)
         val role = AuthorizationConfig.sanitizeRole(rawRole, email)
         val idToken = securePrefs.getString(PREF_ID_TOKEN, null)

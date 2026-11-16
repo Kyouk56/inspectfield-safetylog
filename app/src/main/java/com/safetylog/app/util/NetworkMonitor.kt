@@ -77,14 +77,7 @@ class NetworkMonitor(context: Context) {
 
     init {
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                connectivityManager?.registerDefaultNetworkCallback(callback)
-            } else {
-                val request = NetworkRequest.Builder()
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .build()
-                connectivityManager?.registerNetworkCallback(request, callback)
-            }
+            connectivityManager?.registerDefaultNetworkCallback(callback)
         } catch (_: Exception) {
             // Graceful fallback if permission or system service is unavailable
         }

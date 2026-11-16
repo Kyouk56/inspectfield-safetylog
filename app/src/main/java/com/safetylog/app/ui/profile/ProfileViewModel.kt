@@ -278,12 +278,15 @@ class ProfileViewModel(
     fun saveProfile() {
         viewModelScope.launch {
             // Fast reject before taking the lock so the button never appears to
-            // hang. Persisting pre-load state would write blanks over real rows.
-            if (!loadCompleted) {
+            // hang. Persisting pre-load state would write blanks over real rows,
+            // but a transient Room read failure must not block saving genuinely
+            // non-blank profile data the inspector has entered.
+            val currentState = _uiState.value
+            if (!loadCompleted && currentState.allFieldsBlank()) {
                 Log.w(
                     TAG,
                     "saveProfile: rejected - persisted profile has not loaded yet " +
-                        "(isLoading=${_uiState.value.isLoading}); refusing to write empty form state"
+                        "(isLoading=${currentState.isLoading}); refusing to write empty form state"
                 )
                 _uiState.update {
                     it.copy(
@@ -292,6 +295,13 @@ class ProfileViewModel(
                     )
                 }
                 return@launch
+            }
+            if (!loadCompleted && !currentState.allFieldsBlank()) {
+                Log.w(
+                    TAG,
+                    "saveProfile: proceeding despite failed/transient Room read - form has non-blank data"
+                )
+                loadCompleted = true
             }
             try {
                 profileMutex.withLock {

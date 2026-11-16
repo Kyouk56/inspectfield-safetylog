@@ -9,6 +9,7 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.safetylog.app.BuildConfig
@@ -233,6 +234,7 @@ class AuthRepository(
                         .build()
                     credentialManager.getCredential(context = hostActivity, request = request)
                 } catch (stage1Error: Exception) {
+                    if (stage1Error is NoCredentialException) throw stage1Error
                     if (isCancellation(stage1Error)) throw stage1Error
 
                     // Stage 2: Fallback to GetGoogleIdOption (with all accounts shown, as sole option)
@@ -259,14 +261,14 @@ class AuthRepository(
                     googleIdTokenCredential.familyName?.trim()?.takeIf { it.isNotBlank() }
                 ).joinToString(" ").trim().takeIf { it.isNotBlank() }
                 val resolvedDisplayName = rawDisplayName ?: combinedNames ?: resolvedName
-                val userEmail = googleIdTokenCredential.id.trim().takeIf { it.isNotBlank() } ?: resolvedEmail
+                val userEmail = googleIdTokenCredential.email?.trim()?.takeIf { it.isNotBlank() } ?: resolvedEmail
                 val assignedRole = if (AuthorizationConfig.isAuthorizedOwner(userEmail)) {
                     UserRole.OWNER
                 } else {
-                    AuthorizationConfig.sanitizeRole(_currentUser.value?.role ?: secureStorage.getActiveRole(), userEmail)
+                    AuthorizationConfig.sanitizeRole(_currentUser.value?.role ?: secureStorage.getActiveRole(userEmail), userEmail)
                 }
                 val user = AuthUser(
-                    userId = googleIdTokenCredential.id.trim().ifBlank { userEmail },
+                    userId = googleIdTokenCredential.uniqueId.trim().ifBlank { userEmail },
                     email = userEmail,
                     displayName = resolvedDisplayName,
                     photoUrl = googleIdTokenCredential.profilePictureUri?.toString(),
@@ -287,6 +289,8 @@ class AuthRepository(
             } else {
                 AuthResult.Error("Unsupported credential type returned from Google Credential Manager (${credential::class.java.simpleName}).")
             }
+        } catch (e: NoCredentialException) {
+            AuthResult.Error("No Google account available on this device. Add an account or enable Sandbox Mode for offline testing.", e)
         } catch (e: Exception) {
             if (isCancellation(e)) {
                 AuthResult.Cancelled
@@ -439,7 +443,7 @@ class AuthRepository(
     fun updateUserRole(newRole: UserRole) {
         val currentEmail = _currentUser.value?.email ?: secureStorage.loadUser()?.email
         val sanitizedRole = AuthorizationConfig.sanitizeRole(newRole, currentEmail)
-        secureStorage.setActiveRole(sanitizedRole)
+        secureStorage.setActiveRole(sanitizedRole, currentEmail)
         _assignedRole.value = sanitizedRole
         val current = _currentUser.value
         if (current != null) {

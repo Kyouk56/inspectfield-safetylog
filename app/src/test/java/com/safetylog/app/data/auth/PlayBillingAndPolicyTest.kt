@@ -105,7 +105,8 @@ class PlayBillingAndPolicyTest {
         private val data = mutableMapOf<String, Any?>()
         override fun getAll(): MutableMap<String, *> = data
         override fun getString(key: String?, defValue: String?): String? = data[key] as? String ?: defValue
-        override fun getStringSet(key: String?, defValues: Set<String>?): Set<String>? = data[key] as? Set<String> ?: defValues
+        @Suppress("UNCHECKED_CAST")
+override fun getStringSet(key: String?, defValues: Set<String>?): Set<String>? = data[key] as? Set<String> ?: defValues
         override fun getInt(key: String?, defValue: Int): Int = data[key] as? Int ?: defValue
         override fun getLong(key: String?, defValue: Long): Long = data[key] as? Long ?: defValue
         override fun getFloat(key: String?, defValue: Float): Float = data[key] as? Float ?: defValue

@@ -8,6 +8,7 @@ import com.android.billingclient.api.*
 import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.auth.CompanyOAuthProvider
 import com.safetylog.app.data.auth.CompanyOAuthConfig
+import com.safetylog.app.data.auth.SecureTokenStorage
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
 import com.safetylog.app.data.auth.TeamMember
@@ -22,13 +23,24 @@ import java.util.UUID
 class BillingRepository private constructor(
     private val context: Context?,
     private val prefs: SharedPreferences,
-    private val debugMode: Boolean = BuildConfig.DEBUG
+    private val debugMode: Boolean = BuildConfig.DEBUG,
+    private val secureStorage: SecureTokenStorage? = null
 ) : PurchasesUpdatedListener {
 
-    constructor(context: Context) : this(context, context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE), BuildConfig.DEBUG)
+    constructor(context: Context) : this(context, context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE), BuildConfig.DEBUG, SecureTokenStorage(context))
 
     // Test-friendly constructor: allows exercising tier/entitlement logic without an Android Context.
-    constructor(prefs: SharedPreferences, debugMode: Boolean = BuildConfig.DEBUG) : this(null, prefs, debugMode)
+    constructor(prefs: SharedPreferences, debugMode: Boolean = BuildConfig.DEBUG) : this(null, prefs, debugMode, null)
+
+    // Optional constructor accepting an explicit SecureTokenStorage (used when callers
+    // share a vault instance instead of letting BillingRepository create its own).
+    constructor(context: Context, secureStorage: SecureTokenStorage) : this(context, context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE), BuildConfig.DEBUG, secureStorage)
+
+    constructor(prefs: SharedPreferences, secureStorage: SecureTokenStorage?, debugMode: Boolean = BuildConfig.DEBUG) : this(null, prefs, debugMode, secureStorage)
+
+    constructor(prefs: SharedPreferences, debugMode: Boolean, secureStorage: SecureTokenStorage?) : this(null, prefs, debugMode, secureStorage)
+
+    constructor(secureStorage: SecureTokenStorage, prefs: SharedPreferences, debugMode: Boolean = BuildConfig.DEBUG) : this(null, prefs, debugMode, secureStorage)
 
     private val _currentTier = MutableStateFlow(loadInitialTier())
     val currentTier: StateFlow<SubscriptionTier> = _currentTier.asStateFlow()
@@ -131,7 +143,8 @@ class BillingRepository private constructor(
         val enforce = prefs.getBoolean(KEY_COMPANY_ENFORCE_DOMAIN, true)
         val isConfigured = prefs.getBoolean(KEY_COMPANY_IS_CONFIGURED, false)
         val webhookUrl = prefs.getString(KEY_COMPANY_WEBHOOK_URL, "") ?: ""
-        val webhookSecret = prefs.getString(KEY_COMPANY_WEBHOOK_SECRET, "") ?: ""
+        val storedWebhookSecret = prefs.getString(KEY_COMPANY_WEBHOOK_SECRET, "") ?: ""
+        val webhookSecret = if (storedWebhookSecret.isBlank()) "" else (secureStorage?.decryptString(storedWebhookSecret) ?: storedWebhookSecret)
         val webhookAuto = prefs.getBoolean(KEY_COMPANY_WEBHOOK_AUTO, false)
         val driveUri = prefs.getString(KEY_COMPANY_DRIVE_URI, "") ?: ""
         val driveName = prefs.getString(KEY_COMPANY_DRIVE_NAME, "") ?: ""
@@ -156,7 +169,8 @@ class BillingRepository private constructor(
     }
 
     private fun loadInitialTeamMembers(): List<TeamMember> {
-        val rawJson = prefs.getString(KEY_TEAM_MEMBERS, null)
+        val storedJson = prefs.getString(KEY_TEAM_MEMBERS, null)
+        val rawJson = if (storedJson.isNullOrBlank()) null else (secureStorage?.decryptString(storedJson) ?: storedJson)
         if (!rawJson.isNullOrBlank()) {
             try {
                 val array = JSONArray(rawJson)
@@ -226,7 +240,7 @@ class BillingRepository private constructor(
                 reconnectAttempts++
                 val delayMs = (1000L shl attempt).coerceAtMost(16000L)
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    if (billingClient?.isReady == true) {
+                    if (billingClient.isReady) {
                         reconnectAttempts = 0
                         return@postDelayed
                     }
@@ -323,7 +337,7 @@ class BillingRepository private constructor(
             .setProductDetailsParamsList(productDetailsParamsList)
             .build()
 
-        val client = billingClient ?: return false
+        val client = billingClient
         val result = client.launchBillingFlow(activity, billingFlowParams)
         return result.responseCode == BillingClient.BillingResponseCode.OK
     }
@@ -531,6 +545,11 @@ class BillingRepository private constructor(
     }
 
     fun saveCompanyOAuthConfig(config: CompanyOAuthConfig) {
+        val secretToStore = if (config.webhookSecret.isBlank()) {
+            ""
+        } else {
+            secureStorage?.encryptString(config.webhookSecret) ?: config.webhookSecret
+        }
         prefs.edit()
             .putString(KEY_COMPANY_NAME, config.companyName)
             .putString(KEY_COMPANY_DOMAIN, config.corporateDomain)
@@ -541,7 +560,7 @@ class BillingRepository private constructor(
             .putBoolean(KEY_COMPANY_ENFORCE_DOMAIN, config.enforceDomainRestriction)
             .putBoolean(KEY_COMPANY_IS_CONFIGURED, config.isConfigured)
             .putString(KEY_COMPANY_WEBHOOK_URL, config.webhookUrl)
-            .putString(KEY_COMPANY_WEBHOOK_SECRET, config.webhookSecret)
+            .putString(KEY_COMPANY_WEBHOOK_SECRET, secretToStore)
             .putBoolean(KEY_COMPANY_WEBHOOK_AUTO, config.webhookAutoDispatch)
             .putString(KEY_COMPANY_DRIVE_URI, config.cloudDriveFolderUri)
             .putString(KEY_COMPANY_DRIVE_NAME, config.cloudDriveFolderName)
@@ -564,7 +583,9 @@ class BillingRepository private constructor(
             }
             array.put(obj)
         }
-        prefs.edit().putString(KEY_TEAM_MEMBERS, array.toString()).apply()
+        val rosterJson = array.toString()
+        val rosterToStore = if (rosterJson.isBlank()) rosterJson else (secureStorage?.encryptString(rosterJson) ?: rosterJson)
+        prefs.edit().putString(KEY_TEAM_MEMBERS, rosterToStore).apply()
         _teamMembers.value = members
     }
 

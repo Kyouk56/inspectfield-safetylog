@@ -377,9 +377,7 @@ fun EquipmentFormScreen(
                 isDark = isDark,
                 onShowReviewDatePicker = { showReviewDatePicker = true },
                 onRequestNotificationPermission = {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             )
 

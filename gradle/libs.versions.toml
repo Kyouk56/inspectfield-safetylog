@@ -14,7 +14,7 @@ core-ktx = "1.19.1"
 documentfile = "1.1.0"
 security-crypto = "1.1.0"
 credentials = "1.6.0"
-googleid = "1.1.1"
+googleid = "1.2.1"
 
 # Kotlin / KotlinX
 coroutines = "1.11.0"

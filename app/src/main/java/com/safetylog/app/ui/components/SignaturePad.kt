@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -47,6 +48,7 @@ fun SignaturePad(
     var currentPath by remember { mutableStateOf<Path?>(null) }
     var isConfirmed by remember { mutableStateOf(false) }
     var drawTrigger by remember { mutableLongStateOf(0L) }
+    var canvasSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
 
     val isDark = LocalIsDarkTheme.current
     val padBg = if (isDark) DarkSurfaceCard else Color(0xFFF8FAFC)
@@ -69,8 +71,13 @@ fun SignaturePad(
                 strokeJoin = android.graphics.Paint.Join.ROUND
             }
 
+            val scaleX = if (canvasSize.width > 0) 800f / canvasSize.width else 1f
+            val scaleY = if (canvasSize.height > 0) 300f / canvasSize.height else 1f
             paths.forEach { path ->
+                canvas.save()
+                canvas.scale(scaleX, scaleY)
                 canvas.drawPath(path.asAndroidPath(), paint)
+                canvas.restore()
             }
 
             val signatureFile = File(context.filesDir, "sig_${System.currentTimeMillis()}.png")
@@ -201,6 +208,7 @@ fun SignaturePad(
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
+                        .onSizeChanged { canvasSize = it }
                         .semantics {
                             contentDescription = "Technician signature drawing pad. Draw your signature with a finger or stylus."
                         }

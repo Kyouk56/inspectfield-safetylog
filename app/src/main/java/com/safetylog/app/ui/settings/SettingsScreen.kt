@@ -100,20 +100,56 @@ fun SettingsScreen(
     }
 
     // Company OAuth self-service configuration form state
-    var companyNameInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.companyName) }
-    var corporateDomainInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.corporateDomain) }
-    var selectedProvider by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.provider) }
-    var tenantIdInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.tenantIdOrDomain) }
-    var clientIdInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.clientId) }
-    var enforceDomainInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.enforceDomainRestriction) }
-    var webhookUrlInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.webhookUrl) }
-    var webhookSecretInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.webhookSecret) }
-    var webhookAutoInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.webhookAutoDispatch) }
-    var cloudDriveUriInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.cloudDriveFolderUri) }
-    var cloudDriveNameInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.cloudDriveFolderName) }
-    var cloudDriveAutoInput by remember(uiState.companyOAuthConfig) { mutableStateOf(uiState.companyOAuthConfig.cloudDriveAutoBackup) }
+    // Drafts are held in plain `remember` (no key) so unrelated Settings state
+    // updates cannot discard in-progress edits. Sync from the persisted config
+    // only when it genuinely changes and the form is untouched.
+    var companyNameInput by remember { mutableStateOf(uiState.companyOAuthConfig.companyName) }
+    var corporateDomainInput by remember { mutableStateOf(uiState.companyOAuthConfig.corporateDomain) }
+    var selectedProvider by remember { mutableStateOf(uiState.companyOAuthConfig.provider) }
+    var tenantIdInput by remember { mutableStateOf(uiState.companyOAuthConfig.tenantIdOrDomain) }
+    var clientIdInput by remember { mutableStateOf(uiState.companyOAuthConfig.clientId) }
+    var enforceDomainInput by remember { mutableStateOf(uiState.companyOAuthConfig.enforceDomainRestriction) }
+    var webhookUrlInput by remember { mutableStateOf(uiState.companyOAuthConfig.webhookUrl) }
+    var webhookSecretInput by remember { mutableStateOf(uiState.companyOAuthConfig.webhookSecret) }
+    var webhookAutoInput by remember { mutableStateOf(uiState.companyOAuthConfig.webhookAutoDispatch) }
+    var cloudDriveUriInput by remember { mutableStateOf(uiState.companyOAuthConfig.cloudDriveFolderUri) }
+    var cloudDriveNameInput by remember { mutableStateOf(uiState.companyOAuthConfig.cloudDriveFolderName) }
+    var cloudDriveAutoInput by remember { mutableStateOf(uiState.companyOAuthConfig.cloudDriveAutoBackup) }
     var isTestingWebhook by remember { mutableStateOf(false) }
     var isBackingUpDrive by remember { mutableStateOf(false) }
+
+    var lastSyncedOAuthConfig by remember { mutableStateOf(uiState.companyOAuthConfig) }
+    LaunchedEffect(uiState.companyOAuthConfig) {
+        val newConfig = uiState.companyOAuthConfig
+        if (newConfig == lastSyncedOAuthConfig) return@LaunchedEffect
+        val untouched = companyNameInput == lastSyncedOAuthConfig.companyName &&
+            corporateDomainInput == lastSyncedOAuthConfig.corporateDomain &&
+            selectedProvider == lastSyncedOAuthConfig.provider &&
+            tenantIdInput == lastSyncedOAuthConfig.tenantIdOrDomain &&
+            clientIdInput == lastSyncedOAuthConfig.clientId &&
+            enforceDomainInput == lastSyncedOAuthConfig.enforceDomainRestriction &&
+            webhookUrlInput == lastSyncedOAuthConfig.webhookUrl &&
+            webhookSecretInput == lastSyncedOAuthConfig.webhookSecret &&
+            webhookAutoInput == lastSyncedOAuthConfig.webhookAutoDispatch &&
+            cloudDriveUriInput == lastSyncedOAuthConfig.cloudDriveFolderUri &&
+            cloudDriveNameInput == lastSyncedOAuthConfig.cloudDriveFolderName &&
+            cloudDriveAutoInput == lastSyncedOAuthConfig.cloudDriveAutoBackup
+        if (untouched) {
+            companyNameInput = newConfig.companyName
+            corporateDomainInput = newConfig.corporateDomain
+            selectedProvider = newConfig.provider
+            tenantIdInput = newConfig.tenantIdOrDomain
+            clientIdInput = newConfig.clientId
+            enforceDomainInput = newConfig.enforceDomainRestriction
+            webhookUrlInput = newConfig.webhookUrl
+            webhookSecretInput = newConfig.webhookSecret
+            webhookAutoInput = newConfig.webhookAutoDispatch
+            cloudDriveUriInput = newConfig.cloudDriveFolderUri
+            cloudDriveNameInput = newConfig.cloudDriveFolderName
+            cloudDriveAutoInput = newConfig.cloudDriveAutoBackup
+        }
+        lastSyncedOAuthConfig = newConfig
+    }
 
     // Team Members administration state
     var showAddMemberDialog by remember { mutableStateOf(false) }

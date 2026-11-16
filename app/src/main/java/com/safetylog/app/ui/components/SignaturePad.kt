@@ -13,6 +13,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +42,7 @@ fun SignaturePad(
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
     val paths = remember { mutableStateListOf<Path>() }
     var currentPath by remember { mutableStateOf<Path?>(null) }
     var isConfirmed by remember { mutableStateOf(false) }
@@ -51,68 +55,88 @@ fun SignaturePad(
 
     fun saveDrawnBitmap() {
         if (paths.isEmpty()) return
-        val bitmap = Bitmap.createBitmap(800, 300, Bitmap.Config.ARGB_8888)
-        val canvas = android.graphics.Canvas(bitmap)
-        canvas.drawColor(android.graphics.Color.WHITE)
+        coroutineScope.launch {
+            val bitmap = Bitmap.createBitmap(800, 300, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            canvas.drawColor(android.graphics.Color.WHITE)
 
-        val paint = android.graphics.Paint().apply {
-            color = android.graphics.Color.BLACK
-            strokeWidth = 6f
-            style = android.graphics.Paint.Style.STROKE
-            isAntiAlias = true
-            strokeCap = android.graphics.Paint.Cap.ROUND
-            strokeJoin = android.graphics.Paint.Join.ROUND
-        }
-
-        paths.forEach { path ->
-            canvas.drawPath(path.asAndroidPath(), paint)
-        }
-
-        val signatureFile = File(context.filesDir, "sig_${System.currentTimeMillis()}.png")
-        try {
-            FileOutputStream(signatureFile).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            val paint = android.graphics.Paint().apply {
+                color = android.graphics.Color.BLACK
+                strokeWidth = 6f
+                style = android.graphics.Paint.Style.STROKE
+                isAntiAlias = true
+                strokeCap = android.graphics.Paint.Cap.ROUND
+                strokeJoin = android.graphics.Paint.Join.ROUND
             }
-        } finally {
-            bitmap.recycle()
+
+            paths.forEach { path ->
+                canvas.drawPath(path.asAndroidPath(), paint)
+            }
+
+            val signatureFile = File(context.filesDir, "sig_${System.currentTimeMillis()}.png")
+            var writeSucceeded = false
+            try {
+                withContext(Dispatchers.IO) {
+                    FileOutputStream(signatureFile).use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                }
+                writeSucceeded = true
+            } catch (_: Exception) {
+                // Failed to persist signature; do not report success.
+            } finally {
+                bitmap.recycle()
+            }
+            if (writeSucceeded) {
+                isConfirmed = true
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onSignatureCaptured(signatureFile.absolutePath)
+            }
         }
-        isConfirmed = true
-        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        onSignatureCaptured(signatureFile.absolutePath)
     }
 
     fun applyDigitalSeal() {
-        val bitmap = Bitmap.createBitmap(800, 300, Bitmap.Config.ARGB_8888)
-        val canvas = android.graphics.Canvas(bitmap)
-        canvas.drawColor(android.graphics.Color.WHITE)
+        coroutineScope.launch {
+            val bitmap = Bitmap.createBitmap(800, 300, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bitmap)
+            canvas.drawColor(android.graphics.Color.WHITE)
 
-        val titlePaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.BLACK
-            textSize = 34f
-            isAntiAlias = true
-            typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD_ITALIC)
-        }
-        canvas.drawText("Electronically Certified & Signed", 40f, 130f, titlePaint)
-
-        val subPaint = android.graphics.Paint().apply {
-            color = android.graphics.Color.DKGRAY
-            textSize = 24f
-            isAntiAlias = true
-        }
-        val stampDate = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.US).format(java.util.Date())
-        canvas.drawText("Audit Timestamp: $stampDate", 40f, 190f, subPaint)
-
-        val file = File(context.filesDir, "sig_seal_${System.currentTimeMillis()}.png")
-        try {
-            FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            val titlePaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.BLACK
+                textSize = 34f
+                isAntiAlias = true
+                typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD_ITALIC)
             }
-        } finally {
-            bitmap.recycle()
+            canvas.drawText("Electronically Certified & Signed", 40f, 130f, titlePaint)
+
+            val subPaint = android.graphics.Paint().apply {
+                color = android.graphics.Color.DKGRAY
+                textSize = 24f
+                isAntiAlias = true
+            }
+            val stampDate = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.US).format(java.util.Date())
+            canvas.drawText("Audit Timestamp: $stampDate", 40f, 190f, subPaint)
+
+            val file = File(context.filesDir, "sig_seal_${System.currentTimeMillis()}.png")
+            var writeSucceeded = false
+            try {
+                withContext(Dispatchers.IO) {
+                    FileOutputStream(file).use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                }
+                writeSucceeded = true
+            } catch (_: Exception) {
+                // Failed to persist seal; do not report success.
+            } finally {
+                bitmap.recycle()
+            }
+            if (writeSucceeded) {
+                isConfirmed = true
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onSignatureCaptured(file.absolutePath)
+            }
         }
-        isConfirmed = true
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        onSignatureCaptured(file.absolutePath)
     }
 
     Card(

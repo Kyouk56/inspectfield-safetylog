@@ -99,8 +99,9 @@ fun EquipmentHistoryScreen(
         if (destinationUri != null && generatedPdfFile != null) {
             coroutineScope.launch(Dispatchers.IO) {
                 try {
+                    val pdf = generatedPdfFile ?: return@launch
                     context.contentResolver.openOutputStream(destinationUri)?.use { out ->
-                        generatedPdfFile!!.inputStream().use { input ->
+                        pdf.inputStream().use { input ->
                             input.copyTo(out)
                         }
                     }
@@ -118,8 +119,9 @@ fun EquipmentHistoryScreen(
 
     fun producePdf(onReady: (File) -> Unit) {
         val eq = equipment ?: return
-        if (generatedPdfFile != null && generatedPdfFile!!.exists()) {
-            onReady(generatedPdfFile!!)
+        val cachedPdf = generatedPdfFile
+        if (cachedPdf != null && cachedPdf.exists()) {
+            onReady(cachedPdf)
             return
         }
         isGeneratingPdf = true

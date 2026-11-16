@@ -19,10 +19,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
-class BillingRepository(private val context: Context) : PurchasesUpdatedListener {
+class BillingRepository private constructor(
+    private val context: Context?,
+    private val prefs: SharedPreferences,
+    private val debugMode: Boolean = BuildConfig.DEBUG
+) : PurchasesUpdatedListener {
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE)
+    constructor(context: Context) : this(context, context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE), BuildConfig.DEBUG)
+
+    // Test-friendly constructor: allows exercising tier/entitlement logic without an Android Context.
+    constructor(prefs: SharedPreferences, debugMode: Boolean = BuildConfig.DEBUG) : this(null, prefs, debugMode)
 
     private val _currentTier = MutableStateFlow(loadInitialTier())
     val currentTier: StateFlow<SubscriptionTier> = _currentTier.asStateFlow()
@@ -71,14 +77,16 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     private val _canUseCompanyOAuth = MutableStateFlow(_effectiveTier.value.isEnterprise && _paymentStatus.value.isGoodStanding)
     val canUseCompanyOAuth: StateFlow<Boolean> = _canUseCompanyOAuth.asStateFlow()
 
-    private var billingClient: BillingClient = BillingClient.newBuilder(context)
-        .setListener(this)
-        .enablePendingPurchases(
-            PendingPurchasesParams.newBuilder()
-                .enableOneTimeProducts()
-                .build()
-        )
-        .build()
+    private val billingClient: BillingClient? = context?.let {
+        BillingClient.newBuilder(it)
+            .setListener(this)
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder()
+                    .enableOneTimeProducts()
+                    .build()
+            )
+            .build()
+    }
 
     init {
         startBillingConnection()
@@ -197,17 +205,33 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
         _canUseCompanyOAuth.value = (effective.isEnterprise && _paymentStatus.value.isGoodStanding)
     }
 
+    private var reconnectAttempts = 0
+
     private fun startBillingConnection() {
-        billingClient.startConnection(object : BillingClientStateListener {
+        val client = billingClient ?: return
+        client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    reconnectAttempts = 0
                     queryPurchases()
                     queryProductDetails()
                 }
             }
 
             override fun onBillingServiceDisconnected() {
-                // Retry connection on next action
+                // Bounded reconnect/retry so Play Billing reconnects cleanly instead of
+                // staying disconnected. Back off exponentially, capped at 16s, max 5 tries.
+                if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return
+                val attempt = reconnectAttempts
+                reconnectAttempts++
+                val delayMs = (1000L shl attempt).coerceAtMost(16000L)
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    if (billingClient?.isReady == true) {
+                        reconnectAttempts = 0
+                        return@postDelayed
+                    }
+                    startBillingConnection()
+                }, delayMs)
             }
         })
     }
@@ -232,7 +256,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
             .setProductList(productList)
             .build()
 
-        billingClient.queryProductDetailsAsync(params) { billingResult, result ->
+        billingClient?.queryProductDetailsAsync(params) { billingResult, result ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 _productDetailsMap.value = result.productDetailsList.associateBy { it.productId }
             }
@@ -263,11 +287,11 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
         }
 
         val details = _productDetailsMap.value[sku]
-        if (details == null || !billingClient.isReady) {
+        if (details == null || billingClient?.isReady != true) {
             // Simulation/offline fallback is DEBUG-only; in release builds we never
             // grant paid tiers for free. Return false so the UI can surface an
             // unavailable/error message instead of unlocking Pro/Enterprise.
-            if (BuildConfig.DEBUG) {
+            if (debugMode) {
                 setTier(tier)
                 if (tier == SubscriptionTier.ENTERPRISE) {
                     setEnterpriseSeats(enterpriseSeats)
@@ -299,17 +323,19 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
             .setProductDetailsParamsList(productDetailsParamsList)
             .build()
 
-        val result = billingClient.launchBillingFlow(activity, billingFlowParams)
+        val client = billingClient ?: return false
+        val result = client.launchBillingFlow(activity, billingFlowParams)
         return result.responseCode == BillingClient.BillingResponseCode.OK
     }
 
     fun queryPurchases() {
+        val client = billingClient ?: return
         // 1. Query active subscriptions (Individual Pro $0.99/mo & Enterprise $0.50/seat/mo)
         val subsParams = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
-        billingClient.queryPurchasesAsync(subsParams) { billingResult, purchases ->
+        client.queryPurchasesAsync(subsParams) { billingResult, purchases ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 var foundActiveSubscription = false
                 for (purchase in purchases) {
@@ -336,7 +362,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
             .setProductType(BillingClient.ProductType.INAPP)
             .build()
 
-        billingClient.queryPurchasesAsync(inAppParams) { billingResult, purchases ->
+        client.queryPurchasesAsync(inAppParams) { billingResult, purchases ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 val hasAdFreePurchase = purchases.any {
                     it.purchaseState == Purchase.PurchaseState.PURCHASED && it.products.contains(SKU_AD_FREE)
@@ -382,7 +408,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
             val params = AcknowledgePurchaseParams.newBuilder()
                 .setPurchaseToken(purchase.purchaseToken)
                 .build()
-            billingClient.acknowledgePurchase(params) { result ->
+            billingClient?.acknowledgePurchase(params) { result ->
                 if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                     Log.w(TAG, "Failed to acknowledge purchase: ${result.debugMessage}")
                 }
@@ -440,7 +466,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
      * DEBUG keeps the old simulation behaviour so local testing still works.
      */
     fun setTier(tier: SubscriptionTier, preserveOneTimeAdFree: Boolean = true) {
-        if (!BuildConfig.DEBUG && tier != SubscriptionTier.FREE) {
+        if (!debugMode && tier != SubscriptionTier.FREE) {
             Log.w(TAG, "Ignoring release-build request to set paid tier directly: $tier")
             return
         }
@@ -459,7 +485,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     }
 
     fun setProStatus(isPro: Boolean) {
-        if (!BuildConfig.DEBUG) return
+        if (!debugMode) return
         setTier(if (isPro) SubscriptionTier.INDIVIDUAL_PRO else SubscriptionTier.FREE)
     }
 
@@ -495,7 +521,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
      * paid entitlements with a single button press. DEBUG keeps the simulation path.
      */
     fun reactivateSubscription() {
-        if (!BuildConfig.DEBUG) {
+        if (!debugMode) {
             queryPurchases()
             return
         }
@@ -628,7 +654,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     }
 
     fun toggleProStatusForTesting() {
-        if (!BuildConfig.DEBUG) return
+        if (!debugMode) return
         val next = when (_currentTier.value) {
             SubscriptionTier.FREE -> SubscriptionTier.AD_FREE
             SubscriptionTier.AD_FREE -> SubscriptionTier.INDIVIDUAL_PRO
@@ -640,6 +666,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
 
     companion object {
         private const val TAG = "BillingRepository"
+        private const val MAX_RECONNECT_ATTEMPTS = 5
 
         const val SKU_AD_FREE = "safetylog_adfree_299"
         const val SKU_INDIVIDUAL_PRO = "safetylog_pro_monthly_99"

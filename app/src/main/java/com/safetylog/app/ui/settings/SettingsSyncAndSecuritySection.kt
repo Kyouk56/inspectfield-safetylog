@@ -524,6 +524,7 @@ internal fun SettingsCrashLogVaultCard(
     secureStorage: SecureTokenStorage
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     // 6. Crash Log Vault & Local Diagnostics
     Card(
@@ -620,8 +621,10 @@ internal fun SettingsCrashLogVaultCard(
             ) {
                 OutlinedButton(
                     onClick = {
-                        val report = CrashLogVault.exportDiagnosticReport(context, secureStorage)
-                        Toast.makeText(context, "Audit report exported (${report.length()} bytes)", Toast.LENGTH_SHORT).show()
+                        coroutineScope.launch {
+                            val report = CrashLogVault.exportDiagnosticReportIO(context, secureStorage)
+                            Toast.makeText(context, "Audit report exported (${report.length()} bytes)", Toast.LENGTH_SHORT).show()
+                        }
                     },
                     modifier = Modifier.weight(1f).height(40.dp),
                     shape = RoundedCornerShape(10.dp)

@@ -136,6 +136,10 @@ class InspectionViewModel(
         _uiState.update { it.copy(photoUri = uri) }
     }
 
+    fun onPhotoSelectionFailed(message: String = "Failed to attach defect photo. Please try again.") {
+        _uiState.update { it.copy(errorMessage = message) }
+    }
+
     fun onSignatureCaptured(path: String) {
         _uiState.update { it.copy(signaturePath = path, errorMessage = null) }
     }
@@ -214,7 +218,7 @@ class InspectionViewModel(
                     signaturePath = sigPath,
                     checklistName = protocol.categoryName,
                     checklistSummary = if (currentState.isAllChecksPassed) {
-                        "5/5 ${protocol.categoryName} checks verified passed"
+                        "${listOf(currentState.isPressureOk, currentState.isHoseIntact, currentState.isPinSealed, currentState.isSignagePresent, currentState.isAccessUnobstructed).count { it }}/5 ${protocol.categoryName} checks verified passed"
                     } else {
                         "Deficiencies recorded during ${protocol.categoryName} inspection"
                     }

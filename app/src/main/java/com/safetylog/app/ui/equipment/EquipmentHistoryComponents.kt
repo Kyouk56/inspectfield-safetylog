@@ -402,9 +402,10 @@ internal fun AuditLogHistoryCard(
                             } catch (_: Exception) { null }
                         }
                     }
-                    if (signatureBitmap != null) {
+                    val safeSignatureBitmap = signatureBitmap
+                    if (safeSignatureBitmap != null) {
                         Image(
-                            bitmap = signatureBitmap!!,
+                            bitmap = safeSignatureBitmap,
                             contentDescription = "Technician Signature",
                             modifier = Modifier
                                 .height(40.dp)

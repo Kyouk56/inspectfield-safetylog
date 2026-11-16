@@ -6,7 +6,9 @@ import android.content.Intent
 import com.safetylog.app.data.SafetyLogDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -17,16 +19,18 @@ class BootReceiver : BroadcastReceiver() {
         }
 
         val pendingResult = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val db = SafetyLogDatabase.getDatabase(context)
-                val allEquipment = db.equipmentDao().getAllEquipment()
-                val reminderManager = InspectionReminderManager(context)
+                withTimeout(9_000L) {
+                    val db = SafetyLogDatabase.getDatabase(context)
+                    val allEquipment = db.equipmentDao().getAllEquipment()
+                    val reminderManager = InspectionReminderManager(context)
 
-                val activeReminders = allEquipment.filter {
-                    it.reminderEnabled && it.nextReviewTimestamp > System.currentTimeMillis()
+                    val activeReminders = allEquipment.filter {
+                        it.reminderEnabled && it.nextReviewTimestamp > System.currentTimeMillis()
+                    }
+                    reminderManager.rescheduleAll(activeReminders)
                 }
-                reminderManager.rescheduleAll(activeReminders)
             } catch (_: Exception) {
                 // Non-fatal
             } finally {

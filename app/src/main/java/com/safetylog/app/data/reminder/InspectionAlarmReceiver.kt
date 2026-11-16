@@ -26,6 +26,10 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
 
         InspectionReminderManager.initNotificationChannel(context)
 
+        val reqCode = equipmentId.hashCode()
+        val action1 = reqCode xor 0x10000
+        val action2 = reqCode xor 0x20000
+
         // Main Tap Intent: opens inspection form for this equipment
         val mainIntent = Intent(context, MainActivity::class.java).apply {
             action = "ACTION_INSPECT_EQUIPMENT"
@@ -36,8 +40,22 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
         }
         val mainPendingIntent = PendingIntent.getActivity(
             context,
-            equipmentId.toInt(),
+            reqCode,
             mainIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Action Button: Inspect Now
+        val inspectIntent = Intent(context, MainActivity::class.java).apply {
+            action = "ACTION_INSPECT_EQUIPMENT"
+            putExtra("equipmentId", equipmentId)
+            putExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, true)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val inspectPendingIntent = PendingIntent.getActivity(
+            context,
+            action1,
+            inspectIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -50,7 +68,7 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
         }
         val historyPendingIntent = PendingIntent.getActivity(
             context,
-            (equipmentId + 100000).toInt(),
+            action2,
             historyIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -71,12 +89,12 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(mainPendingIntent)
-            .addAction(R.drawable.ic_launcher_foreground, "Inspect Now", mainPendingIntent)
+            .addAction(R.drawable.ic_launcher_foreground, "Inspect Now", inspectPendingIntent)
             .addAction(R.drawable.ic_launcher_foreground, "View History", historyPendingIntent)
             .build()
 
         try {
-            NotificationManagerCompat.from(context).notify(equipmentId.toInt(), notification)
+            NotificationManagerCompat.from(context).notify(reqCode, notification)
         } catch (_: SecurityException) {
             // Permission revoked or not granted
         }

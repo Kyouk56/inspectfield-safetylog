@@ -143,10 +143,11 @@ fun AuthScreen(
             )
 
             // 2. Active Session Card (If Logged In)
-            if (uiState.isAuthenticated && uiState.currentUser != null) {
+            val currentUser = uiState.currentUser
+            if (uiState.isAuthenticated && currentUser != null) {
                 ActiveSessionCard(
                     uiState = uiState,
-                    user = uiState.currentUser!!,
+                    user = currentUser,
                     dateFormat = dateFormat,
                     onSyncProfile = { viewModel.syncInspectorProfile() },
                     onSignOut = { viewModel.signOut() },

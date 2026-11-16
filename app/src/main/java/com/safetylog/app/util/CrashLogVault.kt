@@ -176,6 +176,11 @@ object CrashLogVault {
             exportDiagnosticReport(context, secureStorage)
         }
 
+    suspend fun exportDiagnosticReportIO(context: Context, secureStorage: SecureTokenStorage): File =
+        withContext(Dispatchers.IO) {
+            exportDiagnosticReport(context, secureStorage)
+        }
+
     fun clearVault(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().remove(KEY_CRASH_LOGS_JSON).apply()

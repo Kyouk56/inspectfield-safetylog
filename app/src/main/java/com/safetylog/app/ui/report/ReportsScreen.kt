@@ -294,8 +294,9 @@ fun ReportsScreen(
 
             // PDF Action or Generated Card
             item {
-                if (uiState.generatedPdfFile != null) {
-                    val pdfFile = uiState.generatedPdfFile!!
+                val generatedPdfFile = uiState.generatedPdfFile
+            if (generatedPdfFile != null) {
+                    val pdfFile = generatedPdfFile
                     val statusTheme = getComplianceStatusColors("PASSED", isDark = isDark)
                     Card(
                         modifier = Modifier

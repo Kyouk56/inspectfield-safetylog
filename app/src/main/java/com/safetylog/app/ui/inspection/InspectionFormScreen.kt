@@ -33,6 +33,9 @@ import com.safetylog.app.ui.components.SignaturePad
 import com.safetylog.app.ui.theme.*
 import java.io.File
 import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -47,6 +50,7 @@ fun InspectionFormScreen(
     val isDark = MaterialTheme.colorScheme.background == DarkSurfaceBase
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(uiState.isSavedSuccess) {
         if (uiState.isSavedSuccess) {
@@ -65,16 +69,30 @@ fun InspectionFormScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            try {
-                val photoFile = File(context.filesDir, "defect_${System.currentTimeMillis()}.jpg")
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(photoFile).use { output ->
-                        input.copyTo(output)
+            coroutineScope.launch {
+                try {
+                    val photoFile = File(context.filesDir, "defect_${System.currentTimeMillis()}.jpg")
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    if (inputStream == null) {
+                        viewModel.onPhotoSelectionFailed()
+                        return@launch
                     }
+                    var bytesCopied = 0L
+                    withContext(Dispatchers.IO) {
+                        inputStream.use { input ->
+                            FileOutputStream(photoFile).use { output ->
+                                bytesCopied = input.copyTo(output)
+                            }
+                        }
+                    }
+                    if (bytesCopied > 0) {
+                        viewModel.onPhotoSelected(photoFile.absolutePath)
+                    } else {
+                        viewModel.onPhotoSelectionFailed()
+                    }
+                } catch (_: Exception) {
+                    viewModel.onPhotoSelectionFailed()
                 }
-                viewModel.onPhotoSelected(photoFile.absolutePath)
-            } catch (_: Exception) {
-                viewModel.onPhotoSelected(uri.toString())
             }
         }
     }

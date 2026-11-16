@@ -344,7 +344,11 @@ fun PaywallBottomSheet(
                         }
                         // Selecting the free plan is a downgrade/cancel, not an upgrade:
                         // calling onUpgradeClicked here silently reactivated the subscription.
-                        if (selectedTier != com.safetylog.app.data.auth.SubscriptionTier.FREE) {
+                        // In release builds with real Play Billing, the purchase callback (not this
+                        // synchronous call) is what grants the upgraded entitlement.
+                        if (selectedTier != com.safetylog.app.data.auth.SubscriptionTier.FREE &&
+                            (onLaunchBilling == null || com.safetylog.app.BuildConfig.DEBUG)
+                        ) {
                             onUpgradeClicked()
                         }
                         onDismissRequest()

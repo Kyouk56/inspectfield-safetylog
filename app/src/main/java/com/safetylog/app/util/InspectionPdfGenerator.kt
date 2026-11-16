@@ -175,7 +175,7 @@ class InspectionPdfGenerator(private val context: Context) {
                     }
                     sigBitmap.recycle()
                 }
-            } catch (_: Exception) {}
+            } catch (_: OutOfMemoryError) {} catch (_: Exception) {}
         }
         paint.textSize = 8f
         paint.color = Color.DKGRAY
@@ -383,7 +383,7 @@ class InspectionPdfGenerator(private val context: Context) {
                             }
                             sigBitmap.recycle()
                         }
-                    } catch (_: Exception) {}
+                    } catch (_: OutOfMemoryError) {} catch (_: Exception) {}
                 }
                 paint.textSize = 7.5f
                 paint.color = Color.GRAY

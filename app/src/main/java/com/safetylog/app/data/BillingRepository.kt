@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
 import com.android.billingclient.api.*
+import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.auth.CompanyOAuthProvider
 import com.safetylog.app.data.auth.CompanyOAuthConfig
 import com.safetylog.app.data.auth.PaymentStatus
@@ -257,10 +258,14 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
 
         val details = _productDetailsMap.value[sku]
         if (details == null || !billingClient.isReady) {
-            // Development / offline simulation fallback
-            setTier(tier)
-            if (tier == SubscriptionTier.ENTERPRISE) {
-                setEnterpriseSeats(enterpriseSeats)
+            // Simulation/offline fallback is DEBUG-only; in release builds we never
+            // grant paid tiers for free. Return false so the UI can surface an
+            // unavailable/error message instead of unlocking Pro/Enterprise.
+            if (BuildConfig.DEBUG) {
+                setTier(tier)
+                if (tier == SubscriptionTier.ENTERPRISE) {
+                    setEnterpriseSeats(enterpriseSeats)
+                }
             }
             return false
         }
@@ -402,6 +407,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     }
 
     fun setProStatus(isPro: Boolean) {
+        if (!BuildConfig.DEBUG) return
         setTier(if (isPro) SubscriptionTier.INDIVIDUAL_PRO else SubscriptionTier.FREE)
     }
 
@@ -561,6 +567,7 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     }
 
     fun toggleProStatusForTesting() {
+        if (!BuildConfig.DEBUG) return
         val next = when (_currentTier.value) {
             SubscriptionTier.FREE -> SubscriptionTier.AD_FREE
             SubscriptionTier.AD_FREE -> SubscriptionTier.INDIVIDUAL_PRO

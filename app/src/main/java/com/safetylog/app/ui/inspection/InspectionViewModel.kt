@@ -3,6 +3,7 @@ package com.safetylog.app.ui.inspection
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.BillingRepository
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
@@ -278,8 +279,12 @@ class InspectionViewModel(
         val success = billingRepository.launchBillingFlow(activity, tier, seats)
         if (success) {
             _uiState.update { it.copy(showPaywall = false) }
-        } else {
+        } else if (BuildConfig.DEBUG) {
+            // Simulation fallback is DEBUG-only; in release, billing unavailable
+            // must not unlock paid tiers for free.
             upgradeToProAndSave()
+        } else {
+            _uiState.update { it.copy(errorMessage = "Billing is unavailable. Please try again later.") }
         }
     }
 

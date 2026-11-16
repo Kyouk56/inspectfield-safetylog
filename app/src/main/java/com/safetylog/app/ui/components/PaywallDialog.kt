@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
 import com.safetylog.app.data.auth.UserRole
@@ -400,7 +401,8 @@ fun PaywallBottomSheet(
             }
 
             // Testing / Simulation Controls for Self-Service Lifecycle (Only Account Admins & Owner)
-            if (isBillingAllowed) {
+            // Debug builds only: never expose simulation controls in release.
+            if (isBillingAllowed && BuildConfig.DEBUG) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),

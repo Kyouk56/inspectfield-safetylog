@@ -11,6 +11,7 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.dao.ProfileDao
 import com.safetylog.app.data.model.InspectorProfile
 import kotlinx.coroutines.CoroutineScope
@@ -109,9 +110,10 @@ class AuthRepository(
         secureStorage.setCustomGoogleClientId(clientId)
     }
 
-    fun isSandboxMode(): Boolean = secureStorage.isSandboxAuthForced()
+    fun isSandboxMode(): Boolean = if (BuildConfig.DEBUG) secureStorage.isSandboxAuthForced() else false
 
     fun setSandboxMode(enabled: Boolean) {
+        if (!BuildConfig.DEBUG) return
         secureStorage.setSandboxAuthForced(enabled)
     }
 
@@ -124,6 +126,9 @@ class AuthRepository(
         fallbackEmail: String? = null,
         provider: AuthProvider = AuthProvider.GOOGLE
     ): AuthResult = withContext(Dispatchers.IO) {
+        if (!BuildConfig.DEBUG) {
+            return@withContext AuthResult.Error("Sandbox sign-in is disabled in release builds.")
+        }
         _isLoading.value = true
         try {
             val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"

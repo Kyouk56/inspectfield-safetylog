@@ -342,7 +342,11 @@ fun PaywallBottomSheet(
                         if (onLaunchBilling != null && activity != null) {
                             onLaunchBilling(activity, selectedTier, enterpriseSeats)
                         }
-                        onUpgradeClicked()
+                        // Selecting the free plan is a downgrade/cancel, not an upgrade:
+                        // calling onUpgradeClicked here silently reactivated the subscription.
+                        if (selectedTier != com.safetylog.app.data.auth.SubscriptionTier.FREE) {
+                            onUpgradeClicked()
+                        }
                         onDismissRequest()
                     }
                 },

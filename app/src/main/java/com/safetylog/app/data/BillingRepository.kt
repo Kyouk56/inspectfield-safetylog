@@ -3,6 +3,7 @@ package com.safetylog.app.data
 import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import com.android.billingclient.api.*
 import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.auth.CompanyOAuthProvider
@@ -50,8 +51,12 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     private val _effectiveTier = MutableStateFlow(calculateEffectiveTier(_currentTier.value, _paymentStatus.value, _hasOneTimeAdFree.value))
     val effectiveTier: StateFlow<SubscriptionTier> = _effectiveTier.asStateFlow()
 
-    // Backward-compatible flow: true if on any paid plan in active good standing
-    private val _isProUser = MutableStateFlow(_effectiveTier.value != SubscriptionTier.FREE)
+    // Backward-compatible flow: true only for a paid *subscription* in good standing.
+    // AD_FREE is the lifetime ad-removal license and must not unlock Pro-only quotas.
+    private val _isProUser = MutableStateFlow(
+        _effectiveTier.value == SubscriptionTier.INDIVIDUAL_PRO ||
+            _effectiveTier.value == SubscriptionTier.ENTERPRISE
+    )
     val isProUser: StateFlow<Boolean> = _isProUser.asStateFlow()
 
     // Flag: false if Free (banner ads displayed); true if paid (ads removed)
@@ -185,7 +190,8 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     private fun recalculateEntitlements() {
         val effective = calculateEffectiveTier(_currentTier.value, _paymentStatus.value, _hasOneTimeAdFree.value)
         _effectiveTier.value = effective
-        _isProUser.value = (effective != SubscriptionTier.FREE)
+        _isProUser.value = effective == SubscriptionTier.INDIVIDUAL_PRO ||
+            effective == SubscriptionTier.ENTERPRISE
         _isAdFree.value = effective.isAdFree
         _canShareBetweenAccounts.value = effective.allowsSharing
         _canUseCompanyOAuth.value = (effective.isEnterprise && _paymentStatus.value.isGoodStanding)
@@ -312,11 +318,15 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
                         handleValidPurchase(purchase)
                     }
                 }
-                // If user had a recurring tier but no active purchase in Google Play, flag payment/lapse
-                if (!foundActiveSubscription && (_currentTier.value == SubscriptionTier.INDIVIDUAL_PRO || _currentTier.value == SubscriptionTier.ENTERPRISE)) {
-                    if (_paymentStatus.value == PaymentStatus.ACTIVE) {
-                        // Mark lapsed to free use if no receipt exists in Google Play
-                    }
+                // Reconcile with Play: if a recurring tier is persisted locally but Play reports
+                // no active subscription (cancelled at period end, refunded, revoked), the paid
+                // entitlement must be revoked immediately instead of lingering forever.
+                if (!foundActiveSubscription &&
+                    (_currentTier.value == SubscriptionTier.INDIVIDUAL_PRO ||
+                        _currentTier.value == SubscriptionTier.ENTERPRISE)
+                ) {
+                    Log.w(TAG, "No active Play subscription found; revoking recurring entitlement")
+                    markPaymentFailed()
                 }
             }
         }
@@ -328,9 +338,23 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
 
         billingClient.queryPurchasesAsync(inAppParams) { billingResult, purchases ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                val hasAdFreePurchase = purchases.any {
+                    it.purchaseState == Purchase.PurchaseState.PURCHASED && it.products.contains(SKU_AD_FREE)
+                }
                 for (purchase in purchases) {
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
                         handleValidPurchase(purchase)
+                    }
+                }
+                // A refunded/revoked lifetime license must no longer grant ad-free access.
+                if (!hasAdFreePurchase && _hasOneTimeAdFree.value) {
+                    Log.w(TAG, "Ad-free license no longer reported by Play; revoking")
+                    _hasOneTimeAdFree.value = false
+                    prefs.edit().remove(KEY_ONE_TIME_AD_FREE).apply()
+                    if (_currentTier.value == SubscriptionTier.AD_FREE) {
+                        applyTier(SubscriptionTier.FREE, preserveOneTimeAdFree = false)
+                    } else {
+                        recalculateEntitlements()
                     }
                 }
             }
@@ -341,16 +365,9 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
             for (purchase in purchases) {
                 if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                    if (!purchase.isAcknowledged) {
-                        val acknowledgePurchaseParams = AcknowledgePurchaseParams.newBuilder()
-                            .setPurchaseToken(purchase.purchaseToken)
-                            .build()
-                        billingClient.acknowledgePurchase(acknowledgePurchaseParams) {
-                            handleValidPurchase(purchase)
-                        }
-                    } else {
-                        handleValidPurchase(purchase)
-                    }
+                    // Acknowledgement is centralised in handleValidPurchase so purchases
+                    // discovered via queryPurchases are acknowledged too.
+                    handleValidPurchase(purchase)
                 }
             }
         }
@@ -358,15 +375,32 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
 
     private fun handleValidPurchase(purchase: Purchase) {
         val prods = purchase.products
-        if (prods.contains(SKU_AD_FREE)) {
+
+        // Acknowledge here so both onPurchasesUpdated and queryPurchases acknowledge.
+        // Unacknowledged purchases are refunded/revoked by Play after three days.
+        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged) {
+            val params = AcknowledgePurchaseParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
+                .build()
+            billingClient.acknowledgePurchase(params) { result ->
+                if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                    Log.w(TAG, "Failed to acknowledge purchase: ${result.debugMessage}")
+                }
+            }
+        }
+
+        val isAdFreePurchase = prods.contains(SKU_AD_FREE)
+        if (isAdFreePurchase) {
             _hasOneTimeAdFree.value = true
             prefs.edit().putBoolean(KEY_ONE_TIME_AD_FREE, true).apply()
         }
+        // Only explicitly recognised SKUs grant a paid entitlement. An unknown SKU
+        // must never silently upgrade the user to Pro.
         when {
-            prods.contains(SKU_ENTERPRISE_SEAT) -> setTier(SubscriptionTier.ENTERPRISE, preserveOneTimeAdFree = true)
-            prods.contains(SKU_INDIVIDUAL_PRO) -> setTier(SubscriptionTier.INDIVIDUAL_PRO, preserveOneTimeAdFree = true)
-            prods.contains(SKU_AD_FREE) -> setTier(SubscriptionTier.AD_FREE, preserveOneTimeAdFree = true)
-            else -> setTier(SubscriptionTier.INDIVIDUAL_PRO, preserveOneTimeAdFree = true)
+            prods.contains(SKU_ENTERPRISE_SEAT) -> applyTier(SubscriptionTier.ENTERPRISE, true)
+            prods.contains(SKU_INDIVIDUAL_PRO) -> applyTier(SubscriptionTier.INDIVIDUAL_PRO, true)
+            isAdFreePurchase -> applyTier(SubscriptionTier.AD_FREE, true)
+            else -> Log.w(TAG, "Ignoring purchase with unrecognised product IDs: $prods")
         }
 
         try {
@@ -375,7 +409,12 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
         } catch (_: Exception) {}
     }
 
-    fun setTier(tier: SubscriptionTier, preserveOneTimeAdFree: Boolean = true) {
+    /**
+     * Applies a tier once the caller has a legitimate reason to do so: a purchase
+     * reported by Play, or an explicitly DEBUG-only simulation. Private so that UI
+     * code cannot hand out paid entitlements directly.
+     */
+    private fun applyTier(tier: SubscriptionTier, preserveOneTimeAdFree: Boolean) {
         val isOneTimeAdFree = when {
             tier == SubscriptionTier.AD_FREE -> true
             preserveOneTimeAdFree -> _hasOneTimeAdFree.value
@@ -387,12 +426,25 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
             .putString(KEY_SUBSCRIPTION_TIER, tier.name)
             .putString(KEY_PAYMENT_STATUS, PaymentStatus.ACTIVE.name)
             .putBoolean(KEY_ONE_TIME_AD_FREE, isOneTimeAdFree)
-            .putBoolean(KEY_IS_PRO, tier != SubscriptionTier.FREE)
+            .putBoolean(KEY_IS_PRO, tier == SubscriptionTier.INDIVIDUAL_PRO || tier == SubscriptionTier.ENTERPRISE)
             .apply()
 
         _currentTier.value = tier
         _paymentStatus.value = PaymentStatus.ACTIVE
         recalculateEntitlements()
+    }
+
+    /**
+     * Host-facing tier change. In release builds this may only reset to FREE (cancel /
+     * refund flows); paid tiers are granted exclusively through [handleValidPurchase].
+     * DEBUG keeps the old simulation behaviour so local testing still works.
+     */
+    fun setTier(tier: SubscriptionTier, preserveOneTimeAdFree: Boolean = true) {
+        if (!BuildConfig.DEBUG && tier != SubscriptionTier.FREE) {
+            Log.w(TAG, "Ignoring release-build request to set paid tier directly: $tier")
+            return
+        }
+        applyTier(tier, preserveOneTimeAdFree)
     }
 
     fun setEnterpriseSeats(seats: Int) {
@@ -437,7 +489,16 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
         recalculateEntitlements()
     }
 
+    /**
+     * "Retry / pay outstanding balance". In release this must re-check Play rather than
+     * restoring good standing locally, otherwise a cancelled subscription regains all
+     * paid entitlements with a single button press. DEBUG keeps the simulation path.
+     */
     fun reactivateSubscription() {
+        if (!BuildConfig.DEBUG) {
+            queryPurchases()
+            return
+        }
         prefs.edit().putString(KEY_PAYMENT_STATUS, PaymentStatus.ACTIVE.name).apply()
         _paymentStatus.value = PaymentStatus.ACTIVE
         recalculateEntitlements()
@@ -578,6 +639,8 @@ class BillingRepository(private val context: Context) : PurchasesUpdatedListener
     }
 
     companion object {
+        private const val TAG = "BillingRepository"
+
         const val SKU_AD_FREE = "safetylog_adfree_299"
         const val SKU_INDIVIDUAL_PRO = "safetylog_pro_monthly_99"
         const val SKU_ENTERPRISE_SEAT = "safetylog_enterprise_monthly_seat"

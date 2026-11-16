@@ -2,6 +2,7 @@ package com.safetylog.app
 
 import android.content.Intent
 import android.os.Bundle
+import com.safetylog.app.data.reminder.InspectionReminderManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -45,9 +46,18 @@ class MainActivity : ComponentActivity() {
 
     private val pendingNotificationData = MutableStateFlow<Pair<Long, String?>?>(null)
 
+    /**
+     * MainActivity is exported (launcher). Only intents carrying the marker that our own
+     * notification PendingIntent sets may drive in-app navigation, so another installed
+     * app cannot force a jump to an arbitrary equipment record.
+     */
+    private fun Intent.isTrustedNotificationIntent(): Boolean =
+        getBooleanExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, false)
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (!intent.isTrustedNotificationIntent()) return
         val id = intent.getLongExtra("equipmentId", -1L)
         val action = intent.action
         if (id > 0) {
@@ -60,8 +70,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val app = application as SafetyLogApp
-        val notificationEquipmentId = intent?.getLongExtra("equipmentId", -1L) ?: -1L
-        val notificationAction = intent?.action
+        val trusted = intent?.isTrustedNotificationIntent() == true
+        val notificationEquipmentId = if (trusted) intent?.getLongExtra("equipmentId", -1L) ?: -1L else -1L
+        val notificationAction = if (trusted) intent?.action else null
         if (notificationEquipmentId > 0 && pendingNotificationData.value == null) {
             pendingNotificationData.value = Pair(notificationEquipmentId, notificationAction)
         }

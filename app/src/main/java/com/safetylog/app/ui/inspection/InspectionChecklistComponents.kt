@@ -1,6 +1,5 @@
 package com.safetylog.app.ui.inspection
 
-import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,10 +25,6 @@ import com.safetylog.app.data.model.EquipmentItem
 import com.safetylog.app.domain.EquipmentChecklist
 import com.safetylog.app.ui.theme.*
 import java.io.File
-import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 internal val COMMON_DEFECT_TAGS = listOf(
     "Low Gauge Pressure",
@@ -40,34 +35,6 @@ internal val COMMON_DEFECT_TAGS = listOf(
     "Dented Cylinder Shell",
     "Hydrostatic Test Overdue"
 )
-
-internal fun generateAutoSignatureFile(context: Context): String {
-    val bitmap = android.graphics.Bitmap.createBitmap(800, 300, android.graphics.Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(bitmap)
-    canvas.drawColor(android.graphics.Color.WHITE)
-
-    val titlePaint = android.graphics.Paint().apply {
-        color = android.graphics.Color.BLACK
-        textSize = 34f
-        isAntiAlias = true
-        typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD_ITALIC)
-    }
-    canvas.drawText("Electronically Certified & Signed", 40f, 130f, titlePaint)
-
-    val subPaint = android.graphics.Paint().apply {
-        color = android.graphics.Color.DKGRAY
-        textSize = 24f
-        isAntiAlias = true
-    }
-    val stampDate = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US).format(Date())
-    canvas.drawText("Audit Timestamp: $stampDate", 40f, 190f, subPaint)
-
-    val file = File(context.filesDir, "sig_auto_${System.currentTimeMillis()}.png")
-    FileOutputStream(file).use { out ->
-        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
-    }
-    return file.absolutePath
-}
 
 @Composable
 internal fun InspectionAssetHeaderSection(

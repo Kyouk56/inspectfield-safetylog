@@ -44,7 +44,9 @@ class NetworkMonitor(context: Context) {
 
     private inner class DefaultNetworkCallback : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            _isOnline.value = checkInitialConnectivity()
+            // Evaluate the network handed to us; activeNetwork may not have been
+            // promoted/validated yet during a handover, which caused a stale false.
+            _isOnline.value = isOnlineCapabilities(connectivityManager?.getNetworkCapabilities(network))
         }
 
         override fun onLost(network: Network) {
@@ -71,9 +73,10 @@ class NetworkMonitor(context: Context) {
         }
     }
 
+    private val callback = DefaultNetworkCallback()
+
     init {
         try {
-            val callback = DefaultNetworkCallback()
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                 connectivityManager?.registerDefaultNetworkCallback(callback)
             } else {
@@ -84,6 +87,15 @@ class NetworkMonitor(context: Context) {
             }
         } catch (_: Exception) {
             // Graceful fallback if permission or system service is unavailable
+        }
+    }
+
+    /** Releases the system callback; call from the owning lifecycle when disposable. */
+    fun unregister() {
+        try {
+            connectivityManager?.unregisterNetworkCallback(callback)
+        } catch (_: Exception) {
+            // Already unregistered or service unavailable.
         }
     }
 }

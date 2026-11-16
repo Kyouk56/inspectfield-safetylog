@@ -186,6 +186,8 @@ class AuthRepository(
                 )
                 secureStorage.saveUser(user)
                 _currentUser.value = user
+                // Keep the role flow in sync with currentUser, as every other sign-in path does.
+                _assignedRole.value = user.role
                 AuthResult.Success(user)
             } else {
                 signInWithGoogleLive(

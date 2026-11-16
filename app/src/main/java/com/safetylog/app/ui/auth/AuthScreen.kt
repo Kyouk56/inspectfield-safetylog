@@ -54,14 +54,14 @@ fun AuthScreen(
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
+            viewModel.clearErrorMessage()
         }
     }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
             snackbarHostState.showSnackbar(it)
-            viewModel.clearMessages()
+            viewModel.clearSuccessMessage()
         }
     }
 

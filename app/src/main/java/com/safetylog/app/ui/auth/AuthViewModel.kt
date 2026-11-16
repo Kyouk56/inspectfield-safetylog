@@ -308,6 +308,16 @@ class AuthViewModel(
         _successMessage.value = null
     }
 
+    /** Clear only the error; clearing both here cancelled the other snackbar effect. */
+    fun clearErrorMessage() {
+        _errorMessage.value = null
+    }
+
+    /** Clear only the success message; see [clearErrorMessage]. */
+    fun clearSuccessMessage() {
+        _successMessage.value = null
+    }
+
     class Factory(
         private val authRepository: AuthRepository,
         private val profileDao: ProfileDao,

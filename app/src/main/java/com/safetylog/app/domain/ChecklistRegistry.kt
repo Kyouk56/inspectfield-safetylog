@@ -37,15 +37,41 @@ object ChecklistRegistry {
             ?: getChecklistForType(name)
     }
 
+    /**
+     * Maps free-text equipment types to a protocol using whole tokens, not raw
+     * substrings. Substring matching misclassified common names such as "Water Heater"
+     * (→ extinguisher), "CO2 Incubator" (→ extinguisher), "LED Floodlight" (→ exit
+     * lighting) and "Door Access Control" (→ fire door), producing non-applicable
+     * checklists and false compliance records.
+     */
     fun getChecklistForType(equipmentType: String): EquipmentChecklist {
-        val lower = equipmentType.lowercase()
+        val tokens = equipmentType.lowercase()
+            .replace(Regex("[^a-z0-9]+"), " ")
+            .split(" ")
+            .filter { it.isNotBlank() }
+
+        fun has(token: String) = tokens.any { it == token }
+        fun hasPrefix(prefix: String) = tokens.any { it.startsWith(prefix) }
 
         return when {
-            lower.contains("aed") || lower.contains("defibrillator") -> aedChecklist
-            lower.contains("light") || lower.contains("exit") || lower.contains("egress") -> emergencyLightingChecklist
-            lower.contains("eye") || lower.contains("wash") || lower.contains("shower") -> eyeWashChecklist
-            lower.contains("door") -> fireDoorChecklist
-            lower.contains("extinguisher") || lower.contains("chemical") || lower.contains("co2") || lower.contains("water") -> fireExtinguisherChecklist
+            // Most specific first: no other protocol legitimately claims these terms.
+            has("aed") || hasPrefix("defibrillator") -> aedChecklist
+
+            // An extinguisher must be named as such. "chemical", "co2" and "water"
+            // alone are too generic (chemical cabinet, CO2 incubator, water pump).
+            hasPrefix("extinguisher") -> fireExtinguisherChecklist
+
+            // Eyewash stations / safety showers, including compound forms.
+            hasPrefix("eyewash") ||
+                (has("eye") && (has("wash") || hasPrefix("shower"))) ||
+                (hasPrefix("shower") && has("safety")) -> eyeWashChecklist
+
+            // Fire door assemblies outrank lighting: "fire exit door" is a door.
+            (has("fire") && has("door")) || hasPrefix("firedoor") -> fireDoorChecklist
+
+            // Emergency / exit / egress lighting.
+            has("exit") || has("egress") || has("emergency") || hasPrefix("light") -> emergencyLightingChecklist
+
             else -> generalSafetyChecklist
         }
     }

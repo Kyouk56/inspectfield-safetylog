@@ -369,12 +369,9 @@ fun InspectionFormScreen(
             Button(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    var currentSig = uiState.signaturePath
-                    if (currentSig.isNullOrBlank()) {
-                        currentSig = generateAutoSignatureFile(context)
-                        viewModel.onSignatureCaptured(currentSig)
-                    }
-                    viewModel.saveInspection(forcedSignaturePath = currentSig)
+                    // Never fabricate a signature. saveInspection() validates that a
+                    // real technician signature was captured and surfaces an error.
+                    viewModel.saveInspection()
                 },
                 modifier = Modifier
                     .fillMaxWidth()

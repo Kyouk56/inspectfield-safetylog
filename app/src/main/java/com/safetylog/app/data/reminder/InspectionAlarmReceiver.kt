@@ -30,6 +30,8 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
         val mainIntent = Intent(context, MainActivity::class.java).apply {
             action = "ACTION_INSPECT_EQUIPMENT"
             putExtra("equipmentId", equipmentId)
+            // Marks the intent as originating from our own notification PendingIntent.
+            putExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, true)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val mainPendingIntent = PendingIntent.getActivity(
@@ -43,6 +45,7 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
         val historyIntent = Intent(context, MainActivity::class.java).apply {
             action = "ACTION_VIEW_HISTORY"
             putExtra("equipmentId", equipmentId)
+            putExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, true)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val historyPendingIntent = PendingIntent.getActivity(

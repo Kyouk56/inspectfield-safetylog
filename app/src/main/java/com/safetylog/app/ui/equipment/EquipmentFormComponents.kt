@@ -89,8 +89,13 @@ internal fun EquipmentDatePickerDialogs(
                 TextButton(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
+                            // DatePicker returns UTC midnight. Format in UTC as well,
+                            // otherwise negative UTC offsets render the previous day.
                             val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = millis }
-                            val formatted = SimpleDateFormat("MMM dd, yyyy", Locale.US).format(cal.time)
+                            val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.US).apply {
+                                timeZone = TimeZone.getTimeZone("UTC")
+                            }
+                            val formatted = formatter.format(cal.time)
                             onReviewDateSelected(formatted)
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }
@@ -121,7 +126,10 @@ internal fun EquipmentDatePickerDialogs(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
                             val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = millis }
-                            val formatted = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+                            val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                                timeZone = TimeZone.getTimeZone("UTC")
+                            }
+                            val formatted = formatter.format(cal.time)
                             onInstallDateSelected(formatted)
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         }

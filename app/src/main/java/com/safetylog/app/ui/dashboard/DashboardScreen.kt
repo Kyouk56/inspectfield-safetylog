@@ -27,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.safetylog.app.data.auth.SubscriptionTier
 import com.safetylog.app.data.auth.UserRole
 import com.safetylog.app.data.dao.EquipmentWithLatestInspection
 import com.safetylog.app.data.model.EquipmentItem
@@ -72,7 +71,10 @@ fun DashboardScreen(
             (listState.firstVisibleItemIndex == 2 && listState.firstVisibleItemScrollOffset > 60)
         }
     }
-    val canManageAssets = uiState.userRole.canManageAssets || uiState.subscriptionTier != SubscriptionTier.ENTERPRISE
+    // Asset management is a role capability, never a side effect of the subscription
+    // tier. The previous `|| tier != ENTERPRISE` granted viewers management access on
+    // Free/Pro plans, contradicting the role model ("Inspection viewing only").
+    val canManageAssets = uiState.userRole.canManageAssets
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

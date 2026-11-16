@@ -17,6 +17,27 @@ import java.util.*
 
 class InspectionPdfGenerator(private val context: Context) {
 
+    /**
+     * Downscales during decode so peak memory is a small thumbnail rather than the
+     * full-resolution signature. OutOfMemoryError is caught explicitly — it is an
+     * Error, not an Exception, and previously crashed the whole export.
+     */
+    private fun decodeSignature(path: String): android.graphics.Bitmap? = try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        val targetWidth = 110 * 2
+        val targetHeight = 40 * 2
+        var sample = 1
+        while (bounds.outWidth / sample > targetWidth || bounds.outHeight / sample > targetHeight) {
+            sample *= 2
+        }
+        BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    } catch (_: OutOfMemoryError) {
+        null
+    } catch (_: Exception) {
+        null
+    }
+
     fun generateReport(
         profile: InspectorProfile?,
         itemsWithRecords: List<Pair<EquipmentItem, InspectionRecord>>
@@ -136,13 +157,16 @@ class InspectionPdfGenerator(private val context: Context) {
         paint.typeface = Typeface.DEFAULT
         paint.textSize = 7.5f
         paint.color = Color.GRAY
-        canvas.drawText("Certified compliant with NFPA 10 periodic inspection standards and local life safety ordinances.", 40f, 720f, paint)
+        // NFPA 10 covers portable extinguishers only; these reports also cover AEDs,
+        // eyewash stations, fire doors and emergency lighting. Do not print a specific
+        // standard as a blanket certification for every equipment type.
+        canvas.drawText("Recorded against applicable life-safety inspection protocols and local ordinances.", 40f, 720f, paint)
 
         // Draw Signature
         val latestSigPath = itemsWithRecords.lastOrNull()?.second?.signaturePath
         if (!latestSigPath.isNullOrBlank() && File(latestSigPath).exists()) {
             try {
-                val sigBitmap = BitmapFactory.decodeFile(latestSigPath)
+                val sigBitmap = decodeSignature(latestSigPath)
                 if (sigBitmap != null) {
                     val scaledSig = android.graphics.Bitmap.createScaledBitmap(sigBitmap, 110, 40, true)
                     canvas.drawBitmap(scaledSig, 450f, 715f, null)
@@ -161,10 +185,20 @@ class InspectionPdfGenerator(private val context: Context) {
         document.finishPage(page)
 
         val outputFile = File(context.cacheDir, "InspectionReport_${System.currentTimeMillis()}.pdf")
-        FileOutputStream(outputFile).use { out ->
-            document.writeTo(out)
+        val tempFile = File(context.cacheDir, "${outputFile.name}.tmp")
+        try {
+            FileOutputStream(tempFile).use { out ->
+                document.writeTo(out)
+            }
+            // Only publish a complete file; a failed write must not leave a truncated
+            // PDF that the UI then offers to share as a valid report.
+            if (!tempFile.renameTo(outputFile)) {
+                tempFile.copyTo(outputFile, overwrite = true)
+            }
+        } finally {
+            document.close()
+            tempFile.delete()
         }
-        document.close()
 
         return outputFile
     }
@@ -313,10 +347,22 @@ class InspectionPdfGenerator(private val context: Context) {
                 paint.color = Color.DKGRAY
                 paint.typeface = Typeface.DEFAULT
                 paint.textSize = 8f
-                val checksSummary = if (isPassed) {
-                    "✓ 5/5 ${protocol.categoryName} checks verified and compliant"
-                } else {
-                    "⚠ Deficiencies identified during verification checklist"
+                // Derive the count from the recorded check flags. The previous literal
+                // "5/5" claimed every check passed even when the stored flags disagreed.
+                val checkFlags = listOf(
+                    record.isPressureOk,
+                    record.isHoseIntact,
+                    record.isPinSealed,
+                    record.isSignagePresent,
+                    record.isAccessUnobstructed
+                )
+                val passedChecks = checkFlags.count { it }
+                val checksSummary = when {
+                    isPassed && passedChecks == checkFlags.size ->
+                        "✓ $passedChecks/${checkFlags.size} ${protocol.categoryName} checks verified and compliant"
+                    isPassed ->
+                        "✓ $passedChecks/${checkFlags.size} checks recorded; overall status PASSED — review checklist details"
+                    else -> "⚠ Deficiencies identified during verification checklist"
                 }
                 canvas.drawText(checksSummary, 54f, currentY + 32f, paint)
 
@@ -328,7 +374,7 @@ class InspectionPdfGenerator(private val context: Context) {
                 val sigPath = record.signaturePath
                 if (sigPath.isNotBlank() && File(sigPath).exists()) {
                     try {
-                        val sigBitmap = BitmapFactory.decodeFile(sigPath)
+                        val sigBitmap = decodeSignature(sigPath)
                         if (sigBitmap != null) {
                             val scaledSig = android.graphics.Bitmap.createScaledBitmap(sigBitmap, 90, 32, true)
                             canvas.drawBitmap(scaledSig, 470f, currentY + 28f, null)
@@ -360,10 +406,18 @@ class InspectionPdfGenerator(private val context: Context) {
         document.finishPage(page)
 
         val outputFile = File(context.cacheDir, "SafetyLog_${equipment.tagId}_AuditRecord_${System.currentTimeMillis()}.pdf")
-        FileOutputStream(outputFile).use { out ->
-            document.writeTo(out)
+        val tempFile = File(context.cacheDir, "${outputFile.name}.tmp")
+        try {
+            FileOutputStream(tempFile).use { out ->
+                document.writeTo(out)
+            }
+            if (!tempFile.renameTo(outputFile)) {
+                tempFile.copyTo(outputFile, overwrite = true)
+            }
+        } finally {
+            document.close()
+            tempFile.delete()
         }
-        document.close()
 
         return outputFile
     }

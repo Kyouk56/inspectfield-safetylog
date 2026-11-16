@@ -29,6 +29,7 @@ class InspectionReminderManager(private val context: Context) {
         const val EXTRA_DUE_DATE = "extra_due_date"
         const val EXTRA_DUE_TIME = "extra_due_time"
         const val EXTRA_DUE_TIMESTAMP = "extra_due_timestamp"
+        const val EXTRA_FROM_NOTIFICATION = "com.safetylog.app.extra.FROM_NOTIFICATION"
 
         const val TEST_NOTIFICATION_ID = 99999
 

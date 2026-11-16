@@ -77,14 +77,17 @@ object CrashLogVault {
 
         val dateStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
 
+        // Exception messages and thread names routinely contain emails, URLs with
+        // tokens and absolute paths. Encrypt every user-derived field, not just the
+        // stack trace, to honour the "encrypted vault" promise.
         val entry = JSONObject().apply {
             put("timestamp", System.currentTimeMillis())
             put("date", dateStr)
-            put("thread", thread.name)
-            put("exception", throwable.javaClass.simpleName)
-            put("message", throwable.message ?: "No error message provided")
+            put("thread", secureStorage.encryptString(thread.name))
+            put("exception", secureStorage.encryptString(throwable.javaClass.simpleName))
+            put("message", secureStorage.encryptString(throwable.message ?: "No error message provided"))
             put("encryptedTrace", encryptedTrace)
-            put("device", "${Build.MANUFACTURER} ${Build.MODEL}")
+            put("device", secureStorage.encryptString("${Build.MANUFACTURER} ${Build.MODEL}"))
             put("androidVersion", "API ${Build.VERSION.SDK_INT}")
             put("appVersion", "${com.safetylog.app.BuildConfig.VERSION_NAME} (${com.safetylog.app.BuildConfig.VERSION_CODE})")
         }
@@ -141,11 +144,16 @@ object CrashLogVault {
         sb.append("Total Stored Incidents: ${array.length()}\n")
         sb.append("Cloud Telemetry Opt-In: ${if (isCloudTelemetryEnabled(context)) "Enabled" else "Disabled (Privacy-First Local Vault)"}\n\n")
 
+        // Entries written before field-level encryption stored these values as plain
+        // text; decryptString() returns null for those, so fall back to the raw value.
+        fun readable(value: String): String = secureStorage.decryptString(value) ?: value
+
         for (i in 0 until array.length()) {
             val obj = array.getJSONObject(i)
             sb.append("------------------------------------------------------------\n")
-            sb.append("Incident #${i + 1} | ${obj.optString("date")} | Thread: ${obj.optString("thread")}\n")
-            sb.append("Exception: ${obj.optString("exception")}: ${obj.optString("message")}\n")
+            sb.append("Incident #${i + 1} | ${obj.optString("date")} | Thread: ${readable(obj.optString("thread"))}\n")
+            sb.append("Exception: ${readable(obj.optString("exception"))}: ${readable(obj.optString("message"))}\n")
+            sb.append("Device: ${readable(obj.optString("device"))}\n")
             val encTrace = obj.optString("encryptedTrace")
             val decrypted = secureStorage.decryptString(encTrace) ?: "[ENCRYPTED DATA CORRUPTED OR KEYS ROTATED]"
             sb.append("Stack Trace:\n$decrypted\n\n")

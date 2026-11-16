@@ -233,9 +233,10 @@ class TeamSyncEngine(
             return@withContext Result.failure(IllegalArgumentException("Webhook URL cannot be blank."))
         }
         val startTime = System.currentTimeMillis()
+        var conn: HttpURLConnection? = null
         try {
             val url = URL(webhookUrl.trim())
-            val conn = (url.openConnection() as HttpURLConnection).apply {
+            conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 7000
                 readTimeout = 7000
@@ -268,6 +269,8 @@ class TeamSyncEngine(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Connection failed (${e.localizedMessage ?: "timeout"}). Verify URL and server accessibility."))
+        } finally {
+            conn?.disconnect()
         }
     }
 
@@ -282,9 +285,10 @@ class TeamSyncEngine(
         if (config.webhookUrl.isBlank()) {
             return@withContext Result.success("No webhook configured.")
         }
+        var conn: HttpURLConnection? = null
         try {
             val url = URL(config.webhookUrl.trim())
-            val conn = (url.openConnection() as HttpURLConnection).apply {
+            conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 8000
                 readTimeout = 8000
@@ -337,6 +341,8 @@ class TeamSyncEngine(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Webhook delivery error: ${e.localizedMessage ?: "unreachable"}"))
+        } finally {
+            conn?.disconnect()
         }
     }
 
@@ -434,9 +440,10 @@ class TeamSyncEngine(
         if (config.webhookUrl.isBlank()) {
             return@withContext Result.success("No webhook configured.")
         }
+        var conn: HttpURLConnection? = null
         try {
             val url = URL(config.webhookUrl.trim())
-            val conn = (url.openConnection() as HttpURLConnection).apply {
+            conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = 8000
                 readTimeout = 8000
@@ -482,6 +489,8 @@ class TeamSyncEngine(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Webhook delivery error: ${e.localizedMessage ?: "unreachable"}"))
+        } finally {
+            conn?.disconnect()
         }
     }
 }

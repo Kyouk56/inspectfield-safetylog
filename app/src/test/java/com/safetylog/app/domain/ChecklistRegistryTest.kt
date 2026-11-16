@@ -67,4 +67,25 @@ class ChecklistRegistryTest {
         assertNotNull(checklist)
         assertEquals("Fire Extinguisher", checklist.categoryName)
     }
+
+    // Regression coverage for whole-token matching: generic words must not silently
+    // map unrelated equipment onto a life-safety protocol.
+    @Test
+    fun testGenericWordsDoNotSelectWrongProtocol() {
+        val general = "Commercial Safety Equipment"
+        assertEquals(general, ChecklistRegistry.getChecklistForType("Industrial Water Pump").categoryName)
+        assertEquals(general, ChecklistRegistry.getChecklistForType("Water Heater").categoryName)
+        assertEquals(general, ChecklistRegistry.getChecklistForType("Chemical Storage Cabinet").categoryName)
+        assertEquals(general, ChecklistRegistry.getChecklistForType("CO2 Incubator").categoryName)
+        assertEquals(general, ChecklistRegistry.getChecklistForType("Door Access Control").categoryName)
+        assertEquals(general, ChecklistRegistry.getChecklistForType("LED Floodlight").categoryName)
+    }
+
+    @Test
+    fun testSpecificProtocolsStillMatch() {
+        assertEquals("Fire Extinguisher", ChecklistRegistry.getChecklistForType("Dry Chemical Extinguisher").categoryName)
+        assertEquals("Emergency Eyewash & Shower", ChecklistRegistry.getChecklistForType("Eyewash Station").categoryName)
+        assertEquals("Fire Door Assembly", ChecklistRegistry.getChecklistForType("Fire Exit Door").categoryName)
+        assertEquals("Emergency & Exit Lighting", ChecklistRegistry.getChecklistForType("Emergency Egress Lighting").categoryName)
+    }
 }

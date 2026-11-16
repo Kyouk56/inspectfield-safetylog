@@ -64,7 +64,6 @@ class SecureTokenStorage(private val context: Context) {
         private const val PREFS_FILE_NAME = "safetylog_secure_auth_vault"
         private const val KEY_ALIAS = "_safetylog_keystore_master_key_"
         private const val DATA_CIPHER_ALIAS = "_safetylog_direct_aes_key_"
-        private const val DEFAULT_MASTER_KEY_ALIAS = "_androidx_security_master_key_"
 
         private const val PREF_USER_ID = "sec_auth_user_id"
         private const val PREF_EMAIL = "sec_auth_email"
@@ -278,8 +277,9 @@ class SecureTokenStorage(private val context: Context) {
             activeMasterKeyAlias = KEY_ALIAS
             return key
         } catch (_: Exception) {
-            // 3. Fallback for emulator or specific OEM keystore driver quirks
-            activeMasterKeyAlias = DEFAULT_MASTER_KEY_ALIAS
+            // 3. Fallback for emulator or specific OEM keystore driver quirks.
+            // Report the alias of the key actually returned, not the unused MasterKey alias.
+            activeMasterKeyAlias = DATA_CIPHER_ALIAS
             return getOrCreateDataCipherKey()
         }
     }
@@ -551,10 +551,11 @@ class SecureTokenStorage(private val context: Context) {
                 }
                 Pair(levelName, isHardware)
             } else {
-                Pair("Hardware TEE / MasterKey Enclave", true)
+                // No key to inspect: never claim a hardware guarantee we cannot verify.
+                Pair("Unknown (key not present)", false)
             }
-        } catch (_: Exception) {
-            Pair("Hardware TEE / AndroidKeyStore", true)
+        } catch (e: Exception) {
+            Pair("Unknown (inspection failed: ${e.javaClass.simpleName})", false)
         }
     }
 

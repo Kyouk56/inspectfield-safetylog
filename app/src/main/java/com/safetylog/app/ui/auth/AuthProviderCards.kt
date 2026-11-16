@@ -13,6 +13,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -93,7 +97,9 @@ internal fun ActiveSessionCard(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 SessionDetailRow(Icons.Default.AccessTime, "Last Authentication", dateFormat.format(Date(user.lastLoginEpochMs.takeIf { it > 0 } ?: System.currentTimeMillis())))
                 SessionDetailRow(Icons.Default.HourglassTop, "Session Security Expiry", dateFormat.format(Date(user.tokenExpiryEpochMs)))
-                SessionDetailRow(Icons.Default.Fingerprint, "Encrypted Token Fingerprint", user.idToken?.take(18)?.let { "$it...[AES-256 Encrypted]" } ?: "Active Vault Token")
+                // Never display raw ID-token material: it is a bearer credential and is
+                // trivially capturable via screenshot/screen recording.
+                SessionDetailRow(Icons.Default.Fingerprint, "Encrypted Token Status", "Vault Token Active (AES-256)")
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -344,6 +350,9 @@ internal fun CorporateSsoSection(
     onShowPaywall: () -> Unit,
     onConnectCorporateSso: () -> Unit
 ) {
+    // Autofill at most once. A conditional LaunchedEffect re-entered composition every
+    // time the user cleared the field, making the domain impossible to edit.
+    var domainAutoFilled by remember { mutableStateOf(false) }
     if (!uiState.canUseCompanyOAuth) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -435,8 +444,9 @@ internal fun CorporateSsoSection(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text("Corporate Single Sign-On (SSO)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
-                    if (uiState.companyOAuthConfig.isConfigured && corporateDomain.isBlank()) {
-                        LaunchedEffect(uiState.companyOAuthConfig) {
+                    LaunchedEffect(uiState.companyOAuthConfig) {
+                        if (!domainAutoFilled && uiState.companyOAuthConfig.isConfigured && corporateDomain.isBlank()) {
+                            domainAutoFilled = true
                             onCorporateDomainChange(uiState.companyOAuthConfig.corporateDomain)
                         }
                     }

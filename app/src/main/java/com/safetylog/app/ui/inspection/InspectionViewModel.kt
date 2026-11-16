@@ -3,7 +3,6 @@ package com.safetylog.app.ui.inspection
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.BillingRepository
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
@@ -260,13 +259,17 @@ class InspectionViewModel(
         }
     }
 
+    /**
+     * Records the tier selected in the paywall. This must NOT save the inspection:
+     * [upgradeToProAndSave] is the single save path invoked by the paywall's confirm
+     * action. Saving here as well inserted duplicate inspection records.
+     */
     fun setSubscriptionTier(tier: com.safetylog.app.data.auth.SubscriptionTier, seats: Int = 5) {
         billingRepository.setTier(tier)
         if (tier == com.safetylog.app.data.auth.SubscriptionTier.ENTERPRISE) {
             billingRepository.setEnterpriseSeats(seats)
         }
         _uiState.update { it.copy(showPaywall = false) }
-        saveInspection()
     }
 
     fun upgradeToProAndSave() {
@@ -279,11 +282,9 @@ class InspectionViewModel(
         val success = billingRepository.launchBillingFlow(activity, tier, seats)
         if (success) {
             _uiState.update { it.copy(showPaywall = false) }
-        } else if (BuildConfig.DEBUG) {
-            // Simulation fallback is DEBUG-only; in release, billing unavailable
-            // must not unlock paid tiers for free.
-            upgradeToProAndSave()
         } else {
+            // Do not save here: the paywall's onUpgradeClicked is the single post-confirm
+            // save path. Saving in both places inserted duplicate inspection records.
             _uiState.update { it.copy(errorMessage = "Billing is unavailable. Please try again later.") }
         }
     }

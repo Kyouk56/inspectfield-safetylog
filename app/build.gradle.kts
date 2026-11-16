@@ -45,26 +45,19 @@ android {
                 ?: if (defaultKeystore.exists()) defaultKeystore.absolutePath else null
             val keystorePass = project.findProperty("SAFETYLOG_KEYSTORE_PASSWORD") as? String
                 ?: System.getenv("SAFETYLOG_KEYSTORE_PASSWORD")
-                ?: "safetylogPass2026"
             val keyAliasStr = project.findProperty("SAFETYLOG_KEY_ALIAS") as? String
                 ?: System.getenv("SAFETYLOG_KEY_ALIAS")
-                ?: "safetylog-release-key"
+                ?: "safetylog_release"
             val keyPassStr = project.findProperty("SAFETYLOG_KEY_PASSWORD") as? String
                 ?: System.getenv("SAFETYLOG_KEY_PASSWORD")
-                ?: "safetylogPass2026"
 
-            if (keystorePath != null && file(keystorePath).exists()) {
-                storeFile = file(keystorePath)
-                storePassword = keystorePass
-                keyAlias = keyAliasStr
-                keyPassword = keyPassStr
-            } else {
-                val debugConfig = getByName("debug")
-                storeFile = debugConfig.storeFile
-                storePassword = debugConfig.storePassword
-                keyAlias = debugConfig.keyAlias
-                keyPassword = debugConfig.keyPassword
-            }
+            // A release build must never fall back to the public debug signing key.
+            // Leaving storeFile null makes AGP fail the release build with a clear error;
+            // debug builds are unaffected because they use their own signing config.
+            storeFile = keystorePath?.let(::file)?.takeIf { it.exists() }
+            storePassword = keystorePass.orEmpty()
+            keyAlias = keyAliasStr
+            keyPassword = keyPassStr.orEmpty()
         }
     }
 

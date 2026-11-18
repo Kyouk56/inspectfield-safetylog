@@ -1,60 +1,55 @@
 package com.safetylog.app.data.sync
 
 import com.safetylog.app.data.auth.EncryptedPayload
-import org.json.JSONArray
-import org.json.JSONObject
+import com.safetylog.app.data.model.EquipmentItem
+import com.safetylog.app.data.model.InspectionRecord
 import org.junit.Assert.*
 import org.junit.Test
 
 class TeamSyncEngineTest {
 
     @Test
-    fun testSyncPackageJsonStructure() {
-        val rootJson = JSONObject().apply {
-            put("version", 2)
-            put("exportedAt", 1700000000000L)
-            put("organizationId", "CORP-SAFETY-99")
+    fun exportIncludesReminderSettingsAndStableInspectionIds() {
+        val equipment = EquipmentItem(
+            id = 7L,
+            tagId = "FE-TEST-01",
+            locationDescription = "Warehouse Zone A",
+            equipmentType = "10lb ABC Dry Chemical",
+            reminderEnabled = false,
+            reminderLeadDays = 3
+        )
+        val inspection = InspectionRecord(
+            syncId = "stable-sync-id-123",
+            equipmentId = 7L,
+            isPressureOk = true,
+            isHoseIntact = true,
+            isPinSealed = true,
+            isSignagePresent = true,
+            isAccessUnobstructed = true,
+            overallStatus = "PASSED",
+            signaturePath = "/local/signature.png"
+        )
+        val root = TeamSyncEngine.buildPackageJson(
+            allEquipment = listOf(equipment),
+            equipmentById = mapOf(7L to equipment),
+            allInspections = listOf(inspection),
+            organizationId = "CORP-SAFETY-99",
+            cryptoMode = "passphrase"
+        )
 
-            val eqArray = JSONArray()
-            eqArray.put(JSONObject().apply {
-                put("tagId", "FE-TEST-01")
-                put("locationDescription", "Warehouse Zone A")
-                put("equipmentType", "10lb ABC Dry Chemical")
-                put("serialNumber", "SN-9876")
-                put("installDate", "2024-01-01")
-                put("assignedChecklist", "Fire Extinguisher")
-                put("reviewFrequency", "Monthly")
-                put("assignedReviewDate", "2024-02-01")
-                put("assignedReviewTime", "09:00 AM")
-                put("nextReviewTimestamp", 1702500000000L)
-            })
-            put("equipment", eqArray)
+        assertEquals(PackageCrypto.ENVELOPE_VERSION, root.getInt("version"))
+        assertEquals("passphrase", root.getString("cryptoMode"))
+        assertEquals("CORP-SAFETY-99", root.getString("organizationId"))
 
-            val insArray = JSONArray()
-            insArray.put(JSONObject().apply {
-                put("equipmentTag", "FE-TEST-01")
-                put("timestamp", 1700005000000L)
-                put("inspectorName", "John Doe, CSP")
-                put("status", "PASSED")
-                put("notes", "Pressure in green zone, tamper seal intact")
-                put("checklistItemsJson", "[]")
-                put("deficienciesJson", "[]")
-            })
-            put("inspections", insArray)
-        }
+        val eq = root.getJSONArray("equipment").getJSONObject(0)
+        assertEquals("FE-TEST-01", eq.getString("tagId"))
+        assertFalse(eq.getBoolean("reminderEnabled"))
+        assertEquals(3, eq.getInt("reminderLeadDays"))
 
-        assertEquals(2, rootJson.getInt("version"))
-        assertEquals("CORP-SAFETY-99", rootJson.getString("organizationId"))
-        assertEquals(1, rootJson.getJSONArray("equipment").length())
-        assertEquals(1, rootJson.getJSONArray("inspections").length())
-
-        val firstEq = rootJson.getJSONArray("equipment").getJSONObject(0)
-        assertEquals("FE-TEST-01", firstEq.getString("tagId"))
-        assertEquals("Warehouse Zone A", firstEq.getString("locationDescription"))
-
-        val firstIns = rootJson.getJSONArray("inspections").getJSONObject(0)
-        assertEquals("PASSED", firstIns.getString("status"))
-        assertEquals("John Doe, CSP", firstIns.getString("inspectorName"))
+        val ins = root.getJSONArray("inspections").getJSONObject(0)
+        assertEquals("stable-sync-id-123", ins.getString("syncId"))
+        assertEquals("FE-TEST-01", ins.getString("equipmentTag"))
+        assertEquals("PASSED", ins.getString("overallStatus"))
     }
 
     @Test

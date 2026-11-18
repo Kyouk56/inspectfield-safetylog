@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.safetylog.app.data.BillingRepository
+import com.safetylog.app.data.auth.ApiResult
 import com.safetylog.app.data.auth.AuthRepository
 import com.safetylog.app.data.auth.CompanyOAuthConfig
 import com.safetylog.app.data.auth.PaymentStatus
@@ -20,6 +21,8 @@ import com.safetylog.app.data.model.EquipmentItem
 import com.safetylog.app.data.reminder.InspectionReminderManager
 import com.safetylog.app.data.sync.TeamSyncEngine
 import com.safetylog.app.domain.EntitlementManager
+import com.safetylog.app.util.ServerAuthorization
+import com.safetylog.app.util.TestControls
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -130,6 +133,7 @@ class DashboardViewModel(
     private val entitlementManager: EntitlementManager,
     private val billingRepository: BillingRepository,
     private val authRepository: AuthRepository,
+    private val authorizationRepository: com.safetylog.app.data.auth.AuthorizationRepository,
     private val teamSyncEngine: TeamSyncEngine? = null,
     private val reminderManager: InspectionReminderManager? = null,
     private val networkMonitor: com.safetylog.app.util.NetworkMonitor? = null
@@ -181,20 +185,28 @@ class DashboardViewModel(
     val uiState: StateFlow<DashboardUiState> = combine(
         equipmentCoreFlow,
         entitlementFlow,
-        authStateFlow
-    ) { core, entitlement, auth ->
-        val tier = entitlement.subscription.tier
-        val effective = entitlement.subscription.effective
-        val payStatus = entitlement.subscription.payStatus
-        val members = entitlement.team.members
+        authStateFlow,
+        authorizationRepository.snapshot
+    ) { core, entitlement, auth, signed ->
+        // When configured, the server-signed snapshot is the ONLY source of truth.
+        // Local preferences are ignored entirely rather than merged.
+        val authoritative = ServerAuthorization.isConfigured && signed != null
+        val tier = if (authoritative) signed!!.tier else entitlement.subscription.tier
+        val effective = if (authoritative) signed.effectiveTier else entitlement.subscription.effective
+        val payStatus = if (authoritative) signed.paymentStatus else entitlement.subscription.payStatus
+        val members = if (authoritative) signed.team else entitlement.team.members
+        val seats = if (authoritative) signed.seats else entitlement.team.seats
         val authUser = auth.authUser
 
-        // 1. Determine baseline natural role
+        // 1. Determine baseline natural role (ignored when a signed decision exists)
         val matchingMember = authUser?.email?.trim()?.let { userEmail ->
             members.find { it.email.equals(userEmail, ignoreCase = true) && it.isActive }
         }
         val naturalRole = when {
-            com.safetylog.app.data.auth.AuthorizationConfig.isAuthorizedOwner(authUser?.email) -> UserRole.OWNER
+            // In the public release OWNER is granted only by verified Google OAuth
+            // (see AuthRepository.signInWithGoogleLive). A self-declared email from the
+            // inspector form must never satisfy the allowlist here.
+            TestControls.isEnabled && com.safetylog.app.data.auth.AuthorizationConfig.isAuthorizedOwner(authUser?.email) -> UserRole.OWNER
             matchingMember != null -> matchingMember.role
             authUser?.role != null -> authUser.role
             else -> auth.assigned
@@ -204,7 +216,11 @@ class DashboardViewModel(
         val rawRole = auth.roleOverride ?: naturalRole
 
         // 3. Strict owner security invariant
-        val role = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(rawRole, authUser?.email)
+        val role = if (authoritative) {
+            signed.role
+        } else {
+            com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(rawRole, authUser?.email)
+        }
 
         DashboardUiState(
             equipmentList = core.summaries,
@@ -218,7 +234,7 @@ class DashboardViewModel(
             canShareBetweenAccounts = effective.allowsSharing,
             canUseCompanyOAuth = effective.isEnterprise && payStatus.isGoodStanding,
             companyOAuthConfig = entitlement.team.companyConfig,
-            enterpriseSeats = entitlement.team.seats,
+            enterpriseSeats = seats,
             teamMembers = members,
             userRole = role,
             isAdminTestViewActive = auth.isTestView,
@@ -233,6 +249,31 @@ class DashboardViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = DashboardUiState()
     )
+
+    init {
+        // Re-check authority with the server when the dashboard is created. Background
+        // sign-in already exchanges the ID token; this keeps a resumed session fresh.
+        viewModelScope.launch {
+            if (ServerAuthorization.isConfigured && networkMonitor?.isOnline?.value != false) {
+                authorizationRepository.refresh()
+            }
+        }
+    }
+
+    /**
+     * Fail-closed gate for privileged mutations: with server authority enabled, a valid
+     * signed snapshot AND connectivity are required. Offline inspections remain allowed.
+     */
+    private fun canMutate(): Boolean {
+        val signed = authorizationRepository.snapshot.value
+        return com.safetylog.app.data.auth.AuthorizationPolicy.privilegedActionAllowed(
+            serverConfigured = ServerAuthorization.isConfigured,
+            hasSignedSnapshot = signed != null,
+            snapshotExpired = signed?.isExpired ?: true,
+            online = networkMonitor?.isOnline?.value != false,
+            localFallbackAllowed = authorizationRepository.allowsLocalFallback
+        )
+    }
 
     fun onSearchQueryChanged(newQuery: String) {
         _searchQuery.value = newQuery
@@ -276,6 +317,7 @@ class DashboardViewModel(
     }
 
     fun switchTestRole(role: UserRole) {
+        if (!TestControls.isEnabled) return
         val currentEmail = authRepository.currentUser.value?.email ?: uiState.value.authUser?.email
         val sanitized = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(role, currentEmail)
         _userRoleOverride.value = sanitized
@@ -287,6 +329,7 @@ class DashboardViewModel(
     }
 
     fun setSubscriptionTier(tier: SubscriptionTier, seats: Int = 5) {
+        if (!canMutate()) return
         val currentRole = uiState.value.userRole
         val currentTier = uiState.value.subscriptionTier
         // In an active Enterprise organization, only Account Admins and the Owner can alter company billing/seats
@@ -294,24 +337,26 @@ class DashboardViewModel(
             return
         }
         billingRepository.setTier(tier)
-        if (tier == SubscriptionTier.ENTERPRISE) {
+        // Simulation-only: picking Enterprise used to hand out ACCOUNT_ADMIN even when
+        // BillingRepository rejected the paid tier (which it always does in release).
+        // Real Enterprise entitlements come from Play via handleValidPurchase(), so only
+        // test builds may promote a role from a direct tier selection.
+        if (TestControls.isEnabled && tier == SubscriptionTier.ENTERPRISE && currentRole != UserRole.OWNER) {
             billingRepository.setEnterpriseSeats(seats)
-            // The user that pays for group subscriptions becomes Account Admin (unless they are the Owner)
-            if (currentRole != UserRole.OWNER) {
-                _userRoleOverride.value = UserRole.ACCOUNT_ADMIN
-                authRepository.updateUserRole(UserRole.ACCOUNT_ADMIN)
-            }
+            _userRoleOverride.value = UserRole.ACCOUNT_ADMIN
+            authRepository.updateUserRole(UserRole.ACCOUNT_ADMIN)
         }
     }
 
     fun launchBillingFlow(activity: Activity, tier: SubscriptionTier, seats: Int = 5): Boolean {
+        if (!canMutate()) return false
         val currentRole = uiState.value.userRole
         val currentTier = uiState.value.subscriptionTier
         if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) {
             return false
         }
         val launched = billingRepository.launchBillingFlow(activity, tier, seats)
-        if (!launched) {
+        if (!launched && TestControls.isEnabled) {
             // In dev / test fallback, update role for enterprise simulation
             if (tier == SubscriptionTier.ENTERPRISE && currentRole != UserRole.OWNER) {
                 _userRoleOverride.value = UserRole.ACCOUNT_ADMIN
@@ -322,6 +367,7 @@ class DashboardViewModel(
     }
 
     fun cancelSubscription() {
+        if (!canMutate()) return
         val currentRole = uiState.value.userRole
         val currentTier = uiState.value.subscriptionTier
         if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) return
@@ -329,6 +375,7 @@ class DashboardViewModel(
     }
 
     fun markPaymentFailed() {
+        if (!canMutate()) return
         val currentRole = uiState.value.userRole
         val currentTier = uiState.value.subscriptionTier
         if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) return
@@ -336,6 +383,7 @@ class DashboardViewModel(
     }
 
     fun reactivateSubscription() {
+        if (!canMutate()) return
         val currentRole = uiState.value.userRole
         val currentTier = uiState.value.subscriptionTier
         if (currentTier == SubscriptionTier.ENTERPRISE && !currentRole.canManageBilling) return
@@ -343,11 +391,13 @@ class DashboardViewModel(
     }
 
     fun saveCompanyOAuthConfig(config: CompanyOAuthConfig) {
+        if (!canMutate()) return
         if (!uiState.value.userRole.canManageSettings) return
         billingRepository.saveCompanyOAuthConfig(config)
     }
 
-    fun addTeamMember(email: String, name: String, role: UserRole): Result<TeamMember> {
+    suspend fun addTeamMember(email: String, name: String, role: UserRole): Result<TeamMember> {
+        if (!canMutate()) return Result.failure(IllegalStateException("Authorization check required"))
         val currentRole = uiState.value.userRole
         if (!currentRole.canManageTeam) {
             return Result.failure(IllegalStateException("You do not have permission to manage team members."))
@@ -358,14 +408,20 @@ class DashboardViewModel(
         if (role == UserRole.ACCOUNT_ADMIN && !currentRole.canChangeAdminPermissions) {
             return Result.failure(IllegalStateException("Managers cannot assign the Account Admin role. Only Account Admins and the Owner can grant administrative permissions."))
         }
+        val previous = billingRepository.teamMembers.value
         val result = billingRepository.addTeamMember(email, name, role)
-        if (result.isSuccess) {
-            triggerRosterCloudSync()
+        if (result.isFailure) return result
+        val serverError = syncRosterToServer()
+        if (serverError != null) {
+            billingRepository.saveTeamMembersToPrefs(previous)
+            return Result.failure(serverError)
         }
+        triggerRosterCloudSync()
         return result
     }
 
-    fun updateTeamMember(id: String, email: String, name: String, role: UserRole, isActive: Boolean): Result<TeamMember> {
+    suspend fun updateTeamMember(id: String, email: String, name: String, role: UserRole, isActive: Boolean): Result<TeamMember> {
+        if (!canMutate()) return Result.failure(IllegalStateException("Authorization check required"))
         val currentRole = uiState.value.userRole
         if (!currentRole.canManageTeam) {
             return Result.failure(IllegalStateException("You do not have permission to manage team members."))
@@ -385,14 +441,20 @@ class DashboardViewModel(
         if (role == UserRole.ACCOUNT_ADMIN && !currentRole.canChangeAdminPermissions) {
             return Result.failure(IllegalStateException("Managers cannot promote members to Account Admin."))
         }
+        val previous = billingRepository.teamMembers.value
         val result = billingRepository.updateTeamMember(id, email, name, role, isActive)
-        if (result.isSuccess) {
-            triggerRosterCloudSync()
+        if (result.isFailure) return result
+        val serverError = syncRosterToServer()
+        if (serverError != null) {
+            billingRepository.saveTeamMembersToPrefs(previous)
+            return Result.failure(serverError)
         }
+        triggerRosterCloudSync()
         return result
     }
 
-    fun removeTeamMember(id: String): Result<Boolean> {
+    suspend fun removeTeamMember(id: String): Result<Boolean> {
+        if (!canMutate()) return Result.failure(IllegalStateException("Authorization check required"))
         val currentRole = uiState.value.userRole
         if (!currentRole.canManageTeam) {
             return Result.failure(IllegalStateException("You do not have permission to manage team members."))
@@ -406,11 +468,27 @@ class DashboardViewModel(
         if (existing.role == UserRole.ACCOUNT_ADMIN && !currentRole.canChangeAdminPermissions) {
             return Result.failure(IllegalStateException("Managers cannot remove Account Admins."))
         }
+        val previous = billingRepository.teamMembers.value
         val result = billingRepository.removeTeamMember(id)
-        if (result.isSuccess) {
-            triggerRosterCloudSync()
+        if (result.isFailure) return result
+        val serverError = syncRosterToServer()
+        if (serverError != null) {
+            billingRepository.saveTeamMembersToPrefs(previous)
+            return Result.failure(serverError)
         }
+        triggerRosterCloudSync()
         return result
+    }
+
+    /** Push the (already mutated) roster to the server; returns an error to roll back on. */
+    private suspend fun syncRosterToServer(): Throwable? {
+        if (!ServerAuthorization.isConfigured) return null
+        return when (val result = authorizationRepository.updateTeam(billingRepository.teamMembers.value)) {
+            is ApiResult.Success -> null
+            is ApiResult.HttpError -> IllegalStateException("Server rejected the roster change: ${result.message}")
+            is ApiResult.NetworkError -> IllegalStateException("Roster changes require a connection to the authorization server.")
+            is ApiResult.InvalidResponse -> IllegalStateException("Invalid response from the authorization server.")
+        }
     }
 
     private fun triggerRosterCloudSync() {
@@ -531,6 +609,7 @@ class DashboardViewModel(
         private val entitlementManager: EntitlementManager,
         private val billingRepository: BillingRepository,
         private val authRepository: AuthRepository,
+        private val authorizationRepository: com.safetylog.app.data.auth.AuthorizationRepository,
         private val teamSyncEngine: TeamSyncEngine? = null,
         private val reminderManager: InspectionReminderManager? = null,
         private val networkMonitor: com.safetylog.app.util.NetworkMonitor? = null
@@ -543,6 +622,7 @@ class DashboardViewModel(
                 entitlementManager,
                 billingRepository,
                 authRepository,
+                authorizationRepository,
                 teamSyncEngine,
                 reminderManager,
                 networkMonitor

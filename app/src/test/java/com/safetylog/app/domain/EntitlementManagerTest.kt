@@ -20,6 +20,13 @@ class EntitlementManagerTest {
         var countToReturn = 0
 
         override suspend fun insertInspection(record: InspectionRecord): Long = 1L
+        override suspend fun insertInspectionIfUnderQuota(record: InspectionRecord, startOfMonth: Long, limit: Int): Long? {
+            if (countToReturn >= limit) return null
+            countToReturn++
+            return 1L
+        }
+        override suspend fun updateInspection(record: InspectionRecord) = Unit
+        override suspend fun getInspectionBySyncId(syncId: String): InspectionRecord? = null
         override fun getInspectionsForEquipment(equipmentId: Long): Flow<List<InspectionRecord>> = flowOf(emptyList())
         override suspend fun countInspectionsSince(startOfMonth: Long): Int = countToReturn
         override fun countInspectionsSinceFlow(startOfMonth: Long): Flow<Int> = flowOf(countToReturn)
@@ -31,6 +38,29 @@ class EntitlementManagerTest {
     fun setUp() {
         fakeInspectionDao = FakeInspectionDao()
         entitlementManager = EntitlementManager(fakeInspectionDao)
+    }
+
+    @Test
+    fun atomicInsertEnforcesFreeQuota() = runBlocking {
+        val record = InspectionRecord(
+            equipmentId = 1L,
+            isPressureOk = true,
+            isHoseIntact = true,
+            isPinSealed = true,
+            isSignagePresent = true,
+            isAccessUnobstructed = true,
+            overallStatus = "PASSED",
+            signaturePath = "/tmp/sig.png"
+        )
+        fakeInspectionDao.countToReturn = 5
+        assertEquals(null, entitlementManager.tryCreateInspection(record, isProUser = false))
+
+        fakeInspectionDao.countToReturn = 4
+        assertEquals(1L, entitlementManager.tryCreateInspection(record, isProUser = false))
+        assertEquals(5, fakeInspectionDao.countToReturn)
+
+        // Pro users bypass the quota entirely.
+        assertEquals(1L, entitlementManager.tryCreateInspection(record, isProUser = true))
     }
 
     @Test

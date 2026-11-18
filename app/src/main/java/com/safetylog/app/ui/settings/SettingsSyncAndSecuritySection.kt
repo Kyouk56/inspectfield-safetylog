@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.safetylog.app.data.auth.CompanyOAuthConfig
 import com.safetylog.app.data.auth.SecureTokenStorage
 import com.safetylog.app.data.sync.TeamSyncEngine
 import com.safetylog.app.ui.dashboard.DashboardUiState
@@ -37,6 +38,8 @@ internal fun SettingsTeamSyncCard(
     uiState: DashboardUiState,
     dashboardViewModel: DashboardViewModel,
     teamSyncEngine: TeamSyncEngine,
+    oauthDraft: CompanyOAuthConfig,
+    onSaveOAuthConfig: (CompanyOAuthConfig) -> Unit,
     cloudDriveUriInput: String,
     cloudDriveNameInput: String,
     cloudDriveAutoInput: Boolean,
@@ -52,6 +55,9 @@ internal fun SettingsTeamSyncCard(
     isTestingWebhook: Boolean,
     onIsTestingWebhookChange: (Boolean) -> Unit,
     onLaunchDocumentTree: () -> Unit,
+    packagePassphrase: String,
+    onPackagePassphraseChange: (String) -> Unit,
+    onImportPackage: () -> Unit,
     onShowEndpointDialog: () -> Unit,
     onShowPaywall: () -> Unit
 ) {
@@ -311,8 +317,8 @@ internal fun SettingsTeamSyncCard(
                                 return@Switch
                             }
                             onCloudDriveAutoChange(checked)
-                            val updated = uiState.companyOAuthConfig.copy(cloudDriveAutoBackup = checked)
-                            dashboardViewModel.saveCompanyOAuthConfig(updated)
+                            val updated = oauthDraft.copy(cloudDriveAutoBackup = checked)
+                            onSaveOAuthConfig(updated)
                         },
                         enabled = uiState.canShareBetweenAccounts && uiState.userRole.canManageSettings
                     )
@@ -409,12 +415,12 @@ internal fun SettingsTeamSyncCard(
                                 Toast.makeText(context, "Permission Denied: Only Admins and Managers can edit webhook settings", Toast.LENGTH_SHORT).show()
                                 return@OutlinedButton
                             }
-                            val updated = uiState.companyOAuthConfig.copy(
+                            val updated = oauthDraft.copy(
                                 webhookUrl = webhookUrlInput,
                                 webhookSecret = webhookSecretInput,
                                 webhookAutoDispatch = webhookAutoInput
                             )
-                            dashboardViewModel.saveCompanyOAuthConfig(updated)
+                            onSaveOAuthConfig(updated)
                             Toast.makeText(context, "Webhook configuration saved!", Toast.LENGTH_SHORT).show()
                         },
                         enabled = uiState.canShareBetweenAccounts && uiState.userRole.canManageSettings,
@@ -460,8 +466,8 @@ internal fun SettingsTeamSyncCard(
                                 return@Switch
                             }
                             onWebhookAutoChange(checked)
-                            val updated = uiState.companyOAuthConfig.copy(webhookAutoDispatch = checked)
-                            dashboardViewModel.saveCompanyOAuthConfig(updated)
+                            val updated = oauthDraft.copy(webhookAutoDispatch = checked)
+                            onSaveOAuthConfig(updated)
                         },
                         enabled = uiState.canShareBetweenAccounts && uiState.userRole.canManageSettings
                     )
@@ -484,7 +490,7 @@ internal fun SettingsTeamSyncCard(
                         return@OutlinedButton
                     }
                     coroutineScope.launch {
-                        val result = teamSyncEngine.exportEncryptedTeamPackage()
+                        val result = teamSyncEngine.exportEncryptedTeamPackage(packagePassphrase.ifBlank { null })
                         result.onSuccess { file ->
                             Toast.makeText(context, "Encrypted team package exported: ${file.name}", Toast.LENGTH_LONG).show()
                         }.onFailure { err ->
@@ -510,6 +516,27 @@ internal fun SettingsTeamSyncCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+
+            // A passphrase makes the package portable across devices (D-06). Without one,
+            // the legacy Keystore-bound format only works on the exporting device.
+            OutlinedTextField(
+                value = packagePassphrase,
+                onValueChange = onPackagePassphraseChange,
+                label = { Text("Package passphrase (required for cross-device import)") },
+                singleLine = true,
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp)
+            )
+            OutlinedButton(
+                onClick = onImportPackage,
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Import Encrypted Team Package", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -623,7 +650,7 @@ internal fun SettingsCrashLogVaultCard(
                     onClick = {
                         coroutineScope.launch {
                             val report = CrashLogVault.exportDiagnosticReportIO(context, secureStorage)
-                            Toast.makeText(context, "Audit report exported (${report.length()} bytes)", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Encrypted audit report exported (${report.length()} bytes)", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.weight(1f).height(40.dp),

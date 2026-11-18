@@ -26,9 +26,11 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
 
         InspectionReminderManager.initNotificationChannel(context)
 
-        val reqCode = equipmentId.hashCode()
-        val action1 = reqCode xor 0x10000
-        val action2 = reqCode xor 0x20000
+        // All three PendingIntents share one base request code; their distinct Intent
+        // actions keep them separate (D-10).
+        val reqCode = AlarmCodes.base(equipmentId)
+        val action1 = reqCode
+        val action2 = reqCode
 
         // Main Tap Intent: opens inspection form for this equipment
         val mainIntent = Intent(context, MainActivity::class.java).apply {
@@ -45,9 +47,10 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action Button: Inspect Now
+        // Action Button: Inspect Now — distinct action so its PendingIntent does not
+        // overwrite the main-tap PendingIntent which shares the same request code.
         val inspectIntent = Intent(context, MainActivity::class.java).apply {
-            action = "ACTION_INSPECT_EQUIPMENT"
+            action = "ACTION_INSPECT_NOW"
             putExtra("equipmentId", equipmentId)
             putExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, true)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

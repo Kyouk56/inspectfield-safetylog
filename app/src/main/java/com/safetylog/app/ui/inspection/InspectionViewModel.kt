@@ -190,12 +190,6 @@ class InspectionViewModel(
             try {
                 _uiState.update { it.copy(isSaving = true) }
                 val isPro = billingRepository.isProUser.value
-                val canCreate = entitlementManager.canCreateInspection(isPro)
-
-                if (!canCreate) {
-                    _uiState.update { it.copy(isSaving = false, showPaywall = true) }
-                    return@launch
-                }
 
                 val currentEq = currentState.equipment
                 val protocol = if (!currentEq?.assignedChecklist.isNullOrBlank()) {
@@ -224,7 +218,12 @@ class InspectionViewModel(
                     }
                 )
 
-                val insertedId = inspectionDao.insertInspection(record)
+                // D-11: quota is enforced atomically with the insert.
+                val insertedId = entitlementManager.tryCreateInspection(record, isPro)
+                if (insertedId == null) {
+                    _uiState.update { it.copy(isSaving = false, showPaywall = true) }
+                    return@launch
+                }
 
                 // Automatically advance asset's next review date according to assigned frequency
                 if (currentEq != null) {

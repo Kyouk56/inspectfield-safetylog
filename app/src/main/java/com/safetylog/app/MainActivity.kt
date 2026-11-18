@@ -150,6 +150,7 @@ fun SafetyLogNavGraph(
             entitlementManager = app.entitlementManager,
             billingRepository = app.billingRepository,
             authRepository = app.authRepository,
+            authorizationRepository = app.authorizationRepository,
             teamSyncEngine = app.teamSyncEngine,
             reminderManager = app.reminderManager,
             networkMonitor = app.networkMonitor

@@ -50,7 +50,9 @@ import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.dashboard.DashboardViewModel
 import com.safetylog.app.ui.theme.*
 import com.safetylog.app.util.CrashLogVault
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -66,6 +68,7 @@ fun SettingsScreen(
     val uiState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
     var showPaywall by remember { mutableStateOf(false) }
     var showCancelConfirmDialog by remember { mutableStateOf(false) }
@@ -151,6 +154,24 @@ fun SettingsScreen(
         lastSyncedOAuthConfig = newConfig
     }
 
+    // D-14: fields from the form draft are merged into any config saved from another
+    // settings card, so toggling a webhook/drive switch cannot silently discard unsaved
+    // OAuth edits. This draft is derived from the individual fields above.
+    val oauthDraft = uiState.companyOAuthConfig.copy(
+        companyName = companyNameInput,
+        corporateDomain = corporateDomainInput,
+        provider = selectedProvider,
+        tenantIdOrDomain = tenantIdInput,
+        clientId = clientIdInput,
+        enforceDomainRestriction = enforceDomainInput,
+        webhookUrl = webhookUrlInput,
+        webhookSecret = webhookSecretInput,
+        webhookAutoDispatch = webhookAutoInput,
+        cloudDriveFolderUri = cloudDriveUriInput,
+        cloudDriveFolderName = cloudDriveNameInput,
+        cloudDriveAutoBackup = cloudDriveAutoInput
+    )
+
     // Team Members administration state
     var showAddMemberDialog by remember { mutableStateOf(false) }
     var editingMember by remember { mutableStateOf<TeamMember?>(null) }
@@ -185,6 +206,30 @@ fun SettingsScreen(
             )
             dashboardViewModel.saveCompanyOAuthConfig(updatedConfig)
             Toast.makeText(context, "Cloud drive folder linked: $folderName", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    var packagePassphrase by remember { mutableStateOf("") }
+    val importPackageLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        coroutineScope.launch(Dispatchers.IO) {
+            val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+            if (content == null) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Could not read the selected package", Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+            val result = teamSyncEngine.importEncryptedTeamPackage(content, packagePassphrase.ifBlank { null })
+            withContext(Dispatchers.Main) {
+                val message = when (result) {
+                    is com.safetylog.app.data.sync.SyncResult.Success -> result.message
+                    is com.safetylog.app.data.sync.SyncResult.Error -> result.error
+                }
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -441,6 +486,8 @@ fun SettingsScreen(
                 uiState = uiState,
                 dashboardViewModel = dashboardViewModel,
                 teamSyncEngine = teamSyncEngine,
+                oauthDraft = oauthDraft,
+                onSaveOAuthConfig = { dashboardViewModel.saveCompanyOAuthConfig(it) },
                 cloudDriveUriInput = cloudDriveUriInput,
                 cloudDriveNameInput = cloudDriveNameInput,
                 cloudDriveAutoInput = cloudDriveAutoInput,
@@ -456,6 +503,9 @@ fun SettingsScreen(
                 isTestingWebhook = isTestingWebhook,
                 onIsTestingWebhookChange = { isTestingWebhook = it },
                 onLaunchDocumentTree = { openDocumentTreeLauncher.launch(null) },
+                packagePassphrase = packagePassphrase,
+                onPackagePassphraseChange = { packagePassphrase = it },
+                onImportPackage = { importPackageLauncher.launch("*/*") },
                 onShowEndpointDialog = { showEndpointDialog = true },
                 onShowPaywall = { showPaywall = true }
             )

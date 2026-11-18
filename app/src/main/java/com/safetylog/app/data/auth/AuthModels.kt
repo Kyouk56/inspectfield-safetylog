@@ -73,7 +73,7 @@ enum class UserRole(
  */
 object AuthorizationConfig {
     val AUTHORIZED_OWNER_EMAILS = setOf(
-        "j.desrosiers88@gmail.com",
+        "jdesrosiers88@gmail.com",
         "hexenginelabs@gmail.com"
     )
 

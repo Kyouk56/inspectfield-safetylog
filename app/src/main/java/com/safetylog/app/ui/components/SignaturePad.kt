@@ -1,6 +1,7 @@
 package com.safetylog.app.ui.components
 
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -71,16 +72,20 @@ fun SignaturePad(
                 strokeJoin = android.graphics.Paint.Join.ROUND
             }
 
+            // D-19: transform the path into the target bitmap's coordinate space instead
+            // of scaling the canvas. Canvas scaling would stretch the brush stroke into an
+            // ellipse on non-800:300 screens; transforming the path keeps strokeWidth uniform.
             val scaleX = if (canvasSize.width > 0) 800f / canvasSize.width else 1f
             val scaleY = if (canvasSize.height > 0) 300f / canvasSize.height else 1f
+            val transform = Matrix().apply { setScale(scaleX, scaleY) }
             paths.forEach { path ->
-                canvas.save()
-                canvas.scale(scaleX, scaleY)
-                canvas.drawPath(path.asAndroidPath(), paint)
-                canvas.restore()
+                val transformed = android.graphics.Path(path.asAndroidPath()).apply { transform(transform) }
+                canvas.drawPath(transformed, paint)
+                transformed.close()
             }
 
-            val signatureFile = File(context.filesDir, "sig_${System.currentTimeMillis()}.png")
+            val signatureDir = File(context.filesDir, "signatures").apply { mkdirs() }
+            val signatureFile = File(signatureDir, "sig_${System.currentTimeMillis()}.png")
             var writeSucceeded = false
             try {
                 withContext(Dispatchers.IO) {
@@ -124,7 +129,8 @@ fun SignaturePad(
             val stampDate = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.US).format(java.util.Date())
             canvas.drawText("Audit Timestamp: $stampDate", 40f, 190f, subPaint)
 
-            val file = File(context.filesDir, "sig_seal_${System.currentTimeMillis()}.png")
+            val signatureDir = File(context.filesDir, "signatures").apply { mkdirs() }
+            val file = File(signatureDir, "sig_seal_${System.currentTimeMillis()}.png")
             var writeSucceeded = false
             try {
                 withContext(Dispatchers.IO) {

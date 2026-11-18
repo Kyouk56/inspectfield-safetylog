@@ -12,9 +12,10 @@ import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.dao.ProfileDao
 import com.safetylog.app.data.model.InspectorProfile
+import com.safetylog.app.util.ServerAuthorization
+import com.safetylog.app.util.TestControls
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,7 +28,8 @@ import java.util.UUID
 
 class AuthRepository(
     private val context: Context,
-    private val secureStorage: SecureTokenStorage
+    private val secureStorage: SecureTokenStorage,
+    private val authorizationRepository: AuthorizationRepository? = null
 ) {
     private val credentialManager by lazy { CredentialManager.create(context) }
 
@@ -111,10 +113,10 @@ class AuthRepository(
         secureStorage.setCustomGoogleClientId(clientId)
     }
 
-    fun isSandboxMode(): Boolean = if (BuildConfig.DEBUG) secureStorage.isSandboxAuthForced() else false
+    fun isSandboxMode(): Boolean = TestControls.isEnabled && secureStorage.isSandboxAuthForced()
 
     fun setSandboxMode(enabled: Boolean) {
-        if (!BuildConfig.DEBUG) return
+        if (!TestControls.isEnabled) return
         secureStorage.setSandboxAuthForced(enabled)
     }
 
@@ -127,8 +129,8 @@ class AuthRepository(
         fallbackEmail: String? = null,
         provider: AuthProvider = AuthProvider.GOOGLE
     ): AuthResult = withContext(Dispatchers.IO) {
-        if (!BuildConfig.DEBUG) {
-            return@withContext AuthResult.Error("Sandbox sign-in is disabled in release builds.")
+        if (!TestControls.isEnabled) {
+            return@withContext AuthResult.Error("Sandbox sign-in is disabled in this build.")
         }
         _isLoading.value = true
         try {
@@ -262,6 +264,7 @@ class AuthRepository(
                 ).joinToString(" ").trim().takeIf { it.isNotBlank() }
                 val resolvedDisplayName = rawDisplayName ?: combinedNames ?: resolvedName
                 val userEmail = googleIdTokenCredential.email?.trim()?.takeIf { it.isNotBlank() } ?: resolvedEmail
+                val googleIdToken = googleIdTokenCredential.idToken
                 val assignedRole = if (AuthorizationConfig.isAuthorizedOwner(userEmail)) {
                     UserRole.OWNER
                 } else {
@@ -274,7 +277,7 @@ class AuthRepository(
                     photoUrl = googleIdTokenCredential.profilePictureUri?.toString(),
                     provider = AuthProvider.GOOGLE,
                     role = assignedRole,
-                    idToken = googleIdTokenCredential.idToken,
+                    idToken = googleIdToken,
                     accessToken = "oauth2_bearer_${UUID.randomUUID()}",
                     tokenExpiryEpochMs = System.currentTimeMillis() + (30L * 24 * 3600 * 1000), // 30-day session
                     lastLoginEpochMs = System.currentTimeMillis(),
@@ -285,7 +288,28 @@ class AuthRepository(
                 secureStorage.saveUser(user)
                 _currentUser.value = user
                 _assignedRole.value = user.role
-                AuthResult.Success(user)
+
+                // Server-authoritative builds exchange the verified Google ID token for a
+                // signed decision. If the server cannot be reached, the user may still work
+                // offline as USER, but no elevated local role is honoured.
+                if (ServerAuthorization.isConfigured && authorizationRepository != null) {
+                    when (val result = authorizationRepository.exchange(googleIdToken, rawNonce)) {
+                        is ApiResult.Success -> {
+                            val authoritativeRole = result.value.role
+                            val updated = user.copy(role = authoritativeRole)
+                            secureStorage.saveUser(updated)
+                            _currentUser.value = updated
+                            _assignedRole.value = authoritativeRole
+                        }
+                        else -> {
+                            val offlineUser = user.copy(role = UserRole.USER)
+                            secureStorage.saveUser(offlineUser)
+                            _currentUser.value = offlineUser
+                            _assignedRole.value = UserRole.USER
+                        }
+                    }
+                }
+                AuthResult.Success(_currentUser.value ?: user)
             } else {
                 AuthResult.Error("Unsupported credential type returned from Google Credential Manager (${credential::class.java.simpleName}).")
             }
@@ -313,12 +337,40 @@ class AuthRepository(
     suspend fun signInWithEmail(
         displayName: String,
         email: String,
-        role: UserRole = UserRole.USER
+        role: UserRole = UserRole.USER,
+        password: String? = null
     ): AuthResult = withContext(Dispatchers.IO) {
         _isLoading.value = true
         try {
             val resolvedName = displayName.trim().ifBlank { "Certified Safety Inspector" }
             val resolvedEmail = email.trim().ifBlank { "inspector@safetylog.app" }
+
+            // Server-configured builds never trust a self-declared email. The credential
+            // is verified server-side and the returned snapshot is authoritative.
+            if (ServerAuthorization.isConfigured && authorizationRepository != null) {
+                if (password.isNullOrBlank()) {
+                    return@withContext AuthResult.Error("Inspector password is required.")
+                }
+                return@withContext when (val result = authorizationRepository.signInWithEmail(resolvedEmail, password)) {
+                    is ApiResult.Success -> {
+                        val snapshot = result.value
+                        val local = createSandboxUser(
+                            displayName = resolvedName,
+                            email = resolvedEmail,
+                            provider = AuthProvider.EMAIL,
+                            role = snapshot.role
+                        ).copy(role = snapshot.role)
+                        secureStorage.saveUser(local)
+                        _currentUser.value = local
+                        _assignedRole.value = snapshot.role
+                        AuthResult.Success(local)
+                    }
+                    is ApiResult.HttpError -> AuthResult.Error("Sign-in failed: ${result.message}")
+                    is ApiResult.InvalidResponse -> AuthResult.Error("Sign-in failed: invalid server response")
+                    is ApiResult.NetworkError -> AuthResult.Error("Sign-in requires a connection to the authorization server.")
+                }
+            }
+
             val user = createSandboxUser(
                 displayName = resolvedName,
                 email = resolvedEmail,
@@ -433,6 +485,7 @@ class AuthRepository(
                 credentialManager.clearCredentialState(ClearCredentialStateRequest())
             } catch (_: Exception) {}
             secureStorage.clearUser()
+            authorizationRepository?.clear()
             _currentUser.value = null
             _assignedRole.value = UserRole.USER
         } finally {
@@ -459,10 +512,14 @@ class AuthRepository(
         provider: AuthProvider,
         role: UserRole = UserRole.USER
     ): AuthUser {
-        val resolvedRole = if (AuthorizationConfig.isAuthorizedOwner(email)) {
+        // These sign-in paths accept a self-declared email (email form, sandbox, demo
+        // providers). Only test builds may promote such an email to OWNER. In public
+        // releases OWNER is granted exclusively by verified Google OAuth below.
+        val ownerEmail = if (TestControls.isEnabled) email else null
+        val resolvedRole = if (AuthorizationConfig.isAuthorizedOwner(ownerEmail)) {
             UserRole.OWNER
         } else {
-            AuthorizationConfig.sanitizeRole(role, email)
+            AuthorizationConfig.sanitizeRole(role, ownerEmail)
         }
         val uuid = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()

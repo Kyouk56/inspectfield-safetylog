@@ -24,11 +24,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.safetylog.app.BuildConfig
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
 import com.safetylog.app.data.auth.UserRole
 import com.safetylog.app.ui.theme.*
+import com.safetylog.app.util.TestControls
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -346,8 +346,8 @@ fun PaywallBottomSheet(
                         // calling onUpgradeClicked here silently reactivated the subscription.
                         // In release builds with real Play Billing, the purchase callback (not this
                         // synchronous call) is what grants the upgraded entitlement.
-                        if (selectedTier != com.safetylog.app.data.auth.SubscriptionTier.FREE &&
-                            (onLaunchBilling == null || com.safetylog.app.BuildConfig.DEBUG)
+                        if (selectedTier != SubscriptionTier.FREE &&
+                            (onLaunchBilling == null || TestControls.isEnabled)
                         ) {
                             onUpgradeClicked()
                         }
@@ -409,8 +409,8 @@ fun PaywallBottomSheet(
             }
 
             // Testing / Simulation Controls for Self-Service Lifecycle (Only Account Admins & Owner)
-            // Debug builds only: never expose simulation controls in release.
-            if (isBillingAllowed && BuildConfig.DEBUG) {
+            // Test builds only: never expose simulation controls in the public release.
+            if (isBillingAllowed && TestControls.isEnabled) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),

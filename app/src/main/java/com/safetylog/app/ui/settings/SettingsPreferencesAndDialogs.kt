@@ -1,6 +1,8 @@
 package com.safetylog.app.ui.settings
 
+import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -11,6 +13,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +40,7 @@ import com.safetylog.app.data.sync.TeamSyncEngine
 import com.safetylog.app.ui.dashboard.DashboardUiState
 import com.safetylog.app.ui.dashboard.DashboardViewModel
 import com.safetylog.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun SettingsAppearanceCard(
@@ -131,6 +143,23 @@ internal fun SettingsInspectionRemindersCard(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
+    // D-09: surface the special "exact alarm" permission. Without it the scheduler
+    // silently falls back to inexact alarms, which is a compliance risk for due dates.
+    var hasExactAlarmPermission by remember {
+        mutableStateOf(com.safetylog.app.data.reminder.InspectionReminderManager.hasExactAlarmPermission(context))
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasExactAlarmPermission =
+                    com.safetylog.app.data.reminder.InspectionReminderManager.hasExactAlarmPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     // 2. Inspection Due Reminders & Notification Alarms
     Card(
         modifier = Modifier
@@ -207,6 +236,45 @@ internal fun SettingsInspectionRemindersCard(
                         if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             FilledTonalButton(
                                 onClick = onRequestNotificationPermission,
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Grant", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (hasExactAlarmPermission) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = if (hasExactAlarmPermission) StatusPassed else SafetyAmber,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (hasExactAlarmPermission) "Exact Alarms: Allowed" else "Exact Alarms: Grant to keep due dates precise",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (hasExactAlarmPermission) StatusPassed else SafetyAmber
+                            )
+                        }
+                        if (!hasExactAlarmPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            FilledTonalButton(
+                                onClick = {
+                                    try {
+                                        context.startActivity(
+                                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        )
+                                    } catch (_: Exception) {
+                                        Toast.makeText(context, "No system screen available for exact alarms", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
@@ -358,6 +426,7 @@ internal fun SettingsActionDialogs(
     onDismissMemberToRemove: () -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     // Cancel Subscription Confirmation Dialog
     if (showCancelConfirmDialog) {
@@ -517,12 +586,14 @@ internal fun SettingsActionDialogs(
             confirmButton = {
                 Button(
                     onClick = {
-                        val res = dashboardViewModel.addTeamMember(newMemberEmail, newMemberName, newMemberRole)
-                        res.onSuccess { member ->
-                            onDismissAddMemberDialog()
-                            Toast.makeText(context, "Added ${member.displayTitle} to team roster", Toast.LENGTH_SHORT).show()
-                        }.onFailure { err ->
-                            onAddMemberErrorChange(err.message ?: "Failed to add member")
+                        coroutineScope.launch {
+                            val res = dashboardViewModel.addTeamMember(newMemberEmail, newMemberName, newMemberRole)
+                            res.onSuccess { member ->
+                                onDismissAddMemberDialog()
+                                Toast.makeText(context, "Added ${member.displayTitle} to team roster", Toast.LENGTH_SHORT).show()
+                            }.onFailure { err ->
+                                onAddMemberErrorChange(err.message ?: "Failed to add member")
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = TechBlue),
@@ -635,18 +706,20 @@ internal fun SettingsActionDialogs(
             confirmButton = {
                 Button(
                     onClick = {
-                        val res = dashboardViewModel.updateTeamMember(
-                            member.id,
-                            editEmailInput,
-                            editNameInput,
-                            editRoleInput,
-                            editIsActiveInput
-                        )
-                        res.onSuccess {
-                            onDismissEditingMember()
-                            Toast.makeText(context, "Updated team member details", Toast.LENGTH_SHORT).show()
-                        }.onFailure { err ->
-                            onEditMemberErrorChange(err.message ?: "Failed to update member")
+                        coroutineScope.launch {
+                            val res = dashboardViewModel.updateTeamMember(
+                                member.id,
+                                editEmailInput,
+                                editNameInput,
+                                editRoleInput,
+                                editIsActiveInput
+                            )
+                            res.onSuccess {
+                                onDismissEditingMember()
+                                Toast.makeText(context, "Updated team member details", Toast.LENGTH_SHORT).show()
+                            }.onFailure { err ->
+                                onEditMemberErrorChange(err.message ?: "Failed to update member")
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = TechBlue),
@@ -685,10 +758,15 @@ internal fun SettingsActionDialogs(
             confirmButton = {
                 Button(
                     onClick = {
-                        val res = dashboardViewModel.removeTeamMember(member.id)
-                        onDismissMemberToRemove()
-                        res.onSuccess {
-                            Toast.makeText(context, "Removed member and freed 1 seat", Toast.LENGTH_SHORT).show()
+                        coroutineScope.launch {
+                            val res = dashboardViewModel.removeTeamMember(member.id)
+                            onDismissMemberToRemove()
+                            res.onSuccess {
+                                Toast.makeText(context, "Removed member and freed 1 seat", Toast.LENGTH_SHORT).show()
+                            }
+                            res.onFailure { err ->
+                                Toast.makeText(context, err.message ?: "Failed to remove member", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = StatusDeficient),

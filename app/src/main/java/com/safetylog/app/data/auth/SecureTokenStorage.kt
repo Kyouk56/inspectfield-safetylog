@@ -79,6 +79,18 @@ class SecureTokenStorage(private val context: Context) {
         private const val PREF_ROLE = "sec_auth_user_role"
         private const val PREF_CUSTOM_GOOGLE_CLIENT_ID = "sec_custom_google_client_id"
         private const val PREF_FORCE_SANDBOX_AUTH = "sec_force_sandbox_auth"
+        private const val PREF_AUTH_SNAPSHOT = "sec_authz_snapshot_jwt"
+    }
+
+    /** Encrypted cache of the server-signed authorization snapshot. */
+    fun getAuthorizationSnapshot(): String? = securePrefs.getString(PREF_AUTH_SNAPSHOT, null)
+
+    fun setAuthorizationSnapshot(token: String?) {
+        if (token.isNullOrBlank()) {
+            securePrefs.edit().remove(PREF_AUTH_SNAPSHOT).apply()
+        } else {
+            securePrefs.edit().putString(PREF_AUTH_SNAPSHOT, token).apply()
+        }
     }
 
     fun getCustomGoogleClientId(): String? = securePrefs.getString(PREF_CUSTOM_GOOGLE_CLIENT_ID, null)
@@ -111,18 +123,24 @@ class SecureTokenStorage(private val context: Context) {
     }
 
     fun getActiveRole(email: String? = null): UserRole {
-        val resolvedEmail = email ?: securePrefs.getString(PREF_EMAIL, null)
+        val persistedEmail = securePrefs.getString(PREF_EMAIL, null)
+        val resolvedEmail = email ?: persistedEmail
         val key = roleStorageKey(resolvedEmail)
         val stored = securePrefs.getString(key, null)
-        val roleStr = stored ?: securePrefs.getString(PREF_ROLE, UserRole.USER.name)
-        // Transparent migration: if a legacy global role exists for this account, copy it
-        // into the account-keyed slot so subsequent reads are unambiguous.
-        if (stored == null && resolvedEmail != null) {
-            val legacy = securePrefs.getString(PREF_ROLE, null)
-            if (legacy != null) {
-                securePrefs.edit().putString(key, legacy).apply()
-            }
+
+        // D-03: a legacy global role may only be migrated into the slot of the account it
+        // originally belonged to. Copying it into a different account leaks privileges.
+        val legacy = securePrefs.getString(PREF_ROLE, null)
+        val canMigrateLegacy = stored == null &&
+            resolvedEmail != null &&
+            persistedEmail != null &&
+            resolvedEmail.trim().lowercase() == persistedEmail.trim().lowercase() &&
+            legacy != null
+        if (canMigrateLegacy) {
+            securePrefs.edit().putString(key, legacy).apply()
         }
+
+        val roleStr = stored ?: if (canMigrateLegacy) legacy else UserRole.USER.name
         val rawRole = UserRole.fromLegacy(roleStr)
         return AuthorizationConfig.sanitizeRole(rawRole, resolvedEmail)
     }

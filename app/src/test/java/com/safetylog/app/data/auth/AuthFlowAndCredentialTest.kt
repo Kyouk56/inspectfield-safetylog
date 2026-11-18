@@ -259,10 +259,10 @@ class AuthFlowAndCredentialTest {
 
     @Test
     fun testOwnerEmailAuthorizationRules() {
-        // Only j.desrosiers88@gmail.com and hexenginelabs@gmail.com can be OWNER
-        assertTrue(AuthorizationConfig.isAuthorizedOwner("j.desrosiers88@gmail.com"))
+        // Only jdesrosiers88@gmail.com and hexenginelabs@gmail.com can be OWNER
+        assertTrue(AuthorizationConfig.isAuthorizedOwner("jdesrosiers88@gmail.com"))
         assertTrue(AuthorizationConfig.isAuthorizedOwner("hexenginelabs@gmail.com"))
-        assertTrue(AuthorizationConfig.isAuthorizedOwner("J.DESROSIERS88@GMAIL.COM"))
+        assertTrue(AuthorizationConfig.isAuthorizedOwner("JDESROSIERS88@GMAIL.COM"))
         assertTrue(AuthorizationConfig.isAuthorizedOwner("  hexenginelabs@gmail.com  "))
 
         // Unauthorized emails
@@ -273,7 +273,7 @@ class AuthFlowAndCredentialTest {
         assertFalse(AuthorizationConfig.isAuthorizedOwner(null))
 
         // Sanitization tests
-        assertEquals(UserRole.OWNER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, "j.desrosiers88@gmail.com"))
+        assertEquals(UserRole.OWNER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, "jdesrosiers88@gmail.com"))
         assertEquals(UserRole.OWNER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, "hexenginelabs@gmail.com"))
         assertEquals(UserRole.USER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, "other@gmail.com"))
         assertEquals(UserRole.USER, AuthorizationConfig.sanitizeRole(UserRole.OWNER, null))

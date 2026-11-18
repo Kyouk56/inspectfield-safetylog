@@ -287,7 +287,7 @@ class RoleAndSubscriptionTest {
 
     @Test
     fun testAuthorizedOwnerRoleSwitchingSimulation() {
-        val ownerEmail = "j.desrosiers88@gmail.com"
+        val ownerEmail = "jdesrosiers88@gmail.com"
         val coOwnerEmail = "hexenginelabs@gmail.com"
 
         // Authorized owners can simulate and assume any of the 4 roles

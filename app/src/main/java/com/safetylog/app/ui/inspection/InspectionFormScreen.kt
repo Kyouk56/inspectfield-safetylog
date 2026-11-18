@@ -71,7 +71,8 @@ fun InspectionFormScreen(
         if (uri != null) {
             coroutineScope.launch {
                 try {
-                    val photoFile = File(context.filesDir, "defect_${System.currentTimeMillis()}.jpg")
+                    val photoDir = File(context.filesDir, "photos").apply { mkdirs() }
+                    val photoFile = File(photoDir, "defect_${System.currentTimeMillis()}.jpg")
                     val inputStream = context.contentResolver.openInputStream(uri)
                     if (inputStream == null) {
                         viewModel.onPhotoSelectionFailed()

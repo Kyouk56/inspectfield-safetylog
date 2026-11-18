@@ -31,7 +31,15 @@ class InspectionReminderManager(private val context: Context) {
         const val EXTRA_DUE_TIMESTAMP = "extra_due_timestamp"
         const val EXTRA_FROM_NOTIFICATION = "com.safetylog.app.extra.FROM_NOTIFICATION"
 
-        const val TEST_NOTIFICATION_ID = 99999
+        // Dedicated high value so the test alert cannot collide with an equipment alarm.
+        const val TEST_NOTIFICATION_ID = Int.MAX_VALUE - 1
+
+        /** True when the system allows exact alarms (always true before API 31). */
+        fun hasExactAlarmPermission(context: Context): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return false
+            return alarmManager.canScheduleExactAlarms()
+        }
 
         fun initNotificationChannel(context: Context) {
             val channel = NotificationChannel(
@@ -101,7 +109,7 @@ class InspectionReminderManager(private val context: Context) {
             context,
             // Use hashCode() instead of toInt(): id values beyond Int range would silently
             // truncate with toInt() and collide with other equipment's PendingIntents.
-            equipment.id.hashCode(),
+            AlarmCodes.base(equipment.id),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -132,8 +140,8 @@ class InspectionReminderManager(private val context: Context) {
         }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            // Must match scheduleReminder()'s request code derivation (hashCode, not toInt()).
-            equipmentId.hashCode(),
+            // Must match scheduleReminder()'s request code derivation.
+            AlarmCodes.base(equipmentId),
             intent,
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )
@@ -146,8 +154,10 @@ class InspectionReminderManager(private val context: Context) {
     /**
      * Reschedules alarms for all active equipment.
      */
-    fun rescheduleAll(equipmentList: List<EquipmentItem>) {
+    fun rescheduleAll(equipmentList: List<EquipmentItem>, isActive: () -> Boolean = { true }) {
         equipmentList.forEach { equipment ->
+            // D-10: cooperative cancellation so BootReceiver's timeout can actually stop work.
+            if (!isActive()) return
             scheduleReminder(equipment)
         }
     }

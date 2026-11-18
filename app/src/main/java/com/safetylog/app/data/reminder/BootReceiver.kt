@@ -7,6 +7,7 @@ import com.safetylog.app.data.SafetyLogDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
@@ -29,7 +30,7 @@ class BootReceiver : BroadcastReceiver() {
                     val activeReminders = allEquipment.filter {
                         it.reminderEnabled && it.nextReviewTimestamp > System.currentTimeMillis()
                     }
-                    reminderManager.rescheduleAll(activeReminders)
+                    reminderManager.rescheduleAll(activeReminders) { isActive }
                 }
             } catch (_: Exception) {
                 // Non-fatal

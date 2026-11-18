@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
 @Immutable
 @Entity(tableName = "inspector_profiles")
@@ -49,10 +50,12 @@ data class EquipmentItem(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["equipmentId"]), Index(value = ["timestamp"])]
+    indices = [Index(value = ["equipmentId"]), Index(value = ["timestamp"]), Index(value = ["syncId"], unique = true)]
 )
 data class InspectionRecord(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Stable cross-device identity for air-gapped sync; the local auto-increment id is not portable. */
+    val syncId: String = UUID.randomUUID().toString(),
     val equipmentId: Long,
     val timestamp: Long = System.currentTimeMillis(),
     val isPressureOk: Boolean,

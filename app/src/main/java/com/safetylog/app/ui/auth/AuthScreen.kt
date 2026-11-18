@@ -48,6 +48,7 @@ fun AuthScreen(
     var showEmailSignIn by remember { mutableStateOf(false) }
     var emailInputName by remember { mutableStateOf("") }
     var emailInputAddress by remember { mutableStateOf("") }
+    var emailInputPassword by remember { mutableStateOf("") }
 
     val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.US) }
 
@@ -167,6 +168,8 @@ fun AuthScreen(
                     onEmailNameChange = { emailInputName = it },
                     emailInputAddress = emailInputAddress,
                     onEmailAddressChange = { emailInputAddress = it },
+                    emailInputPassword = emailInputPassword,
+                    onEmailPasswordChange = { emailInputPassword = it },
                     showCorporateSsoInput = showCorporateSsoInput,
                     onToggleCorporateSsoInput = { showCorporateSsoInput = !showCorporateSsoInput },
                     corporateDomain = corporateDomain,

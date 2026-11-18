@@ -27,11 +27,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.safetylog.app.BuildConfig
 import com.safetylog.app.R
 import com.safetylog.app.data.auth.AuthUser
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.ui.theme.*
+import com.safetylog.app.util.TestControls
 import java.text.SimpleDateFormat
 import java.util.Date
 
@@ -156,6 +156,8 @@ internal fun SignInHeroCard(
     onEmailNameChange: (String) -> Unit,
     emailInputAddress: String,
     onEmailAddressChange: (String) -> Unit,
+    emailInputPassword: String,
+    onEmailPasswordChange: (String) -> Unit,
     showCorporateSsoInput: Boolean,
     onToggleCorporateSsoInput: () -> Unit,
     corporateDomain: String,
@@ -277,16 +279,33 @@ internal fun SignInHeroCard(
                             value = emailInputAddress,
                             onValueChange = onEmailAddressChange,
                             label = { Text("Work Email Address") },
-                            placeholder = { Text("e.g. j.desrosiers88@gmail.com") },
+                            placeholder = { Text("e.g. jdesrosiers88@gmail.com") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp)
+                        )
+                        OutlinedTextField(
+                            value = emailInputPassword,
+                            onValueChange = onEmailPasswordChange,
+                            label = { Text("Inspector Password") },
+                            placeholder = { Text("Required with server authorization") },
+                            singleLine = true,
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                        Text(
+                            text = "Passwords are verified by the authorization server; a name and email alone cannot grant privileges.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 10.sp
                         )
                         Button(
                             onClick = {
                                 viewModel.signInWithEmail(
                                     name = emailInputName.ifBlank { "Certified Safety Inspector" },
-                                    email = emailInputAddress.ifBlank { "inspector@safetylog.app" }
+                                    email = emailInputAddress.ifBlank { "inspector@safetylog.app" },
+                                    password = emailInputPassword
                                 )
                             },
                             modifier = Modifier.fillMaxWidth().height(44.dp),
@@ -301,9 +320,8 @@ internal fun SignInHeroCard(
                 }
             }
 
-            // Sandbox quick sign-in button for instant test access.
-            // Demo/sandbox entry point: only surfaced in debug builds, never in release.
-            if (BuildConfig.DEBUG) {
+            // Sandbox quick sign-in button for instant test access (test builds only).
+            if (TestControls.isEnabled) {
                 OutlinedButton(
                     onClick = { viewModel.signInSandbox() },
                     modifier = Modifier.fillMaxWidth().height(42.dp),

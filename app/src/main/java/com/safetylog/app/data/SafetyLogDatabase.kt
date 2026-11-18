@@ -15,7 +15,7 @@ import com.safetylog.app.data.model.InspectorProfile
 
 @Database(
     entities = [InspectorProfile::class, EquipmentItem::class, InspectionRecord::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class SafetyLogDatabase : RoomDatabase() {
@@ -51,6 +51,22 @@ abstract class SafetyLogDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) = ensureReminderColumns(db)
         }
 
+        /** D-07: add a stable, unique sync id so inspections can round-trip across devices. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val columns = db.query("PRAGMA table_info(inspection_records)").use { cursor ->
+                    buildSet {
+                        while (cursor.moveToNext()) add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                    }
+                }
+                if ("syncId" !in columns) {
+                    db.execSQL("ALTER TABLE inspection_records ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
+                    db.execSQL("UPDATE inspection_records SET syncId = lower(hex(randomblob(16))) WHERE syncId = ''")
+                    db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_inspection_records_syncId ON inspection_records(syncId)")
+                }
+            }
+        }
+
         fun getDatabase(context: Context): SafetyLogDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -60,7 +76,7 @@ abstract class SafetyLogDatabase : RoomDatabase() {
                 )
                     // No destructive fallback: an unmapped version bump must fail loudly
                     // instead of silently deleting the entire inspection audit history.
-                    .addMigrations(MIGRATION_1_3, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_3, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance

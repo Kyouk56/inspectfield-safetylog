@@ -174,10 +174,10 @@ class AuthViewModel(
         _successMessage.value = if (enabled) "Sandbox Mode enabled (local offline session)" else "Live Google Cloud OAuth enabled"
     }
 
-    fun signInWithEmail(name: String, email: String, role: UserRole = UserRole.USER) {
+    fun signInWithEmail(name: String, email: String, role: UserRole = UserRole.USER, password: String? = null) {
         viewModelScope.launch {
             _errorMessage.value = null
-            when (val result = authRepository.signInWithEmail(name, email, role)) {
+            when (val result = authRepository.signInWithEmail(name, email, role, password)) {
                 is AuthResult.Success -> {
                     _successMessage.value = "Securely signed in as ${result.user.displayName}"
                     authRepository.syncWithInspectorProfile(profileDao)

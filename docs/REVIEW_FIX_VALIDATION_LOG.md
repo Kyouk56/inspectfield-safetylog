@@ -233,6 +233,17 @@ Review context worth knowing before judging the changes:
 These were reported in the review and are **intentionally not changed** in this pass. Validators
 should treat them as known open issues, not regressions.
 
+> Follow-up (2026-11-17/18): D-01, D-02, D-05 and D-12 are addressed by the
+> server-authoritative layer in `docs/SERVER_AUTHORIZATION.md`. D-06/D-07/D-08 are fixed in
+> `docs/TEAM_SYNC.md`. D-21 credentials were rotated and the remote history was force-pushed;
+> see `docs/CREDENTIAL_ROTATION.md`. The remaining code-level items (D-03, D-09, D-10, D-11,
+> D-14, D-15, D-17, D-18, D-19) were also addressed in this pass: scoped legacy-role
+> migration, exact-alarm permission UI, collision-free alarm request codes with cooperative
+> boot timeout, atomic free-tier quota insert and month-boundary-aware count flow, OAuth
+> draft merging, profile-load retry, narrowed FileProvider paths with encrypted diagnostic
+> exports, and uniform signature-stroke scaling. The rows below remain as the historical
+> record of why the local-only design existed.
+
 | ID | Issue | Why deferred |
 |---|---|---|
 | D-01 | `signInWithEmail`/Microsoft/corporate SSO fabricate local sessions; identity is unverified free-text; Google ID token signature/audience/nonce never verified | Deliberate offline/local-profile design (code logs this explicitly). Real auth requires a backend; product decision needed. |
@@ -266,8 +277,10 @@ should treat them as known open issues, not regressions.
    from a ViewModel/UI — it must be a no-op. Only `handleValidPurchase` may grant it.
 3. **No duplicate saves:** from the inspection form, tapping the paywall confirm must call
    `saveInspection()` exactly once (instrument or inspect call graph).
-4. **Secrets:** `git grep -n "SafetyLogRelease2026\\|safetylogPass2026"` must return nothing in the
-   worktree (history still contains them — see D-21).
+4. **Secrets:** no signing password may appear in the worktree. Passwords were rotated on
+   2026-11-17 into the gitignored `signing-secrets.properties`, and the local git history was
+   rewritten with `git filter-repo` (D-21). The remote still has the old history until the
+   owner force-pushes the rewritten `main`.
 5. **Checklist matching:** run `ChecklistRegistryTest`; confirm "Water Heater" and "CO2 Incubator"
    map to `Commercial Safety Equipment`.
 6. **Dates:** with device timezone set to America/New_York, pick a date in the equipment form and

@@ -1,0 +1,20 @@
+{
+  "name": "safetylog-auth-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Server-side identity verification and authoritative authorization for SafetyLog",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "keys": "node scripts/generate-keys.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261116.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "wrangler": "^4.0.0"
+  }
+}

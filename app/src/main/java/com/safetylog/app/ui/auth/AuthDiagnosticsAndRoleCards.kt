@@ -29,8 +29,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.safetylog.app.BuildConfig
 import com.safetylog.app.ui.theme.*
+import com.safetylog.app.util.TestControls
 import kotlinx.coroutines.launch
 
 @Composable
@@ -310,9 +310,8 @@ internal fun GoogleOAuthClientIdDialog(
                     }
                 }
 
-                // Mode Switch: Live vs Sandbox.
-                // Emulator/sandbox demo control: debug builds only, never shown in release.
-                if (BuildConfig.DEBUG) {
+                // Mode Switch: Live vs Sandbox. Test builds only, never in the public release.
+                if (TestControls.isEnabled) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -340,8 +339,8 @@ internal fun GoogleOAuthClientIdDialog(
                     }
                 }
 
-                // Direct sandbox login button inside dialog (debug builds only)
-                if (BuildConfig.DEBUG) {
+                // Direct sandbox login button inside dialog (test builds only)
+                if (TestControls.isEnabled) {
                     Button(
                         onClick = {
                             onSignInSandbox()

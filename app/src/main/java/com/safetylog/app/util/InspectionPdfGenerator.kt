@@ -184,8 +184,9 @@ class InspectionPdfGenerator(private val context: Context) {
 
         document.finishPage(page)
 
-        val outputFile = File(context.cacheDir, "InspectionReport_${System.currentTimeMillis()}.pdf")
-        val tempFile = File(context.cacheDir, "${outputFile.name}.tmp")
+        val pdfDir = File(context.cacheDir, "pdf").apply { mkdirs() }
+        val outputFile = File(pdfDir, "InspectionReport_${System.currentTimeMillis()}.pdf")
+        val tempFile = File(pdfDir, "${outputFile.name}.tmp")
         try {
             FileOutputStream(tempFile).use { out ->
                 document.writeTo(out)
@@ -405,8 +406,9 @@ class InspectionPdfGenerator(private val context: Context) {
 
         document.finishPage(page)
 
-        val outputFile = File(context.cacheDir, "SafetyLog_${equipment.tagId}_AuditRecord_${System.currentTimeMillis()}.pdf")
-        val tempFile = File(context.cacheDir, "${outputFile.name}.tmp")
+        val pdfDir = File(context.cacheDir, "pdf").apply { mkdirs() }
+        val outputFile = File(pdfDir, "SafetyLog_${equipment.tagId}_AuditRecord_${System.currentTimeMillis()}.pdf")
+        val tempFile = File(pdfDir, "${outputFile.name}.tmp")
         try {
             FileOutputStream(tempFile).use { out ->
                 document.writeTo(out)

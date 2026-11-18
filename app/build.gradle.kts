@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// Release signing secrets are read from a gitignored local file, then from Gradle
+// properties / environment (CI). Never hardcode or commit them.
+val signingSecrets = Properties().apply {
+    val secretsFile = rootProject.file("signing-secrets.properties")
+    if (secretsFile.exists()) secretsFile.inputStream().use { load(it) }
+}
+fun signingSecret(name: String): String? =
+    project.findProperty(name) as? String
+        ?: System.getenv(name)
+        ?: signingSecrets.getProperty(name)
 
 android {
     namespace = "com.safetylog.app"
@@ -25,6 +38,23 @@ android {
             ?: System.getenv("SAFETYLOG_ADMOB_BANNER_ID")
             ?: "ca-app-pub-3940256099942544/6300978111"
         buildConfigField("String", "ADMOB_BANNER_ID", "\"$admobBannerId\"")
+
+        // Developer/test controls (sandbox auth, role & paid-tier simulation) are
+        // always on for debug builds. A release build can opt in for an internal
+        // test of the production code path with -PenableTestControls=true.
+        val enableTestControls = (project.findProperty("enableTestControls") as? String)?.toBoolean() ?: false
+        buildConfigField("Boolean", "ENABLE_TEST_CONTROLS", enableTestControls.toString())
+
+        // Server-authoritative authorization. Release builds must supply both values;
+        // without them privileged actions fail closed (inspections remain fully offline).
+        val apiBaseUrl = project.findProperty("AUTH_API_BASE_URL") as? String
+            ?: System.getenv("AUTH_API_BASE_URL")
+            ?: ""
+        val authPublicKey = project.findProperty("AUTH_PUBLIC_KEY_SPKI_BASE64") as? String
+            ?: System.getenv("AUTH_PUBLIC_KEY_SPKI_BASE64")
+            ?: ""
+        buildConfigField("String", "AUTH_API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("String", "AUTH_PUBLIC_KEY_SPKI_BASE64", "\"$authPublicKey\"")
     }
 
     buildFeatures {
@@ -43,13 +73,9 @@ android {
             val keystorePath = project.findProperty("SAFETYLOG_KEYSTORE_FILE") as? String
                 ?: System.getenv("SAFETYLOG_KEYSTORE_FILE")
                 ?: if (defaultKeystore.exists()) defaultKeystore.absolutePath else null
-            val keystorePass = project.findProperty("SAFETYLOG_KEYSTORE_PASSWORD") as? String
-                ?: System.getenv("SAFETYLOG_KEYSTORE_PASSWORD")
-            val keyAliasStr = project.findProperty("SAFETYLOG_KEY_ALIAS") as? String
-                ?: System.getenv("SAFETYLOG_KEY_ALIAS")
-                ?: "safetylog_release"
-            val keyPassStr = project.findProperty("SAFETYLOG_KEY_PASSWORD") as? String
-                ?: System.getenv("SAFETYLOG_KEY_PASSWORD")
+            val keystorePass = signingSecret("SAFETYLOG_KEYSTORE_PASSWORD")
+            val keyAliasStr = signingSecret("SAFETYLOG_KEY_ALIAS") ?: "safetylog_release"
+            val keyPassStr = signingSecret("SAFETYLOG_KEY_PASSWORD")
 
             // A release build must never fall back to the public debug signing key.
             // Leaving storeFile null makes AGP fail the release build with a clear error;
@@ -76,6 +102,8 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // Debug builds always have the test controls, regardless of the property.
+            buildConfigField("Boolean", "ENABLE_TEST_CONTROLS", "true")
         }
     }
 

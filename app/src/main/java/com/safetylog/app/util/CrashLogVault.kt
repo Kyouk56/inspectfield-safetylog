@@ -124,7 +124,9 @@ object CrashLogVault {
     }
 
     /**
-     * Generates a plain-text/JSON diagnostic report for export to tech support or auditors
+     * Generates a diagnostic report encrypted at rest. Decrypted traces (which can contain
+     * emails, URLs and absolute paths) are never written to plaintext cache, and export
+     * files are cleaned up by [cleanupDiagnosticExports] (D-18).
      */
     fun exportDiagnosticReport(context: Context, secureStorage: SecureTokenStorage): File {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -132,7 +134,7 @@ object CrashLogVault {
         val array = try { JSONArray(str) } catch (_: Exception) { JSONArray() }
 
         val cacheDir = File(context.cacheDir, "diagnostics").apply { mkdirs() }
-        val reportFile = File(cacheDir, "SafetyLog_Diagnostic_Vault_${System.currentTimeMillis()}.txt")
+        val reportFile = File(cacheDir, "SafetyLog_Diagnostic_Vault_${System.currentTimeMillis()}.safetylog.enc")
 
         val sb = StringBuilder()
         sb.append("============================================================\n")
@@ -159,11 +161,21 @@ object CrashLogVault {
             sb.append("Stack Trace:\n$decrypted\n\n")
         }
 
+        // Encrypt before writing: decrypted crash traces may contain PII and secrets.
+        val encrypted = secureStorage.encryptData(sb.toString().toByteArray(Charsets.UTF_8))
         FileOutputStream(reportFile).use { fos ->
-            fos.write(sb.toString().toByteArray(Charsets.UTF_8))
+            fos.write(encrypted.toSerialized().toByteArray(Charsets.UTF_8))
         }
 
         return reportFile
+    }
+
+    /** Remove any previously exported diagnostic files (call on launch and after sharing). */
+    fun cleanupDiagnosticExports(context: Context) {
+        val dir = File(context.cacheDir, "diagnostics")
+        dir.listFiles()?.forEach { file ->
+            if (file.name.startsWith("SafetyLog_Diagnostic_Vault_")) file.delete()
+        }
     }
 
     /**

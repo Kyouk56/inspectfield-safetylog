@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.android.billingclient.api.*
-import com.safetylog.app.BuildConfig
+import com.safetylog.app.util.TestControls
 import com.safetylog.app.data.auth.CompanyOAuthProvider
 import com.safetylog.app.data.auth.CompanyOAuthConfig
 import com.safetylog.app.data.auth.SecureTokenStorage
@@ -23,24 +23,31 @@ import java.util.UUID
 class BillingRepository private constructor(
     private val context: Context?,
     private val prefs: SharedPreferences,
-    private val debugMode: Boolean = BuildConfig.DEBUG,
+    private val debugMode: Boolean = TestControls.isEnabled,
     private val secureStorage: SecureTokenStorage? = null
 ) : PurchasesUpdatedListener {
 
-    constructor(context: Context) : this(context, context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE), BuildConfig.DEBUG, SecureTokenStorage(context))
+    constructor(context: Context) : this(context, context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE), TestControls.isEnabled, SecureTokenStorage(context))
 
     // Test-friendly constructor: allows exercising tier/entitlement logic without an Android Context.
-    constructor(prefs: SharedPreferences, debugMode: Boolean = BuildConfig.DEBUG) : this(null, prefs, debugMode, null)
+    constructor(prefs: SharedPreferences, debugMode: Boolean = TestControls.isEnabled) : this(null, prefs, debugMode, null)
 
     // Optional constructor accepting an explicit SecureTokenStorage (used when callers
     // share a vault instance instead of letting BillingRepository create its own).
-    constructor(context: Context, secureStorage: SecureTokenStorage) : this(context, context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE), BuildConfig.DEBUG, secureStorage)
+    constructor(context: Context, secureStorage: SecureTokenStorage) : this(context, context.getSharedPreferences("safetylog_prefs", Context.MODE_PRIVATE), TestControls.isEnabled, secureStorage)
 
-    constructor(prefs: SharedPreferences, secureStorage: SecureTokenStorage?, debugMode: Boolean = BuildConfig.DEBUG) : this(null, prefs, debugMode, secureStorage)
+    constructor(prefs: SharedPreferences, secureStorage: SecureTokenStorage?, debugMode: Boolean = TestControls.isEnabled) : this(null, prefs, debugMode, secureStorage)
 
     constructor(prefs: SharedPreferences, debugMode: Boolean, secureStorage: SecureTokenStorage?) : this(null, prefs, debugMode, secureStorage)
 
-    constructor(secureStorage: SecureTokenStorage, prefs: SharedPreferences, debugMode: Boolean = BuildConfig.DEBUG) : this(null, prefs, debugMode, secureStorage)
+    constructor(secureStorage: SecureTokenStorage, prefs: SharedPreferences, debugMode: Boolean = TestControls.isEnabled) : this(null, prefs, debugMode, secureStorage)
+
+    /**
+     * Optional hook invoked after a Play purchase is acknowledged and applied locally.
+     * The app uses it to have the authorization server verify the token and reissue a
+     * signed snapshot, so a verified purchase is reflected in the authoritative tier.
+     */
+    var onPurchaseVerified: ((productId: String, purchaseToken: String) -> Unit)? = null
 
     private val _currentTier = MutableStateFlow(loadInitialTier())
     val currentTier: StateFlow<SubscriptionTier> = _currentTier.asStateFlow()
@@ -446,6 +453,10 @@ class BillingRepository private constructor(
         try {
             val token = purchase.purchaseToken
             prefs.edit().putString(KEY_PURCHASE_TOKEN, token).apply()
+            val purchasedSku = prods.firstOrNull {
+                it == SKU_ENTERPRISE_SEAT || it == SKU_INDIVIDUAL_PRO || it == SKU_AD_FREE
+            }
+            if (purchasedSku != null) onPurchaseVerified?.invoke(purchasedSku, token)
         } catch (_: Exception) {}
     }
 

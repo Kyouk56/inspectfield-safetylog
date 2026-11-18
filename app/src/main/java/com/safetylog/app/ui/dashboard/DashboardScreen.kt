@@ -33,6 +33,7 @@ import com.safetylog.app.data.model.EquipmentItem
 import com.safetylog.app.ui.components.PaywallBottomSheet
 import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.theme.*
+import com.safetylog.app.util.TestControls
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -152,6 +153,7 @@ fun DashboardScreen(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
                                         .clickable {
+                                            if (!TestControls.isEnabled) return@clickable
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             showRoleDialog = true
                                         }

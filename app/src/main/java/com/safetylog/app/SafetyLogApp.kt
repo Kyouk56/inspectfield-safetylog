@@ -1,6 +1,10 @@
 package com.safetylog.app
 
 import android.app.Application
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.safetylog.app.data.BillingRepository
 import com.safetylog.app.data.SafetyLogDatabase
 import com.safetylog.app.domain.EntitlementManager
@@ -13,7 +17,19 @@ class SafetyLogApp : Application() {
     val billingRepository by lazy { BillingRepository(this) }
     val pdfGenerator by lazy { InspectionPdfGenerator(this) }
     val secureTokenStorage by lazy { com.safetylog.app.data.auth.SecureTokenStorage(this) }
-    val authRepository by lazy { com.safetylog.app.data.auth.AuthRepository(this, secureTokenStorage) }
+    val authorizationRepository by lazy {
+        com.safetylog.app.data.auth.AuthorizationRepository(
+            api = com.safetylog.app.data.auth.AuthorizationApi(
+                com.safetylog.app.data.auth.HttpAuthorizationTransport(
+                    com.safetylog.app.util.ServerAuthorization.BASE_URL
+                )
+            ),
+            secureStorage = secureTokenStorage
+        )
+    }
+    val authRepository by lazy {
+        com.safetylog.app.data.auth.AuthRepository(this, secureTokenStorage, authorizationRepository)
+    }
     val teamSyncEngine by lazy {
         com.safetylog.app.data.sync.TeamSyncEngine(
             context = this,
@@ -22,6 +38,8 @@ class SafetyLogApp : Application() {
             secureStorage = secureTokenStorage
         )
     }
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     val reminderManager by lazy { com.safetylog.app.data.reminder.InspectionReminderManager(this) }
     val networkMonitor by lazy { com.safetylog.app.util.NetworkMonitor(this) }
 
@@ -35,8 +53,19 @@ class SafetyLogApp : Application() {
         // Initialize On-Device Hardware Keystore Vault & AES-256 Cipher by default for every individual user
         secureTokenStorage.initVault()
 
+        // Restore (and verify) any cached server-signed authorization decision.
+        authorizationRepository.restoreCachedSnapshot()
+        authorizationRepository.startAutoRefresh(appScope)
+
+        // Every acknowledged Play purchase is verified server-side before the
+        // authoritative snapshot is updated with the paid entitlement.
+        billingRepository.onPurchaseVerified = { productId, purchaseToken ->
+            appScope.launch { authorizationRepository.verifyPurchase(purchaseToken, productId) }
+        }
+
         // Install Privacy-First Encrypted Crash & Diagnostic Vault
         com.safetylog.app.util.CrashLogVault.install(this, secureTokenStorage)
+        com.safetylog.app.util.CrashLogVault.cleanupDiagnosticExports(this)
 
         // Initialize Theme Manager for Dark / Light mode persistence
         com.safetylog.app.ui.theme.ThemeManager.init(this)

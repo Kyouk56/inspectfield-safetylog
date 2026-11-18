@@ -55,6 +55,19 @@ interface InspectionDao {
     @Insert
     suspend fun insertInspection(record: InspectionRecord): Long
 
+    /** D-11: atomic quota check + insert. Room runs the default body in one transaction. */
+    @Transaction
+    suspend fun insertInspectionIfUnderQuota(record: InspectionRecord, startOfMonth: Long, limit: Int): Long? {
+        if (countInspectionsSince(startOfMonth) >= limit) return null
+        return insertInspection(record)
+    }
+
+    @Update
+    suspend fun updateInspection(record: InspectionRecord)
+
+    @Query("SELECT * FROM inspection_records WHERE syncId = :syncId LIMIT 1")
+    suspend fun getInspectionBySyncId(syncId: String): InspectionRecord?
+
     @Query("SELECT * FROM inspection_records WHERE equipmentId = :equipmentId ORDER BY timestamp DESC")
     fun getInspectionsForEquipment(equipmentId: Long): Flow<List<InspectionRecord>>
 

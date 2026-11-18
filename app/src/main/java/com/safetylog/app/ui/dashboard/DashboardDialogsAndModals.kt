@@ -31,6 +31,7 @@ import com.safetylog.app.data.dao.EquipmentWithLatestInspection
 import com.safetylog.app.data.model.EquipmentItem
 import com.safetylog.app.domain.ChecklistRegistry
 import com.safetylog.app.ui.theme.*
+import com.safetylog.app.util.TestControls
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -468,7 +469,7 @@ internal fun RoleSwitcherDialog(
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    val isOwnerAuthorized = AuthorizationConfig.isAuthorizedOwner(authEmail)
+                    val isOwnerAuthorized = TestControls.isEnabled && AuthorizationConfig.isAuthorizedOwner(authEmail)
 
                     UserRole.entries.forEach { role ->
                         val isSelected = userRole == role
@@ -495,7 +496,7 @@ internal fun RoleSwitcherDialog(
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         Toast.makeText(
                                             context,
-                                            "Restricted: Platform Owner authority is reserved exclusively for j.desrosiers88@gmail.com and hexenginelabs@gmail.com",
+                                            "Restricted: Platform Owner authority is reserved exclusively for jdesrosiers88@gmail.com and hexenginelabs@gmail.com",
                                             Toast.LENGTH_LONG
                                         ).show()
                                     } else {
@@ -560,7 +561,7 @@ internal fun RoleSwitcherDialog(
                                         }
                                         if (isRestrictedOwner) {
                                             Text(
-                                                text = "Authorized owners only: j.desrosiers88@gmail.com, hexenginelabs@gmail.com",
+                                                text = "Authorized owners only: jdesrosiers88@gmail.com, hexenginelabs@gmail.com",
                                                 fontSize = 9.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )

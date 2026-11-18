@@ -1,0 +1,22 @@
+# Copy to wrangler.toml, fill in the KV namespace id, then deploy with `npm run deploy`.
+name = "safetylog-auth"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+[[kv_namespaces]]
+binding = "AUTH_REGISTRY"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+[vars]
+# Must match the Web Client ID the Android app sends with its Google ID token.
+WEB_CLIENT_ID = "413064728802-16l026coaf3klbrf4gcua6v0qk2dqo44.apps.googleusercontent.com"
+ANDROID_PACKAGE = "com.safetylog.inspection.app"
+# Comma-separated list of verified Google accounts allowed to hold the OWNER role.
+OWNER_EMAILS = "jdesrosiers88@gmail.com,hexenginelabs@gmail.com"
+# How long a signed authorization snapshot stays valid for offline read-only use.
+SNAPSHOT_TTL_SECONDS = "900"
+
+# Secrets — set with `wrangler secret put <NAME>`; never commit them:
+#   SIGNING_KEY_PKCS8_BASE64   base64 DER of the RSA private key (see scripts/generate-keys.mjs)
+#   SIGNING_KEY_SPKI_BASE64    base64 DER of the matching public key (same script)
+#   GOOGLE_SERVICE_ACCOUNT_JSON  service account JSON with androidpublisher access (Play purchase verification)

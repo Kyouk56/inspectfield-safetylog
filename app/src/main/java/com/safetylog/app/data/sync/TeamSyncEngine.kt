@@ -49,6 +49,58 @@ class TeamSyncEngine(
         private const val KEY_LAST_SYNC_TIMESTAMP = "sync_last_timestamp"
         const val DEFAULT_REST_ENDPOINT = "https://api.safetylog.com/v1/sync"
         const val SYNC_FILE_EXTENSION = ".safetylog.enc"
+
+        /** Pure package builder so the exported shape can be tested without an Android Context. */
+        internal fun buildPackageJson(
+            allEquipment: List<EquipmentItem>,
+            equipmentById: Map<Long, EquipmentItem>,
+            allInspections: List<InspectionRecord>,
+            organizationId: String,
+            cryptoMode: String
+        ): JSONObject = JSONObject().apply {
+            put("version", PackageCrypto.ENVELOPE_VERSION)
+            put("exportedAt", System.currentTimeMillis())
+            put("organizationId", organizationId)
+            put("cryptoMode", cryptoMode)
+
+            val eqArray = JSONArray()
+            allEquipment.forEach { eq ->
+                eqArray.put(JSONObject().apply {
+                    put("tagId", eq.tagId)
+                    put("locationDescription", eq.locationDescription)
+                    put("equipmentType", eq.equipmentType)
+                    put("serialNumber", eq.serialNumber)
+                    put("installDate", eq.installDate)
+                    put("assignedChecklist", eq.assignedChecklist)
+                    put("reviewFrequency", eq.reviewFrequency)
+                    put("assignedReviewDate", eq.assignedReviewDate)
+                    put("assignedReviewTime", eq.assignedReviewTime)
+                    put("nextReviewTimestamp", eq.nextReviewTimestamp)
+                    put("reminderEnabled", eq.reminderEnabled)
+                    put("reminderLeadDays", eq.reminderLeadDays)
+                })
+            }
+            put("equipment", eqArray)
+
+            val insArray = JSONArray()
+            allInspections.forEach { ins ->
+                insArray.put(JSONObject().apply {
+                    put("syncId", ins.syncId)
+                    put("equipmentTag", equipmentById[ins.equipmentId]?.tagId ?: "")
+                    put("timestamp", ins.timestamp)
+                    put("isPressureOk", ins.isPressureOk)
+                    put("isHoseIntact", ins.isHoseIntact)
+                    put("isPinSealed", ins.isPinSealed)
+                    put("isSignagePresent", ins.isSignagePresent)
+                    put("isAccessUnobstructed", ins.isAccessUnobstructed)
+                    put("overallStatus", ins.overallStatus)
+                    put("notes", ins.notes ?: "")
+                    put("checklistName", ins.checklistName)
+                    put("checklistSummary", ins.checklistSummary)
+                })
+            }
+            put("inspections", insArray)
+        }
     }
 
     fun getCustomRestEndpoint(): String {
@@ -67,67 +119,35 @@ class TeamSyncEngine(
     }
 
     /**
-     * Exports full facility state (equipment & inspections) into an AES-256-GCM encrypted package
+     * Exports full facility state into an encrypted package. Supplying a passphrase creates a
+     * portable envelope package that can be imported on a different device (D-06); omitting it
+     * keeps the legacy device-bound Keystore format for local backups.
      */
-    suspend fun exportEncryptedTeamPackage(): Result<File> = withContext(Dispatchers.IO) {
+    suspend fun exportEncryptedTeamPackage(passphrase: String? = null): Result<File> = withContext(Dispatchers.IO) {
         try {
             val allEquipment = equipmentDao.getAllEquipment()
             val equipmentById = allEquipment.associateBy { it.id }
             val records = inspectionDao.getInspectionsInRange(0L, System.currentTimeMillis() + 100000L)
             val allInspections = records.filter { it.equipmentId in equipmentById }
 
-            val rootJson = JSONObject().apply {
-                put("version", 2)
-                put("exportedAt", System.currentTimeMillis())
-                put("organizationId", secureStorage.loadUser()?.userId ?: "DEFAULT_ORG")
+            val rootJson = buildPackageJson(
+                allEquipment = allEquipment,
+                equipmentById = equipmentById,
+                allInspections = allInspections,
+                organizationId = secureStorage.loadUser()?.userId ?: "DEFAULT_ORG",
+                cryptoMode = if (passphrase.isNullOrBlank()) "device" else "passphrase"
+            )
 
-                val eqArray = JSONArray()
-                allEquipment.forEach { eq ->
-                    eqArray.put(JSONObject().apply {
-                        put("tagId", eq.tagId)
-                        put("locationDescription", eq.locationDescription)
-                        put("equipmentType", eq.equipmentType)
-                        put("serialNumber", eq.serialNumber)
-                        put("installDate", eq.installDate)
-                        put("assignedChecklist", eq.assignedChecklist)
-                        put("reviewFrequency", eq.reviewFrequency)
-                        put("assignedReviewDate", eq.assignedReviewDate)
-                        put("assignedReviewTime", eq.assignedReviewTime)
-                        put("nextReviewTimestamp", eq.nextReviewTimestamp)
-                    })
-                }
-                put("equipment", eqArray)
-
-                val insArray = JSONArray()
-                allInspections.forEach { ins ->
-                    insArray.put(JSONObject().apply {
-                        put("equipmentTag", equipmentById[ins.equipmentId]?.tagId ?: "")
-                        put("timestamp", ins.timestamp)
-                        put("isPressureOk", ins.isPressureOk)
-                        put("isHoseIntact", ins.isHoseIntact)
-                        put("isPinSealed", ins.isPinSealed)
-                        put("isSignagePresent", ins.isSignagePresent)
-                        put("isAccessUnobstructed", ins.isAccessUnobstructed)
-                        put("overallStatus", ins.overallStatus)
-                        put("notes", ins.notes ?: "")
-                        put("checklistName", ins.checklistName)
-                        put("checklistSummary", ins.checklistSummary)
-                    })
-                }
-                put("inspections", insArray)
+            val serialized = if (passphrase.isNullOrBlank()) {
+                secureStorage.encryptData(rootJson.toString().toByteArray(Charsets.UTF_8)).toSerialized()
+            } else {
+                PackageCrypto.encrypt(rootJson.toString(), passphrase)
             }
-
-            val rawJsonBytes = rootJson.toString().toByteArray(Charsets.UTF_8)
-            val encryptedPayload = secureStorage.encryptData(rawJsonBytes)
-            val serialized = encryptedPayload.toSerialized()
 
             val syncDir = File(context.cacheDir, "sync_exports").apply { mkdirs() }
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
             val exportFile = File(syncDir, "SafetyLog_TeamSync_$timeStamp$SYNC_FILE_EXTENSION")
-
-            FileOutputStream(exportFile).use { fos ->
-                fos.write(serialized.toByteArray(Charsets.UTF_8))
-            }
+            FileOutputStream(exportFile).use { it.write(serialized.toByteArray(Charsets.UTF_8)) }
 
             prefs.edit().putLong(KEY_LAST_SYNC_TIMESTAMP, System.currentTimeMillis()).apply()
             Result.success(exportFile)
@@ -137,24 +157,32 @@ class TeamSyncEngine(
     }
 
     /**
-     * Imports and decrypts a .safetylog.enc package, upserting data into the local Room database
+     * Imports a package, restoring equipment, reminder settings and inspection history.
+     * Both the portable passphrase envelope and the legacy device-bound format are accepted.
      */
-    suspend fun importEncryptedTeamPackage(packageContent: String): SyncResult = withContext(Dispatchers.IO) {
+    suspend fun importEncryptedTeamPackage(
+        packageContent: String,
+        passphrase: String? = null
+    ): SyncResult = withContext(Dispatchers.IO) {
         try {
-            val payload = EncryptedPayload.fromSerialized(packageContent.trim())
-                ?: return@withContext SyncResult.Error("Invalid package format. Must be an encrypted SafetyLog package.")
-
-            val decryptedBytes = secureStorage.decryptData(payload)
-            val jsonStr = String(decryptedBytes, Charsets.UTF_8)
+            val content = packageContent.trim()
+            val jsonStr = if (PackageCrypto.isEnvelope(content)) {
+                if (passphrase.isNullOrBlank()) {
+                    return@withContext SyncResult.Error("This package is passphrase-protected. Enter the package passphrase.")
+                }
+                PackageCrypto.decrypt(content, passphrase)
+            } else {
+                val payload = EncryptedPayload.fromSerialized(content)
+                    ?: return@withContext SyncResult.Error("Invalid package format. Must be an encrypted SafetyLog package.")
+                String(secureStorage.decryptData(payload), Charsets.UTF_8)
+            }
             val rootJson = JSONObject(jsonStr)
 
-            val eqArray = rootJson.getJSONArray("equipment")
             var importedCount = 0
-
+            val eqArray = rootJson.getJSONArray("equipment")
             for (i in 0 until eqArray.length()) {
                 val obj = eqArray.getJSONObject(i)
                 val tagId = obj.getString("tagId")
-
                 val existing = equipmentDao.getEquipmentByTag(tagId)
                 val item = EquipmentItem(
                     id = existing?.id ?: 0L,
@@ -167,16 +195,52 @@ class TeamSyncEngine(
                     reviewFrequency = obj.optString("reviewFrequency", "Monthly"),
                     assignedReviewDate = obj.optString("assignedReviewDate", ""),
                     assignedReviewTime = obj.optString("assignedReviewTime", "09:00 AM"),
-                    nextReviewTimestamp = obj.optLong("nextReviewTimestamp", 0L)
+                    nextReviewTimestamp = obj.optLong("nextReviewTimestamp", 0L),
+                    reminderEnabled = obj.optBoolean("reminderEnabled", true),
+                    reminderLeadDays = obj.optInt("reminderLeadDays", 1)
                 )
                 equipmentDao.upsertEquipment(item)
                 importedCount++
             }
 
+            // D-07: restore inspections, keyed by stable syncId so a repeat import is idempotent.
+            var inspectionCount = 0
+            val insArray = rootJson.optJSONArray("inspections") ?: JSONArray()
+            for (i in 0 until insArray.length()) {
+                val obj = insArray.getJSONObject(i)
+                val tagId = obj.optString("equipmentTag", "")
+                val equipment = equipmentDao.getEquipmentByTag(tagId) ?: continue
+                val syncId = obj.optString("syncId").ifBlank { UUID.randomUUID().toString() }
+                val existing = inspectionDao.getInspectionBySyncId(syncId)
+                val record = InspectionRecord(
+                    id = existing?.id ?: 0L,
+                    syncId = syncId,
+                    equipmentId = equipment.id,
+                    timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                    isPressureOk = obj.optBoolean("isPressureOk"),
+                    isHoseIntact = obj.optBoolean("isHoseIntact"),
+                    isPinSealed = obj.optBoolean("isPinSealed"),
+                    isSignagePresent = obj.optBoolean("isSignagePresent"),
+                    isAccessUnobstructed = obj.optBoolean("isAccessUnobstructed"),
+                    overallStatus = obj.optString("overallStatus", "PASSED"),
+                    notes = obj.optString("notes", ""),
+                    // Media files stay on the originating device; keep local paths on update.
+                    photoUri = existing?.photoUri,
+                    signaturePath = existing?.signaturePath.orEmpty(),
+                    checklistName = obj.optString("checklistName", ""),
+                    checklistSummary = obj.optString("checklistSummary", "")
+                )
+                if (existing != null) inspectionDao.updateInspection(record) else inspectionDao.insertInspection(record)
+                inspectionCount++
+            }
+
             prefs.edit().putLong(KEY_LAST_SYNC_TIMESTAMP, System.currentTimeMillis()).apply()
-            SyncResult.Success("Successfully synced $importedCount assets into compliance vault.", importedCount)
+            SyncResult.Success(
+                "Synced $importedCount assets and $inspectionCount inspections into the compliance vault.",
+                importedCount + inspectionCount
+            )
         } catch (e: Exception) {
-            SyncResult.Error("Decryption/Import Failed: ${e.localizedMessage ?: "Corrupted file or mismatched keys"}")
+            SyncResult.Error("Decryption/Import Failed: ${e.localizedMessage ?: "Corrupted file, wrong passphrase or mismatched keys"}")
         }
     }
 

@@ -256,7 +256,18 @@ class ProfileViewModel(
     }
 
     fun clearSaveSuccess() = _uiState.update { it.copy(isSavedSuccess = false) }
-    fun clearErrorMessage() = _uiState.update { it.copy(errorMessage = null) }
+    fun clearErrorMessage() {
+        val hadError = _uiState.value.errorMessage != null
+        _uiState.update { it.copy(errorMessage = null) }
+        // D-15: a transient read failure must not permanently block saves. Retry the
+        // read once the user dismisses the error, while still gating blank saves.
+        if (hadError && !loadCompleted) loadProfile()
+    }
+
+    fun retryLoadProfile() {
+        _uiState.update { it.copy(errorMessage = null, isLoading = true) }
+        loadProfile()
+    }
 
     fun syncFromOAuth() {
         val user = _uiState.value.authUser

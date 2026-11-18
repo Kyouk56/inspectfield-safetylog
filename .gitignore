@@ -24,3 +24,6 @@ app/keystore/*.jks
 
 # Tool caches
 .embark/
+node_modules/
+server/wrangler.toml
+signing-secrets.properties

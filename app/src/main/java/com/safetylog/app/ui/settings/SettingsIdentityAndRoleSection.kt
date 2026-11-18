@@ -30,6 +30,7 @@ import com.safetylog.app.data.auth.UserRole
 import com.safetylog.app.ui.dashboard.DashboardUiState
 import com.safetylog.app.ui.dashboard.DashboardViewModel
 import com.safetylog.app.ui.theme.*
+import com.safetylog.app.util.TestControls
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -41,8 +42,11 @@ internal fun SettingsDeveloperSandboxCard(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
-    // 3. Admin & Developer Sandbox (Strictly gated to Owner; stays accessible when active for testing)
-    if (uiState.userRole.canAccessTestView || uiState.isAdminTestViewActive) {
+    // 3. Admin & Developer Sandbox — test controls only, never exposed in the public release.
+    // This is a local simulation tool (mock inventory, role/tier overrides), not a
+    // production admin feature, so it is gated by build type instead of by a role that
+    // the app itself can grant.
+    if (TestControls.isEnabled) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -153,7 +157,7 @@ internal fun SettingsDeveloperSandboxCard(
                                         if (isRestrictedOwner) {
                                             Toast.makeText(
                                                 context,
-                                                "Restricted: Owner authority is reserved exclusively for j.desrosiers88@gmail.com and hexenginelabs@gmail.com",
+                                                "Restricted: Owner authority is reserved exclusively for jdesrosiers88@gmail.com and hexenginelabs@gmail.com",
                                                 Toast.LENGTH_LONG
                                             ).show()
                                         } else {
@@ -605,7 +609,13 @@ internal fun SettingsSubscriptionQuotasCard(
                         FilterChip(
                             selected = isSelected,
                             onClick = {
-                                dashboardViewModel.setSubscriptionTier(tier, uiState.enterpriseSeats)
+                                // Public release: real purchases only. Never grant a paid
+                                // tier (or a privileged role) from a local chip press.
+                                if (TestControls.isEnabled) {
+                                    dashboardViewModel.setSubscriptionTier(tier, uiState.enterpriseSeats)
+                                } else {
+                                    onShowPaywall()
+                                }
                             },
                             label = {
                                 Text(
@@ -686,31 +696,33 @@ internal fun SettingsSubscriptionQuotasCard(
                     }
                 }
 
-                // Self-Service Billing Test Controls
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                Text("Self-Service Lifecycle Simulation:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            dashboardViewModel.markPaymentFailed()
-                            Toast.makeText(context, "Simulated payment failure: Features locked to free use", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) { Text("Fail Pay", fontSize = 11.sp, maxLines = 1) }
-                    OutlinedButton(
-                        onClick = {
-                            dashboardViewModel.cancelSubscription()
-                            Toast.makeText(context, "Simulated cancel: Features locked to free use", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) { Text("Cancel", fontSize = 11.sp, maxLines = 1) }
-                    OutlinedButton(
-                        onClick = {
-                            dashboardViewModel.reactivateSubscription()
-                            Toast.makeText(context, "Simulated success: Features restored", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) { Text("Restore", fontSize = 11.sp, maxLines = 1) }
+                // Self-Service Billing Test Controls — test builds only.
+                if (TestControls.isEnabled) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    Text("Self-Service Lifecycle Simulation:", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                dashboardViewModel.markPaymentFailed()
+                                Toast.makeText(context, "Simulated payment failure: Features locked to free use", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) { Text("Fail Pay", fontSize = 11.sp, maxLines = 1) }
+                        OutlinedButton(
+                            onClick = {
+                                dashboardViewModel.cancelSubscription()
+                                Toast.makeText(context, "Simulated cancel: Features locked to free use", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) { Text("Cancel", fontSize = 11.sp, maxLines = 1) }
+                        OutlinedButton(
+                            onClick = {
+                                dashboardViewModel.reactivateSubscription()
+                                Toast.makeText(context, "Simulated success: Features restored", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) { Text("Restore", fontSize = 11.sp, maxLines = 1) }
+                    }
                 }
             }
         }

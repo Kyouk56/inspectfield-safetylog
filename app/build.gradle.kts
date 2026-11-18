@@ -25,8 +25,8 @@ android {
         applicationId = "com.safetylog.inspection.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.0.16"
+        versionCode = 20
+        versionName = "1.0.17"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val admobAppId = project.findProperty("SAFETYLOG_ADMOB_APP_ID") as? String
@@ -143,9 +143,6 @@ dependencies {
     // Android Core & File Handling
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.documentfile)
-
-    // Android Security & Cryptography (AES-256 GCM backed by Android Keystore MasterKey)
-    implementation(libs.androidx.security.crypto)
 
     // Google Credential Manager & OAuth Identity
     implementation(libs.androidx.credentials)

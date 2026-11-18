@@ -19,7 +19,7 @@ import javax.crypto.spec.SecretKeySpec
 object PackageCrypto {
 
     const val ENVELOPE_VERSION = 3
-    private const val ITERATIONS = 150_000
+    const val PBKDF2_ITERATIONS = 150_000
     private const val SALT_BYTES = 16
     private const val IV_BYTES = 12
     private const val KEY_BITS = 256
@@ -41,7 +41,7 @@ object PackageCrypto {
             .put("version", ENVELOPE_VERSION)
             .put("kdf", JSONObject()
                 .put("name", "PBKDF2WithHmacSHA256")
-                .put("iterations", ITERATIONS)
+                .put("iterations", PBKDF2_ITERATIONS)
                 .put("salt", Base64.getEncoder().encodeToString(salt)))
             .put("iv", Base64.getEncoder().encodeToString(iv))
             .put("ciphertext", Base64.getEncoder().encodeToString(cipherText))
@@ -53,17 +53,18 @@ object PackageCrypto {
         require(envelope.optString("format") == "safetylog-envelope") { "Unsupported package format" }
         val kdf = envelope.getJSONObject("kdf")
         require(kdf.optString("name") == "PBKDF2WithHmacSHA256") { "Unsupported key derivation" }
+        val iterations = kdf.optInt("iterations", PBKDF2_ITERATIONS).coerceIn(10_000, 600_000)
         val salt = Base64.getDecoder().decode(kdf.getString("salt"))
         val iv = Base64.getDecoder().decode(envelope.getString("iv"))
         val cipherText = Base64.getDecoder().decode(envelope.getString("ciphertext"))
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, deriveKey(passphrase, salt), GCMParameterSpec(128, iv))
+        cipher.init(Cipher.DECRYPT_MODE, deriveKey(passphrase, salt, iterations), GCMParameterSpec(128, iv))
         return String(cipher.doFinal(cipherText), Charsets.UTF_8)
     }
 
-    private fun deriveKey(passphrase: String, salt: ByteArray): SecretKeySpec {
-        val spec = PBEKeySpec(passphrase.toCharArray(), salt, ITERATIONS, KEY_BITS)
+    private fun deriveKey(passphrase: String, salt: ByteArray, iterations: Int = PBKDF2_ITERATIONS): SecretKeySpec {
+        val spec = PBEKeySpec(passphrase.toCharArray(), salt, iterations, KEY_BITS)
         val derived = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
         return SecretKeySpec(derived, "AES")
     }

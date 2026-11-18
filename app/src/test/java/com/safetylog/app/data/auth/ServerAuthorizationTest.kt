@@ -38,6 +38,7 @@ class ServerAuthorizationTest {
             .put("id", "member-1")
             .put("email", "tech@example.com")
             .put("role", "USER")
+            .put("addedEpochMs", 1700000000123L)
             .put("isActive", true)))
         .put("iat", System.currentTimeMillis() / 1000)
         .put("exp", System.currentTimeMillis() / 1000 + expOffset)
@@ -53,6 +54,7 @@ class ServerAuthorizationTest {
         assertEquals(12, snapshot.seats)
         assertEquals(1, snapshot.team.size)
         assertEquals("tech@example.com", snapshot.team.first().email)
+        assertEquals(1700000000123L, snapshot.team.first().addedEpochMs)
         assertFalse(snapshot.isExpired)
     }
 
@@ -100,6 +102,15 @@ class ServerAuthorizationTest {
 
         val malformed = AuthorizationApi(FakeTransport(TransportResponse(200, "{}")))
         assertTrue(malformed.refresh(token) is ApiResult.InvalidResponse)
+
+        val ioErrorApi = AuthorizationApi(object : AuthorizationTransport {
+            override suspend fun request(method: String, path: String, body: String?, bearer: String?): TransportResponse {
+                throw java.io.IOException("Simulated network drop")
+            }
+        })
+        assertTrue(ioErrorApi.exchange("id", null) is ApiResult.NetworkError)
+        assertTrue(ioErrorApi.refresh(token) is ApiResult.NetworkError)
+        assertTrue(ioErrorApi.verifyPurchase("tok", "sku", token) is ApiResult.NetworkError)
     }
 
     @Test

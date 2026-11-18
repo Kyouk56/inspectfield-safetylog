@@ -2,6 +2,7 @@ package com.safetylog.app.ui.report
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -580,33 +581,37 @@ fun ReportsScreen(
 }
 
 private fun sharePdf(context: Context, pdfFile: File) {
-    val authority = "${context.packageName}.fileprovider"
-    val uri = FileProvider.getUriForFile(context, authority, pdfFile)
+    try {
+        val authority = "${context.packageName}.fileprovider"
+        val uri = FileProvider.getUriForFile(context, authority, pdfFile)
 
-    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "application/pdf"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        putExtra(Intent.EXTRA_SUBJECT, "Commercial Safety Compliance Inspection Report")
-        putExtra(Intent.EXTRA_TEXT, "Attached is the official signed safety compliance inspection report.")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, "Commercial Safety Compliance Inspection Report")
+            putExtra(Intent.EXTRA_TEXT, "Attached is the official signed safety compliance inspection report.")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        val chooser = Intent.createChooser(sendIntent, "Share Safety Compliance Report")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+    } catch (e: Exception) {
+        Toast.makeText(context, "Unable to share: ${e.message}", Toast.LENGTH_SHORT).show()
     }
-
-    val chooser = Intent.createChooser(sendIntent, "Share Safety Compliance Report")
-    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    context.startActivity(chooser)
 }
 
 private fun viewPdf(context: Context, pdfFile: File) {
-    val authority = "${context.packageName}.fileprovider"
-    val uri = FileProvider.getUriForFile(context, authority, pdfFile)
-
-    val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, "application/pdf")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-
     try {
+        val authority = "${context.packageName}.fileprovider"
+        val uri = FileProvider.getUriForFile(context, authority, pdfFile)
+
+        val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/pdf")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
         context.startActivity(viewIntent)
     } catch (_: Exception) {
         sharePdf(context, pdfFile)

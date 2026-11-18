@@ -132,3 +132,46 @@ test("registry entitlement defaults to FREE and honours stored values", async ()
     tier: "ENTERPRISE", paymentStatus: "ACTIVE", seats: 12,
   });
 });
+
+test("verifyPassword returns false on malformed stored hashes", async () => {
+  const kv = fakeKv();
+  const record = await setCredential(kv, "malformed@example.com", "correct horse battery", "USER");
+  assert.equal(await verifyPassword({ ...record, salt: "!!!" }, "correct horse battery"), false);
+  assert.equal(await verifyPassword({ ...record, hash: "!!!" }, "correct horse battery"), false);
+});
+
+test("team storage is isolated per owner set and preserves addedEpochMs", async () => {
+  const kv = fakeKv();
+  const regA = new Registry(kv, ["ownerA@example.com"]);
+  const regB = new Registry(kv, ["ownerB@example.com"]);
+  await regA.setTeam([{ id: "1", email: "m@example.com", name: "M", role: "USER", isActive: true, addedEpochMs: 123 }]);
+  assert.equal((await regB.getTeam()).length, 0);
+  const stored = await regA.getTeam();
+  assert.equal(stored.length, 1);
+  assert.equal(stored[0]?.addedEpochMs, 123);
+});
+
+test("registry rejects malformed team members", async () => {
+  const kv = fakeKv();
+  const reg = new Registry(kv, []);
+  await assert.rejects(() => reg.setTeam([null]));
+  await assert.rejects(() => reg.setTeam([{ email: "", role: "USER" }]));
+  await assert.rejects(() => reg.setTeam([{ email: "a@b.com", role: "NOT_A_ROLE" }]));
+  await assert.rejects(() => reg.setTeam([{ email: "a@b.com", role: "OWNER" }]));
+});
+
+test("registry sanitizes non-finite seat counts", async () => {
+  const kv = fakeKv();
+  const reg = new Registry(kv, []);
+  await reg.setEntitlement("user@example.com", { tier: "FREE", paymentStatus: "ACTIVE", seats: NaN }, "owner");
+  assert.equal((await reg.entitlementFor("user@example.com")).seats, 1);
+});
+
+test("registry getTeam aliases team and populates missing addedEpochMs", async () => {
+  const kv = fakeKv();
+  const reg = new Registry(kv, []);
+  await reg.setTeam([{ id: "1", email: "m@example.com", name: "M", role: "USER", isActive: true }]);
+  const stored = await reg.team();
+  assert.equal(stored.length, 1);
+  assert.ok(typeof stored[0]?.addedEpochMs === "number");
+});

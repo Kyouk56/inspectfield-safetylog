@@ -31,6 +31,10 @@ export interface PurchaseVerification {
 let cachedAccessToken: { token: string; expiresAt: number } | null = null;
 
 async function serviceAccountAccessToken(sa: ServiceAccount): Promise<string> {
+  if (!sa || typeof sa.client_email !== "string" || !sa.client_email.trim() ||
+      typeof sa.private_key !== "string" || !sa.private_key.trim()) {
+    throw new Error("Invalid service account configuration");
+  }
   if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now() + 60_000) return cachedAccessToken.token;
 
   const key = await crypto.subtle.importKey(
@@ -90,6 +94,11 @@ export async function verifyPlayPurchase(
     return { entitled: false, tier: null, reason: "Malformed service account configuration" };
   }
 
+  if (!sa || typeof sa.client_email !== "string" || !sa.client_email.trim() ||
+      typeof sa.private_key !== "string" || !sa.private_key.trim()) {
+    return { entitled: false, tier: null, reason: "Invalid service account configuration" };
+  }
+
   const token = await serviceAccountAccessToken(sa);
   const encodedToken = encodeURIComponent(purchaseToken);
   const url = subscriptionTier
@@ -102,8 +111,17 @@ export async function verifyPlayPurchase(
   if (response.status === 404) return { entitled: false, tier: null, reason: "Purchase not found" };
   if (!response.ok) throw new Error(`Play Developer API request failed (${response.status})`);
 
-  const purchase = (await response.json()) as { subscriptionState?: string; purchaseState?: number };
+  const purchase = (await response.json()) as {
+    subscriptionState?: string;
+    purchaseState?: number;
+    lineItems?: Array<{ productId?: string }>;
+  };
   if (subscriptionTier) {
+    const lineItems = Array.isArray(purchase.lineItems) ? purchase.lineItems : [];
+    const hasExpectedProduct = lineItems.some((item) => item?.productId === productId);
+    if (!hasExpectedProduct) {
+      return { entitled: false, tier: null, reason: "Subscription product mismatch" };
+    }
     const active = purchase.subscriptionState === "SUBSCRIPTION_STATE_ACTIVE" ||
       purchase.subscriptionState === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD";
     return active

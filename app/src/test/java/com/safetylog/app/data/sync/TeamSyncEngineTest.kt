@@ -72,4 +72,14 @@ class TeamSyncEngineTest {
         assertEquals("https://api.safetylog.com/v1/sync", TeamSyncEngine.DEFAULT_REST_ENDPOINT)
         assertEquals(".safetylog.enc", TeamSyncEngine.SYNC_FILE_EXTENSION)
     }
+
+    @Test
+    fun enterpriseEndpointsMustBeHttps() {
+        assertTrue(TeamSyncEngine.isHttpsUrl("https://sync.example.com/v1"))
+        assertTrue(TeamSyncEngine.isHttpsUrl("  HTTPS://sync.example.com/v1  "))
+        assertFalse(TeamSyncEngine.isHttpsUrl("http://sync.example.com/v1"))
+        assertFalse(TeamSyncEngine.isHttpsUrl("ftp://sync.example.com/v1"))
+        assertFalse(TeamSyncEngine.isHttpsUrl("sync.example.com/v1"))
+        assertFalse(TeamSyncEngine.isHttpsUrl(""))
+    }
 }

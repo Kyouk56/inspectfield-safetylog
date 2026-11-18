@@ -15,6 +15,7 @@ export interface TeamMemberClaim {
   name: string;
   role: UserRole;
   isActive: boolean;
+  addedEpochMs?: number;
 }
 
 export interface EntitlementClaim {

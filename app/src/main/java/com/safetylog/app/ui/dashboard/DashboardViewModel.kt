@@ -61,7 +61,7 @@ data class DashboardUiState(
     val passedCount: Int = equipmentList.count { it.lastInspectionStatus.equals("PASSED", ignoreCase = true) }
     val deficientCount: Int = equipmentList.count { it.lastInspectionStatus.equals("DEFICIENT", ignoreCase = true) }
     val dueCount: Int = equipmentList.count { item ->
-        item.lastInspectionDate == null || (item.equipment.nextReviewTimestamp in 1..<System.currentTimeMillis())
+        item.lastInspectionDate == null || (item.equipment.nextReviewTimestamp in 1..System.currentTimeMillis())
     }
 
     val isSubscriptionDelinquentOrCancelled: Boolean =
@@ -81,7 +81,7 @@ data class DashboardUiState(
                 FilterStatus.ALL -> true
                 FilterStatus.PASSED -> item.lastInspectionStatus.equals("PASSED", ignoreCase = true)
                 FilterStatus.DEFICIENT -> item.lastInspectionStatus.equals("DEFICIENT", ignoreCase = true)
-                FilterStatus.DUE -> item.lastInspectionDate == null || (item.equipment.nextReviewTimestamp in 1..<now)
+                FilterStatus.DUE -> item.lastInspectionDate == null || (item.equipment.nextReviewTimestamp in 1..now)
             }
             matchesSearch && matchesFilter
         }
@@ -191,7 +191,7 @@ class DashboardViewModel(
         // When configured, the server-signed snapshot is the ONLY source of truth.
         // Local preferences are ignored entirely rather than merged.
         val authoritative = ServerAuthorization.isConfigured && signed != null
-        val tier = if (authoritative) signed!!.tier else entitlement.subscription.tier
+        val tier = if (authoritative) signed.tier else entitlement.subscription.tier
         val effective = if (authoritative) signed.effectiveTier else entitlement.subscription.effective
         val payStatus = if (authoritative) signed.paymentStatus else entitlement.subscription.payStatus
         val members = if (authoritative) signed.team else entitlement.team.members

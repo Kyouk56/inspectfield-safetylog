@@ -47,7 +47,7 @@ internal fun EquipmentAssetCard(
 
     val statusColors = getComplianceStatusColors(item.lastInspectionStatus, isDark = isDark)
     val now = System.currentTimeMillis()
-    val isOverdue = eq.nextReviewTimestamp in 1..<now
+    val isOverdue = eq.nextReviewTimestamp in 1..now
 
     val defaultProtocolName = remember(eq.equipmentType) {
         ChecklistRegistry.getChecklistForType(eq.equipmentType).categoryName

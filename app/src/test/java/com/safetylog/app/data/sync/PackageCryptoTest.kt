@@ -30,6 +30,27 @@ class PackageCryptoTest {
     }
 
     @Test
+    fun envelopeRecordsKdfIterations() {
+        val parsed = JSONObject(PackageCrypto.encrypt("{}", "passphrase"))
+        assertEquals(
+            PackageCrypto.PBKDF2_ITERATIONS,
+            parsed.getJSONObject("kdf").getInt("iterations")
+        )
+    }
+
+    @Test
+    fun decryptHonorsIterationsEmbeddedInEnvelope() {
+        // If decrypt ignored kdf.iterations and always used the default, the original
+        // 150k-derived key would still decrypt successfully. Changing the envelope to a
+        // different (valid) iteration count must instead fail authentication.
+        val envelope = JSONObject(PackageCrypto.encrypt("sensitive audit data", "right-passphrase"))
+        envelope.getJSONObject("kdf").put("iterations", 10_000)
+        assertThrows(Exception::class.java) {
+            PackageCrypto.decrypt(envelope.toString(), "right-passphrase")
+        }
+    }
+
+    @Test
     fun legacyDeviceBoundPayloadIsNotMistakenForEnvelope() {
         assertFalse(PackageCrypto.isEnvelope("aXYxMjM0NTY3ODkwMTI=:Y2lwaGVydGV4dA=="))
         assertTrue(PackageCrypto.isEnvelope("  {\"format\":\"safetylog-envelope\"}"))

@@ -31,8 +31,10 @@ class InspectionReminderManager(private val context: Context) {
         const val EXTRA_DUE_TIMESTAMP = "extra_due_timestamp"
         const val EXTRA_FROM_NOTIFICATION = "com.safetylog.app.extra.FROM_NOTIFICATION"
 
-        // Dedicated high value so the test alert cannot collide with an equipment alarm.
+        // Dedicated high values so the test alert cannot collide with an equipment alarm
+        // or with the dashboard's content PendingIntent (request code 0).
         const val TEST_NOTIFICATION_ID = Int.MAX_VALUE - 1
+        private const val TEST_NOTIFICATION_REQUEST_CODE = -1
 
         /** True when the system allows exact alarms (always true before API 31). */
         fun hasExactAlarmPermission(context: Context): Boolean {
@@ -89,7 +91,8 @@ class InspectionReminderManager(private val context: Context) {
                 // Lead time passed, but inspection is still in the future -> trigger prompt shortly
                 triggerAtMillis = now + 60_000L
             } else {
-                // Already overdue: don't schedule stale alarm
+                // Already overdue: clear any stale alarm and don't schedule another one.
+                cancelReminder(equipment.id)
                 return
             }
         }
@@ -201,7 +204,7 @@ class InspectionReminderManager(private val context: Context) {
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            0,
+            TEST_NOTIFICATION_REQUEST_CODE,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

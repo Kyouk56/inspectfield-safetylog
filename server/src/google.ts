@@ -32,9 +32,9 @@ type Jwk = JsonWebKey & { kid?: string; alg?: string; use?: string };
 
 let jwksCache: { keys: Map<string, Jwk>; expiresAt: number } | null = null;
 
-async function googleKeys(): Promise<Map<string, Jwk>> {
+async function googleKeys(force = false): Promise<Map<string, Jwk>> {
   const now = Date.now();
-  if (jwksCache && jwksCache.expiresAt > now) return jwksCache.keys;
+  if (!force && jwksCache && jwksCache.expiresAt > now) return jwksCache.keys;
 
   const response = await fetch(GOOGLE_JWKS_URL, {
     headers: { "User-Agent": "safetylog-auth-worker/1.0" },
@@ -72,7 +72,10 @@ export async function verifyGoogleIdToken(
     throw new UnauthorizedError("Unsupported ID token algorithm");
   }
 
-  const jwk = (await googleKeys()).get(parsed.header.kid);
+  let jwk = (await googleKeys()).get(parsed.header.kid!);
+  if (!jwk) {
+    jwk = (await googleKeys(true)).get(parsed.header.kid!);
+  }
   if (!jwk) throw new UnauthorizedError("Unknown ID token key id");
 
   let valid = false;
@@ -96,10 +99,13 @@ export async function verifyGoogleIdToken(
   const audiences = Array.isArray(claims.aud) ? claims.aud : claims.aud ? [claims.aud] : [];
   if (!audiences.includes(audience)) throw new UnauthorizedError("Token audience mismatch");
 
-  if (!claims.exp || claims.exp + CLOCK_SKEW_SECONDS <= now) throw new UnauthorizedError("Token expired");
+  if (typeof claims.exp !== "number" || !claims.exp || claims.exp + CLOCK_SKEW_SECONDS <= now) throw new UnauthorizedError("Token expired");
   if (claims.iat && claims.iat - CLOCK_SKEW_SECONDS > now) throw new UnauthorizedError("Token issued in the future");
   if (claims.nbf && claims.nbf > now + CLOCK_SKEW_SECONDS) throw new UnauthorizedError("Token not yet valid");
   if (claims.email_verified !== true || !claims.email) throw new UnauthorizedError("Email not verified");
+  const hasSub = typeof claims.sub === "string" && claims.sub.trim().length > 0;
+  const hasEmail = typeof claims.email === "string" && claims.email.trim().length > 0;
+  if (!hasSub && !hasEmail) throw new UnauthorizedError("Missing subject or email");
   if (expectedNonce && claims.nonce !== expectedNonce) throw new UnauthorizedError("Nonce mismatch");
 
   return {

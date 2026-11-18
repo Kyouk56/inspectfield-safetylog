@@ -7,10 +7,11 @@
 -dontwarn androidx.room.paging.**
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class * { *; }
--keep class * extends androidx.room.TypeConverter
+-keep class * extends androidx.room.TypeConverter { *; }
 -keep class com.safetylog.app.data.Converters { *; }
 -keep class com.safetylog.app.data.model.** { *; }
 -keep class com.safetylog.app.data.dao.** { *; }
+-keep class com.safetylog.app.data.sync.** { *; }
 
 # --- Security & Keystore Crypto (MasterKey & EncryptedSharedPreferences) ---
 -keep class androidx.security.crypto.** { *; }

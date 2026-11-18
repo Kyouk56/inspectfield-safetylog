@@ -6,7 +6,7 @@ import { UserRole, USER_ROLES } from "./types";
  * per-account random salt; the app never holds a privileged credential.
  */
 
-const PBKDF2_ITERATIONS = 150_000;
+const PBKDF2_ITERATIONS = 100_000;
 const SALT_BYTES = 16;
 
 export interface CredentialRecord {
@@ -44,13 +44,17 @@ export async function getCredential(kv: KVNamespace, email: string): Promise<Cre
 }
 
 export async function verifyPassword(record: CredentialRecord, password: string): Promise<boolean> {
-  const expected = await deriveHash(password, base64UrlToBytes(record.salt));
-  const a = base64UrlToBytes(expected);
-  const b = base64UrlToBytes(record.hash);
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
-  return diff === 0;
+  try {
+    const expected = await deriveHash(password, base64UrlToBytes(record.salt));
+    const a = base64UrlToBytes(expected);
+    const b = base64UrlToBytes(record.hash);
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+    return diff === 0;
+  } catch {
+    return false;
+  }
 }
 
 export async function setCredential(
@@ -71,4 +75,12 @@ export async function setCredential(
 
 export async function deleteCredential(kv: KVNamespace, email: string): Promise<void> {
   await kv.delete(await emailKey(email));
+}
+
+export async function updateCredentialRole(kv: KVNamespace, email: string, role: UserRole): Promise<boolean> {
+  const record = await getCredential(kv, email);
+  if (!record) return false;
+  record.role = role === "OWNER" ? "USER" : role;
+  await kv.put(await emailKey(email), JSON.stringify(record));
+  return true;
 }

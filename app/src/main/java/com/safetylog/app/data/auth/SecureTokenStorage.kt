@@ -384,7 +384,7 @@ class SecureTokenStorage(private val context: Context) {
     /**
      * Encrypts arbitrary binary data directly using Android KeyStore AES-256-GCM hardware key
      */
-    fun encryptData(plainBytes: ByteArray): EncryptedPayload {
+    private fun encryptDataOnce(plainBytes: ByteArray): EncryptedPayload {
         val key = getOrCreateDataCipherKey()
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key)
@@ -394,6 +394,21 @@ class SecureTokenStorage(private val context: Context) {
             ivBase64 = Base64.encodeToString(iv, Base64.NO_WRAP),
             cipherTextBase64 = Base64.encodeToString(cipherBytes, Base64.NO_WRAP)
         )
+    }
+
+    fun encryptData(plainBytes: ByteArray): EncryptedPayload {
+        return try {
+            encryptDataOnce(plainBytes)
+        } catch (_: java.security.GeneralSecurityException) {
+            resetKeystoreAndVault()
+            encryptDataOnce(plainBytes)
+        } catch (_: java.security.ProviderException) {
+            resetKeystoreAndVault()
+            encryptDataOnce(plainBytes)
+        } catch (_: IllegalStateException) {
+            resetKeystoreAndVault()
+            encryptDataOnce(plainBytes)
+        }
     }
 
     /**
@@ -611,15 +626,18 @@ class SecureTokenStorage(private val context: Context) {
             val mKey = masterKey
             val masterAlias = activeMasterKeyAlias
 
-            // 2. Hardware inspect of MasterKey and DirectCipher key
-            val (levelName, isHardware) = inspectHardwareSecurityLevel(masterAlias)
-
-            // 3. Perform live AES-256-GCM cipher round-trip
+            // 2. Perform live AES-256-GCM cipher round-trip (ensures DATA_CIPHER_ALIAS exists before inspection)
             val testString = "SafetyLog_Keystore_Integrity_Token_${System.currentTimeMillis()}"
             val testBytes = testString.toByteArray(Charsets.UTF_8)
             val encrypted = encryptData(testBytes)
             val decrypted = decryptData(encrypted)
             val roundTripPass = testBytes.contentEquals(decrypted)
+
+            // 3. Hardware inspect of MasterKey and DirectCipher key
+            val (masterLevelName, isMasterHardware) = inspectHardwareSecurityLevel(masterAlias)
+            val (dataLevelName, isDataCipherHardware) = inspectHardwareSecurityLevel(DATA_CIPHER_ALIAS)
+            val levelName = if (masterLevelName.startsWith("Unknown")) dataLevelName else masterLevelName
+            val isHardware = isMasterHardware || isDataCipherHardware
 
             // 4. SHA-256 Tamper Resistance Validation
             val originalDigest = computeSha256(testString)
@@ -660,6 +678,8 @@ class SecureTokenStorage(private val context: Context) {
      * Resets Keystore entries and Shared Preferences in the event of OS level key invalidation
      */
     fun resetKeystoreAndVault() {
+        isAuthTokenCacheValid = false
+        cachedAuthToken = null
         try {
             val ks = KeyStore.getInstance(ANDROID_KEYSTORE_PROVIDER).apply { load(null) }
             if (ks.containsAlias(KEY_ALIAS)) {

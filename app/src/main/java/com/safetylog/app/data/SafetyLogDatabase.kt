@@ -61,14 +61,17 @@ abstract class SafetyLogDatabase : RoomDatabase() {
                 }
                 if ("syncId" !in columns) {
                     db.execSQL("ALTER TABLE inspection_records ADD COLUMN syncId TEXT NOT NULL DEFAULT ''")
-                    db.execSQL("UPDATE inspection_records SET syncId = lower(hex(randomblob(16))) WHERE syncId = ''")
-                    db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_inspection_records_syncId ON inspection_records(syncId)")
                 }
+                // Also backfills rows from a previously interrupted/partial migration so the
+                // unique index can always be created deterministically.
+                db.execSQL("UPDATE inspection_records SET syncId = lower(hex(randomblob(16))) WHERE syncId IS NULL OR syncId = ''")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_inspection_records_syncId ON inspection_records(syncId)")
             }
         }
 
         fun getDatabase(context: Context): SafetyLogDatabase {
             return INSTANCE ?: synchronized(this) {
+                INSTANCE?.let { return it }
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     SafetyLogDatabase::class.java,

@@ -496,7 +496,7 @@ internal fun RoleSwitcherDialog(
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         Toast.makeText(
                                             context,
-                                            "Restricted: Platform Owner authority is reserved exclusively for jdesrosiers88@gmail.com and hexenginelabs@gmail.com",
+                                            "Restricted: Platform Owner authority is reserved exclusively for ${AuthorizationConfig.AUTHORIZED_OWNER_EMAILS.joinToString(" and ")}",
                                             Toast.LENGTH_LONG
                                         ).show()
                                     } else {
@@ -561,7 +561,7 @@ internal fun RoleSwitcherDialog(
                                         }
                                         if (isRestrictedOwner) {
                                             Text(
-                                                text = "Authorized owners only: jdesrosiers88@gmail.com, hexenginelabs@gmail.com",
+                                                text = "Authorized owners only: ${AuthorizationConfig.AUTHORIZED_OWNER_EMAILS.joinToString(", ")}",
                                                 fontSize = 9.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )

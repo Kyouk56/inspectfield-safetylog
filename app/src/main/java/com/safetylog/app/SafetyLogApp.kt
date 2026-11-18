@@ -1,6 +1,8 @@
 package com.safetylog.app
 
 import android.app.Application
+import android.util.Log
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,7 +16,7 @@ class SafetyLogApp : Application() {
 
     val database by lazy { SafetyLogDatabase.getDatabase(this) }
     val entitlementManager by lazy { EntitlementManager(database.inspectionDao()) }
-    val billingRepository by lazy { BillingRepository(this) }
+    val billingRepository by lazy { BillingRepository(this, secureTokenStorage) }
     val pdfGenerator by lazy { InspectionPdfGenerator(this) }
     val secureTokenStorage by lazy { com.safetylog.app.data.auth.SecureTokenStorage(this) }
     val authorizationRepository by lazy {
@@ -38,7 +40,11 @@ class SafetyLogApp : Application() {
             secureStorage = secureTokenStorage
         )
     }
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val appScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, throwable ->
+            Log.e("SafetyLogApp", "Uncaught coroutine exception", throwable)
+        }
+    )
 
     val reminderManager by lazy { com.safetylog.app.data.reminder.InspectionReminderManager(this) }
     val networkMonitor by lazy { com.safetylog.app.util.NetworkMonitor(this) }
@@ -60,7 +66,13 @@ class SafetyLogApp : Application() {
         // Every acknowledged Play purchase is verified server-side before the
         // authoritative snapshot is updated with the paid entitlement.
         billingRepository.onPurchaseVerified = { productId, purchaseToken ->
-            appScope.launch { authorizationRepository.verifyPurchase(purchaseToken, productId) }
+            appScope.launch {
+                try {
+                    authorizationRepository.verifyPurchase(purchaseToken, productId)
+                } catch (e: Exception) {
+                    Log.e("SafetyLogApp", "Purchase verification failed", e)
+                }
+            }
         }
 
         // Install Privacy-First Encrypted Crash & Diagnostic Vault

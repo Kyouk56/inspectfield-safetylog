@@ -36,7 +36,8 @@ class AuthorizationRepository(
             while (isActive) {
                 delay(AUTO_REFRESH_INTERVAL_MS)
                 val current = _snapshot.value ?: continue
-                if (current.isExpired) break else refresh()
+                val result = refresh()
+                if (current.isExpired && result is ApiResult.HttpError && result.code == 401) break
             }
         }
     }
@@ -57,7 +58,8 @@ class AuthorizationRepository(
     fun restoreCachedSnapshot() {
         val token = secureStorage.getAuthorizationSnapshot() ?: return
         val parsed = AuthorizationSnapshot.parseAndVerify(token, publicKeySpkiBase64)
-        if (parsed != null && !parsed.isExpired) {
+        if (parsed != null) {
+            // Retain even expired snapshots so refresh/grace evaluation can occur.
             _snapshot.value = parsed
         } else {
             secureStorage.setAuthorizationSnapshot(null)
@@ -124,9 +126,9 @@ class AuthorizationRepository(
     }
 
     fun clear() {
-        stopAutoRefresh()
         _snapshot.value = null
         secureStorage.setAuthorizationSnapshot(null)
+        // Keep refreshJob alive so auto-refresh can recover on subsequent sign-in.
     }
 
     private companion object {

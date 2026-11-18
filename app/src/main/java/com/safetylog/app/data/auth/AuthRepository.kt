@@ -86,7 +86,7 @@ class AuthRepository(
             val persistedUser = secureStorage.loadUser()
             if (persistedUser != null && persistedUser.isSessionActive) {
                 _currentUser.value = persistedUser
-                _assignedRole.value = persistedUser.role
+                _assignedRole.value = secureStorage.getActiveRole(persistedUser.email)
             } else {
                 if (persistedUser != null && !persistedUser.isSessionActive) {
                     // Expired session; purge securely
@@ -136,6 +136,7 @@ class AuthRepository(
         try {
             val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
             val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "demo.inspector@safetylog.app"
+            authorizationRepository?.clear()
             val user = createSandboxUser(
                 displayName = resolvedName,
                 email = resolvedEmail,
@@ -182,6 +183,7 @@ class AuthRepository(
             val resolvedEmail = fallbackEmail?.takeIf { it.isNotBlank() } ?: "inspector@safetylog.app"
 
             if (isSandboxMode() || effectiveClientId.isNullOrBlank()) {
+                authorizationRepository?.clear()
                 val user = createSandboxUser(
                     displayName = resolvedName,
                     email = resolvedEmail,
@@ -268,7 +270,7 @@ class AuthRepository(
                 val assignedRole = if (AuthorizationConfig.isAuthorizedOwner(userEmail)) {
                     UserRole.OWNER
                 } else {
-                    AuthorizationConfig.sanitizeRole(_currentUser.value?.role ?: secureStorage.getActiveRole(userEmail), userEmail)
+                    AuthorizationConfig.sanitizeRole(secureStorage.getActiveRole(userEmail), userEmail)
                 }
                 val user = AuthUser(
                     userId = googleIdTokenCredential.uniqueId.trim().ifBlank { userEmail },
@@ -285,7 +287,6 @@ class AuthRepository(
                     keyAlias = secureStorage.masterKeyAlias
                 )
 
-                secureStorage.saveUser(user)
                 _currentUser.value = user
                 _assignedRole.value = user.role
 
@@ -303,11 +304,17 @@ class AuthRepository(
                         }
                         else -> {
                             val offlineUser = user.copy(role = UserRole.USER)
-                            secureStorage.saveUser(offlineUser)
+                            // Do not persist offline fallback unless in debug/sandbox local mode.
+                            if (TestControls.isEnabled) {
+                                secureStorage.saveUser(offlineUser)
+                            }
                             _currentUser.value = offlineUser
                             _assignedRole.value = UserRole.USER
                         }
                     }
+                } else {
+                    // Local/non-server mode: persist the session.
+                    secureStorage.saveUser(user)
                 }
                 AuthResult.Success(_currentUser.value ?: user)
             } else {
@@ -371,6 +378,7 @@ class AuthRepository(
                 }
             }
 
+            authorizationRepository?.clear()
             val user = createSandboxUser(
                 displayName = resolvedName,
                 email = resolvedEmail,
@@ -393,8 +401,12 @@ class AuthRepository(
         email: String = "inspector@apexcommercial.onmicrosoft.com",
         displayName: String = "Senior Safety Officer"
     ): AuthResult = withContext(Dispatchers.IO) {
+        if (!(com.safetylog.app.BuildConfig.DEBUG || isSandboxMode())) {
+            return@withContext AuthResult.Error("Microsoft sign-in is only available in debug or sandbox mode.")
+        }
         _isLoading.value = true
         try {
+            authorizationRepository?.clear()
             val user = createSandboxUser(
                 displayName = displayName,
                 email = email,
@@ -418,10 +430,14 @@ class AuthRepository(
         companyDomain: String,
         officerName: String
     ): AuthResult = withContext(Dispatchers.IO) {
+        if (!(com.safetylog.app.BuildConfig.DEBUG || isSandboxMode())) {
+            return@withContext AuthResult.Error("Corporate SSO is only available in debug or sandbox mode.")
+        }
         _isLoading.value = true
         try {
             val cleanDomain = companyDomain.trim().lowercase().removePrefix("@")
             val email = "auditor@$cleanDomain"
+            authorizationRepository?.clear()
             val user = createSandboxUser(
                 displayName = officerName.ifBlank { "Corporate Safety Inspector" },
                 email = email,

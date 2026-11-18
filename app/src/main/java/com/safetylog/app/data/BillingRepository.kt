@@ -137,6 +137,19 @@ class BillingRepository private constructor(
         return PaymentStatus.ACTIVE
     }
 
+    private fun isEncryptedEnvelope(value: String): Boolean {
+        val payload = com.safetylog.app.data.auth.EncryptedPayload.fromSerialized(value) ?: return false
+        val base64Pattern = Regex("^[A-Za-z0-9+/=_-]+$")
+        return payload.ivBase64.matches(base64Pattern) && payload.cipherTextBase64.matches(base64Pattern)
+    }
+
+    private fun decryptPrefString(stored: String?): String? {
+        if (stored.isNullOrBlank()) return null
+        val decrypted = secureStorage?.decryptString(stored)
+        if (decrypted != null) return decrypted
+        return if (isEncryptedEnvelope(stored)) null else stored
+    }
+
     private fun loadInitialCompanyOAuthConfig(): CompanyOAuthConfig {
         val companyName = prefs.getString(KEY_COMPANY_NAME, "") ?: ""
         val domain = prefs.getString(KEY_COMPANY_DOMAIN, "") ?: ""
@@ -150,8 +163,7 @@ class BillingRepository private constructor(
         val enforce = prefs.getBoolean(KEY_COMPANY_ENFORCE_DOMAIN, true)
         val isConfigured = prefs.getBoolean(KEY_COMPANY_IS_CONFIGURED, false)
         val webhookUrl = prefs.getString(KEY_COMPANY_WEBHOOK_URL, "") ?: ""
-        val storedWebhookSecret = prefs.getString(KEY_COMPANY_WEBHOOK_SECRET, "") ?: ""
-        val webhookSecret = if (storedWebhookSecret.isBlank()) "" else (secureStorage?.decryptString(storedWebhookSecret) ?: storedWebhookSecret)
+        val webhookSecret = decryptPrefString(prefs.getString(KEY_COMPANY_WEBHOOK_SECRET, "")) ?: ""
         val webhookAuto = prefs.getBoolean(KEY_COMPANY_WEBHOOK_AUTO, false)
         val driveUri = prefs.getString(KEY_COMPANY_DRIVE_URI, "") ?: ""
         val driveName = prefs.getString(KEY_COMPANY_DRIVE_NAME, "") ?: ""
@@ -176,8 +188,7 @@ class BillingRepository private constructor(
     }
 
     private fun loadInitialTeamMembers(): List<TeamMember> {
-        val storedJson = prefs.getString(KEY_TEAM_MEMBERS, null)
-        val rawJson = if (storedJson.isNullOrBlank()) null else (secureStorage?.decryptString(storedJson) ?: storedJson)
+        val rawJson = decryptPrefString(prefs.getString(KEY_TEAM_MEMBERS, null))
         if (!rawJson.isNullOrBlank()) {
             try {
                 val array = JSONArray(rawJson)
@@ -359,16 +370,24 @@ class BillingRepository private constructor(
         client.queryPurchasesAsync(subsParams) { billingResult, purchases ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 var foundActiveSubscription = false
+                var foundPendingPurchase = false
                 for (purchase in purchases) {
-                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        foundActiveSubscription = true
-                        handleValidPurchase(purchase)
+                    when (purchase.purchaseState) {
+                        Purchase.PurchaseState.PURCHASED -> {
+                            foundActiveSubscription = true
+                            handleValidPurchase(purchase)
+                        }
+                        Purchase.PurchaseState.PENDING -> {
+                            // Ignore/mark pending cleanly; do not revoke entitlements.
+                            foundPendingPurchase = true
+                        }
+                        else -> { /* ignore */ }
                     }
                 }
                 // Reconcile with Play: if a recurring tier is persisted locally but Play reports
                 // no active subscription (cancelled at period end, refunded, revoked), the paid
                 // entitlement must be revoked immediately instead of lingering forever.
-                if (!foundActiveSubscription &&
+                if (!foundActiveSubscription && !foundPendingPurchase &&
                     (_currentTier.value == SubscriptionTier.INDIVIDUAL_PRO ||
                         _currentTier.value == SubscriptionTier.ENTERPRISE)
                 ) {
@@ -389,8 +408,10 @@ class BillingRepository private constructor(
                     it.purchaseState == Purchase.PurchaseState.PURCHASED && it.products.contains(SKU_AD_FREE)
                 }
                 for (purchase in purchases) {
-                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        handleValidPurchase(purchase)
+                    when (purchase.purchaseState) {
+                        Purchase.PurchaseState.PURCHASED -> handleValidPurchase(purchase)
+                        Purchase.PurchaseState.PENDING -> { /* ignore pending cleanly */ }
+                        else -> { /* ignore */ }
                     }
                 }
                 // A refunded/revoked lifetime license must no longer grant ad-free access.
@@ -441,12 +462,17 @@ class BillingRepository private constructor(
             _hasOneTimeAdFree.value = true
             prefs.edit().putBoolean(KEY_ONE_TIME_AD_FREE, true).apply()
         }
+        // Do not downgrade an active Pro/Enterprise subscription to AD_FREE.
+        val hasHigherActiveTier = (_currentTier.value == SubscriptionTier.INDIVIDUAL_PRO ||
+            _currentTier.value == SubscriptionTier.ENTERPRISE) && _paymentStatus.value.isGoodStanding
+
         // Only explicitly recognised SKUs grant a paid entitlement. An unknown SKU
         // must never silently upgrade the user to Pro.
         when {
             prods.contains(SKU_ENTERPRISE_SEAT) -> applyTier(SubscriptionTier.ENTERPRISE, true)
             prods.contains(SKU_INDIVIDUAL_PRO) -> applyTier(SubscriptionTier.INDIVIDUAL_PRO, true)
-            isAdFreePurchase -> applyTier(SubscriptionTier.AD_FREE, true)
+            isAdFreePurchase && !hasHigherActiveTier -> applyTier(SubscriptionTier.AD_FREE, true)
+            isAdFreePurchase && hasHigherActiveTier -> { /* keep active higher tier; do not downgrade */ }
             else -> Log.w(TAG, "Ignoring purchase with unrecognised product IDs: $prods")
         }
 
@@ -456,7 +482,14 @@ class BillingRepository private constructor(
             val purchasedSku = prods.firstOrNull {
                 it == SKU_ENTERPRISE_SEAT || it == SKU_INDIVIDUAL_PRO || it == SKU_AD_FREE
             }
-            if (purchasedSku != null) onPurchaseVerified?.invoke(purchasedSku, token)
+            // Do not invoke onPurchaseVerified to overwrite an active Pro/Enterprise
+            // server tier with AD_FREE.
+            val shouldVerify = when {
+                purchasedSku == SKU_AD_FREE && hasHigherActiveTier -> false
+                purchasedSku != null -> true
+                else -> false
+            }
+            if (shouldVerify && purchasedSku != null) onPurchaseVerified?.invoke(purchasedSku, token)
         } catch (_: Exception) {}
     }
 

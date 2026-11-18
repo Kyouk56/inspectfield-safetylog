@@ -17,16 +17,16 @@ data class EquipmentWithLatestInspection(
 @Dao
 interface EquipmentDao {
     @Query("""
-        SELECT e.*, 
-               i.timestamp AS lastInspectionDate, 
+        SELECT e.*,
+               i.timestamp AS lastInspectionDate,
                i.overallStatus AS lastInspectionStatus
         FROM equipment_items e
-        LEFT JOIN (
-            SELECT equipmentId, MAX(id) AS max_id 
-            FROM inspection_records 
-            GROUP BY equipmentId
-        ) latest ON e.id = latest.equipmentId
-        LEFT JOIN inspection_records i ON i.id = latest.max_id
+        LEFT JOIN inspection_records i ON i.id = (
+            SELECT i2.id FROM inspection_records i2
+            WHERE i2.equipmentId = e.id
+            ORDER BY i2.timestamp DESC, i2.id DESC
+            LIMIT 1
+        )
         ORDER BY e.tagId ASC
     """)
     fun getEquipmentSummaries(): Flow<List<EquipmentWithLatestInspection>>

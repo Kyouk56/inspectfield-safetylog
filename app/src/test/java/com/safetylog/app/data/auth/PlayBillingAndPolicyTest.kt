@@ -171,4 +171,36 @@ override fun getStringSet(key: String?, defValues: Set<String>?): Set<String>? =
         assertFalse(repo.isProUser.value)
         assertTrue(repo.isAdFree.value)
     }
+
+    @Test
+    fun undecryptableCiphertextIsRejectedWhileLegacyPlaintextJsonIsPreserved() {
+        val prefs = FakePrefs()
+        val editor = prefs.edit()
+        editor.putString(
+            "safetylog_company_webhook_secret",
+            "dGVzdEl2MTIzNDU2:c2VjdXJlQ2lwaGVyVGV4dDEyMw=="
+        )
+        editor.putString(
+            "safetylog_team_members",
+            """[{"id":"m-1","email":"legacy@example.com","name":"Legacy Inspector","role":"MANAGER","addedEpochMs":1700000000000,"isActive":true}]"""
+        )
+        editor.apply()
+
+        val repo = BillingRepository(prefs, debugMode = false)
+        assertEquals("", repo.companyOAuthConfig.value.webhookSecret)
+        assertEquals(1, repo.teamMembers.value.size)
+        assertEquals("legacy@example.com", repo.teamMembers.value.first().email)
+    }
+
+    @Test
+    fun undecryptableTeamCiphertextFallsBackToDefaultRosterSafely() {
+        val prefs = FakePrefs()
+        prefs.edit()
+            .putString("safetylog_team_members", "dGVzdEl2MTIzNDU2:c2VjdXJlQ2lwaGVyVGV4dDEyMw==")
+            .apply()
+
+        val repo = BillingRepository(prefs, debugMode = false)
+        assertTrue(repo.teamMembers.value.none { it.email.contains(":") })
+        assertEquals(2, repo.teamMembers.value.size)
+    }
 }

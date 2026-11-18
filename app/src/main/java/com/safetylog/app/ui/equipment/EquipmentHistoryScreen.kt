@@ -88,7 +88,7 @@ fun EquipmentHistoryScreen(
         equipment = equipmentDao.getEquipmentById(equipmentId)
     }
 
-    LaunchedEffect(inspections) {
+    LaunchedEffect(equipmentId, inspections) {
         generatedPdfFile = null
     }
 
@@ -148,8 +148,8 @@ fun EquipmentHistoryScreen(
             return
         }
         val eq = equipment ?: return
-        producePdf { pdf ->
-            val suggestedName = "SafetyLog_${eq.tagId}_AuditRecord.pdf"
+        producePdf { _ ->
+            val suggestedName = "SafetyLog_${safeFileLabel(eq.tagId)}_AuditRecord.pdf"
             createDocLauncher.launch(suggestedName)
         }
     }
@@ -499,4 +499,13 @@ fun EquipmentHistoryScreen(
             }
         )
     }
+}
+
+/** Keeps tag IDs from injecting path separators / unsafe characters into SAF filenames. */
+private fun safeFileLabel(value: String): String {
+    val cleaned = value
+        .replace(Regex("[\\\\/:*?\"<>|]"), "")
+        .replace("..", "")
+        .trim()
+    return cleaned.ifBlank { "Asset" }
 }

@@ -4,9 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
+import androidx.room.withTransaction
 import com.safetylog.app.data.auth.CompanyOAuthConfig
 import com.safetylog.app.data.auth.EncryptedPayload
 import com.safetylog.app.data.auth.SecureTokenStorage
+import com.safetylog.app.data.SafetyLogDatabase
 import com.safetylog.app.data.dao.EquipmentDao
 import com.safetylog.app.data.dao.InspectionDao
 import com.safetylog.app.data.model.EquipmentItem
@@ -39,7 +41,8 @@ class TeamSyncEngine(
     private val context: Context,
     private val equipmentDao: EquipmentDao,
     private val inspectionDao: InspectionDao,
-    private val secureStorage: SecureTokenStorage
+    private val secureStorage: SecureTokenStorage,
+    private val database: SafetyLogDatabase? = null
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("safetylog_sync_prefs", Context.MODE_PRIVATE)
@@ -49,6 +52,10 @@ class TeamSyncEngine(
         private const val KEY_LAST_SYNC_TIMESTAMP = "sync_last_timestamp"
         const val DEFAULT_REST_ENDPOINT = "https://api.safetylog.com/v1/sync"
         const val SYNC_FILE_EXTENSION = ".safetylog.enc"
+
+        /** Enterprise sync/webhook endpoints must always use TLS. */
+        internal fun isHttpsUrl(url: String): Boolean =
+            url.trim().startsWith("https://", ignoreCase = true)
 
         /** Pure package builder so the exported shape can be tested without an Android Context. */
         internal fun buildPackageJson(
@@ -101,6 +108,17 @@ class TeamSyncEngine(
             }
             put("inspections", insArray)
         }
+    }
+
+    /**
+     * Null-safe string extraction: JSONObject.NULL and missing keys never become the
+     * literal string "null".
+     */
+    private fun JSONObject.safeString(key: String, default: String = ""): String {
+        val value = opt(key)
+        if (value == null || value === JSONObject.NULL) return default
+        val text = value.toString()
+        return if (text == "null") default else text
     }
 
     fun getCustomRestEndpoint(): String {
@@ -179,62 +197,66 @@ class TeamSyncEngine(
             val rootJson = JSONObject(jsonStr)
 
             var importedCount = 0
-            val eqArray = rootJson.getJSONArray("equipment")
-            for (i in 0 until eqArray.length()) {
-                val obj = eqArray.getJSONObject(i)
-                val tagId = obj.getString("tagId")
-                val existing = equipmentDao.getEquipmentByTag(tagId)
-                val item = EquipmentItem(
-                    id = existing?.id ?: 0L,
-                    tagId = tagId,
-                    locationDescription = obj.optString("locationDescription", ""),
-                    equipmentType = obj.optString("equipmentType", "General Safety"),
-                    serialNumber = obj.optString("serialNumber", ""),
-                    installDate = obj.optString("installDate", ""),
-                    assignedChecklist = obj.optString("assignedChecklist", "Fire Extinguisher"),
-                    reviewFrequency = obj.optString("reviewFrequency", "Monthly"),
-                    assignedReviewDate = obj.optString("assignedReviewDate", ""),
-                    assignedReviewTime = obj.optString("assignedReviewTime", "09:00 AM"),
-                    nextReviewTimestamp = obj.optLong("nextReviewTimestamp", 0L),
-                    reminderEnabled = obj.optBoolean("reminderEnabled", true),
-                    reminderLeadDays = obj.optInt("reminderLeadDays", 1)
-                )
-                equipmentDao.upsertEquipment(item)
-                importedCount++
-            }
-
-            // D-07: restore inspections, keyed by stable syncId so a repeat import is idempotent.
             var inspectionCount = 0
-            val insArray = rootJson.optJSONArray("inspections") ?: JSONArray()
-            for (i in 0 until insArray.length()) {
-                val obj = insArray.getJSONObject(i)
-                val tagId = obj.optString("equipmentTag", "")
-                val equipment = equipmentDao.getEquipmentByTag(tagId) ?: continue
-                val syncId = obj.optString("syncId").ifBlank { UUID.randomUUID().toString() }
-                val existing = inspectionDao.getInspectionBySyncId(syncId)
-                val record = InspectionRecord(
-                    id = existing?.id ?: 0L,
-                    syncId = syncId,
-                    equipmentId = equipment.id,
-                    timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
-                    isPressureOk = obj.optBoolean("isPressureOk"),
-                    isHoseIntact = obj.optBoolean("isHoseIntact"),
-                    isPinSealed = obj.optBoolean("isPinSealed"),
-                    isSignagePresent = obj.optBoolean("isSignagePresent"),
-                    isAccessUnobstructed = obj.optBoolean("isAccessUnobstructed"),
-                    overallStatus = obj.optString("overallStatus", "PASSED"),
-                    notes = obj.optString("notes", ""),
-                    // Media files stay on the originating device; keep local paths on update.
-                    photoUri = existing?.photoUri,
-                    signaturePath = existing?.signaturePath.orEmpty(),
-                    checklistName = obj.optString("checklistName", ""),
-                    checklistSummary = obj.optString("checklistSummary", "")
-                )
-                if (existing != null) inspectionDao.updateInspection(record) else inspectionDao.insertInspection(record)
-                inspectionCount++
-            }
 
-            prefs.edit().putLong(KEY_LAST_SYNC_TIMESTAMP, System.currentTimeMillis()).apply()
+            (database ?: SafetyLogDatabase.getDatabase(context)).withTransaction {
+                val eqArray = rootJson.getJSONArray("equipment")
+                for (i in 0 until eqArray.length()) {
+                    val obj = eqArray.getJSONObject(i)
+                    val tagId = obj.safeString("tagId")
+                    if (tagId.isBlank()) continue
+                    val existing = equipmentDao.getEquipmentByTag(tagId)
+                    val item = EquipmentItem(
+                        id = existing?.id ?: 0L,
+                        tagId = tagId,
+                        locationDescription = obj.safeString("locationDescription", ""),
+                        equipmentType = obj.safeString("equipmentType", "General Safety"),
+                        serialNumber = obj.safeString("serialNumber", ""),
+                        installDate = obj.safeString("installDate", ""),
+                        assignedChecklist = obj.safeString("assignedChecklist", "Fire Extinguisher"),
+                        reviewFrequency = obj.safeString("reviewFrequency", "Monthly"),
+                        assignedReviewDate = obj.safeString("assignedReviewDate", ""),
+                        assignedReviewTime = obj.safeString("assignedReviewTime", "09:00 AM"),
+                        nextReviewTimestamp = obj.optLong("nextReviewTimestamp", 0L),
+                        reminderEnabled = obj.optBoolean("reminderEnabled", true),
+                        reminderLeadDays = obj.optInt("reminderLeadDays", 1)
+                    )
+                    equipmentDao.upsertEquipment(item)
+                    importedCount++
+                }
+
+                // D-07: restore inspections, keyed by stable syncId so a repeat import is idempotent.
+                val insArray = rootJson.optJSONArray("inspections") ?: JSONArray()
+                for (i in 0 until insArray.length()) {
+                    val obj = insArray.getJSONObject(i)
+                    val tagId = obj.safeString("equipmentTag", "")
+                    val equipment = equipmentDao.getEquipmentByTag(tagId) ?: continue
+                    val syncId = obj.safeString("syncId").ifBlank { UUID.randomUUID().toString() }
+                    val existing = inspectionDao.getInspectionBySyncId(syncId)
+                    val record = InspectionRecord(
+                        id = existing?.id ?: 0L,
+                        syncId = syncId,
+                        equipmentId = equipment.id,
+                        timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                        isPressureOk = obj.optBoolean("isPressureOk"),
+                        isHoseIntact = obj.optBoolean("isHoseIntact"),
+                        isPinSealed = obj.optBoolean("isPinSealed"),
+                        isSignagePresent = obj.optBoolean("isSignagePresent"),
+                        isAccessUnobstructed = obj.optBoolean("isAccessUnobstructed"),
+                        overallStatus = obj.safeString("overallStatus", "PASSED"),
+                        notes = obj.safeString("notes", ""),
+                        // Media files stay on the originating device; keep local paths on update.
+                        photoUri = existing?.photoUri,
+                        signaturePath = existing?.signaturePath.orEmpty(),
+                        checklistName = obj.safeString("checklistName", ""),
+                        checklistSummary = obj.safeString("checklistSummary", "")
+                    )
+                    if (existing != null) inspectionDao.updateInspection(record) else inspectionDao.insertInspection(record)
+                    inspectionCount++
+                }
+
+                prefs.edit().putLong(KEY_LAST_SYNC_TIMESTAMP, System.currentTimeMillis()).apply()
+            }
             SyncResult.Success(
                 "Synced $importedCount assets and $inspectionCount inspections into the compliance vault.",
                 importedCount + inspectionCount
@@ -249,6 +271,9 @@ class TeamSyncEngine(
      */
     suspend fun syncWithEnterpriseRestServer(): SyncResult = withContext(Dispatchers.IO) {
         val endpoint = getCustomRestEndpoint()
+        if (!isHttpsUrl(endpoint)) {
+            return@withContext SyncResult.Error("Endpoint must use HTTPS.")
+        }
         var conn: HttpURLConnection? = null
         try {
             val url = URL(endpoint)
@@ -295,6 +320,9 @@ class TeamSyncEngine(
     suspend fun testWebhookEndpoint(webhookUrl: String, secretToken: String): Result<String> = withContext(Dispatchers.IO) {
         if (webhookUrl.isBlank()) {
             return@withContext Result.failure(IllegalArgumentException("Webhook URL cannot be blank."))
+        }
+        if (!isHttpsUrl(webhookUrl)) {
+            return@withContext Result.failure(IllegalArgumentException("Webhook URL must use HTTPS."))
         }
         val startTime = System.currentTimeMillis()
         var conn: HttpURLConnection? = null

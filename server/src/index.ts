@@ -1,5 +1,5 @@
 import { UnauthorizedError, verifyGoogleIdToken } from "./google";
-import { deleteCredential, getCredential, setCredential, verifyPassword } from "./credentials";
+import { deleteCredential, getCredential, setCredential, updateCredentialRole, verifyPassword } from "./credentials";
 import { Registry } from "./registry";
 import { readSnapshot, issueSnapshot } from "./snapshot";
 import { canManageBilling, canManageTeam, PAYMENT_STATUSES, SnapshotPayload, SUBSCRIPTION_TIERS, USER_ROLES, UserRole } from "./types";
@@ -66,7 +66,12 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
 
 function stringField(body: Record<string, unknown>, name: string): string {
   const value = body[name];
-  if (typeof value !== "string" || value.trim().length === 0) throw new Error(`Missing or invalid '${name}'`);
+  if (typeof value !== "string") throw new Error(`Missing or invalid '${name}'`);
+  if (name === "password") {
+    if (value.length === 0) throw new Error(`Missing or invalid '${name}'`);
+    return value;
+  }
+  if (value.trim().length === 0) throw new Error(`Missing or invalid '${name}'`);
   return value.trim();
 }
 
@@ -90,10 +95,11 @@ async function emailSignIn(request: Request, env: Env): Promise<Response> {
   if (!credential || !(await verifyPassword(credential, password))) {
     throw new UnauthorizedError("Invalid inspector credentials");
   }
+  const overrideRole = (registry.isOwner(email) || (await registry.hasRoleEntry(email))) ? null : credential.role;
   const claims = await registry.claimsFor(
     { email, subject: `email:${email}`, name: null },
     ttlSeconds(env),
-    credential.role
+    overrideRole
   );
   return json({ snapshot: await issueSnapshot(claims, env), expiresAt: claims.exp, email: claims.email, role: claims.role });
 }
@@ -156,7 +162,9 @@ async function setRole(request: Request, env: Env): Promise<Response> {
   const role = stringField(body, "role") as UserRole;
   if (!USER_ROLES.includes(role) || role === "OWNER") return json({ error: "invalid_role" }, 400);
 
-  await registryFor(env).setRole(email, role, caller.email);
+  const registry = registryFor(env);
+  await registry.setRole(email, role, caller.email);
+  await updateCredentialRole(env.AUTH_REGISTRY, email, role);
   return json({ ok: true, email, role });
 }
 
@@ -168,12 +176,20 @@ async function setEntitlement(request: Request, env: Env): Promise<Response> {
   const email = stringField(body, "email");
   const tier = stringField(body, "tier") as SnapshotPayload["tier"];
   const paymentStatus = (body.paymentStatus as SnapshotPayload["paymentStatus"]) ?? "ACTIVE";
-  const seats = typeof body.seats === "number" ? body.seats : 1;
+  const seatsRaw = body.seats === undefined ? 1 : body.seats;
+  if (typeof seatsRaw !== "number" || !Number.isFinite(seatsRaw)) return json({ error: "invalid_seats" }, 400);
+  const seats = Math.floor(seatsRaw);
+  if (seats < 1 || seats > 100000) return json({ error: "invalid_seats" }, 400);
   if (!SUBSCRIPTION_TIERS.includes(tier)) return json({ error: "invalid_tier" }, 400);
   if (!PAYMENT_STATUSES.includes(paymentStatus)) return json({ error: "invalid_payment_status" }, 400);
 
-  await registryFor(env).setEntitlement(email, { tier, paymentStatus, seats: Math.max(1, Math.floor(seats)) }, caller.email);
+  await registryFor(env).setEntitlement(email, { tier, paymentStatus, seats }, caller.email);
   return json({ ok: true, email, tier, paymentStatus });
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) &&
+    (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
 
 async function setTeam(request: Request, env: Env): Promise<Response> {
@@ -182,13 +198,36 @@ async function setTeam(request: Request, env: Env): Promise<Response> {
 
   const body = await readBody(request);
   if (!Array.isArray(body.members)) return json({ error: "invalid_members" }, 400);
-  const members = body.members as SnapshotPayload["team"];
+  const rawMembers = body.members as unknown[];
+  if (rawMembers.some((member) => !isPlainObject(member))) return json({ error: "invalid_members" }, 400);
+
+  const members = rawMembers as SnapshotPayload["team"];
+  for (const member of members) {
+    if (typeof member.email !== "string" || member.email.trim().length === 0) return json({ error: "invalid_members" }, 400);
+    if (typeof member.role !== "string" || !USER_ROLES.includes(member.role as UserRole)) return json({ error: "invalid_members" }, 400);
+  }
   if (members.some((member) => member.role === "OWNER")) return json({ error: "owner_role_unassignable" }, 400);
   if (members.some((member) => member.role === "ACCOUNT_ADMIN") && !canManageBilling(caller.role)) {
     return json({ error: "admin_role_forbidden" }, 403);
   }
-  await registryFor(env).setTeam(members);
-  return json({ ok: true, count: members.length });
+
+  const registry = registryFor(env);
+  try {
+    await registry.setTeam(members);
+  } catch {
+    return json({ error: "invalid_members" }, 400);
+  }
+
+  const claims = await registry.claimsFor(
+    { email: caller.email, subject: caller.sub, name: caller.name },
+    ttlSeconds(env)
+  );
+  return json({ ok: true, count: members.length, snapshot: await issueSnapshot(claims, env) });
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function verifyPurchase(request: Request, env: Env): Promise<Response> {
@@ -196,6 +235,13 @@ async function verifyPurchase(request: Request, env: Env): Promise<Response> {
   const body = await readBody(request);
   const purchaseToken = stringField(body, "purchaseToken");
   const productId = stringField(body, "productId");
+
+  const tokenHash = await sha256Hex(purchaseToken);
+  const bindingKey = `purchase_token:${tokenHash}`;
+  const existingBinding = await env.AUTH_REGISTRY.get(bindingKey);
+  if (existingBinding && existingBinding.trim().toLowerCase() !== caller.email.trim().toLowerCase()) {
+    return json({ error: "purchase_token_replay", message: "Purchase token already bound to another account" }, 403);
+  }
 
   const result = await verifyPlayPurchase(
     env.GOOGLE_SERVICE_ACCOUNT_JSON,
@@ -205,12 +251,23 @@ async function verifyPurchase(request: Request, env: Env): Promise<Response> {
   );
   if (!result.entitled || !result.tier) return json({ error: "purchase_not_entitled", reason: result.reason }, 402);
 
-  await registryFor(env).setEntitlement(
-    caller.email,
-    { tier: result.tier, paymentStatus: "ACTIVE", seats: caller.seats },
-    "play_store"
-  );
-  const claims = await registryFor(env).claimsFor(
+  const registry = registryFor(env);
+  const existingEntitlement = await registry.entitlementFor(caller.email);
+  const blocksOverwrite =
+    result.tier === "AD_FREE" &&
+    (existingEntitlement.tier === "INDIVIDUAL_PRO" || existingEntitlement.tier === "ENTERPRISE") &&
+    (existingEntitlement.paymentStatus === "ACTIVE" || existingEntitlement.paymentStatus === "GRACE_PERIOD");
+
+  if (!blocksOverwrite) {
+    await registry.setEntitlement(
+      caller.email,
+      { tier: result.tier, paymentStatus: "ACTIVE", seats: caller.seats },
+      "play_store"
+    );
+  }
+  await env.AUTH_REGISTRY.put(bindingKey, caller.email.trim().toLowerCase());
+
+  const claims = await registry.claimsFor(
     { email: caller.email, subject: caller.sub, name: caller.name },
     ttlSeconds(env)
   );

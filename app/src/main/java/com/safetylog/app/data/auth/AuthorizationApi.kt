@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
@@ -57,7 +58,7 @@ class AuthorizationApi(private val transport: AuthorizationTransport) {
             .put("idToken", idToken)
             .apply { if (!nonce.isNullOrBlank()) put("nonce", nonce) }
             .toString()
-        return snapshotFrom(transport.request("POST", "/v1/auth/exchange", body, null))
+        return safeRequest("POST", "/v1/auth/exchange", body, null)
     }
 
     suspend fun signInWithEmail(email: String, password: String): ApiResult<String> {
@@ -65,11 +66,11 @@ class AuthorizationApi(private val transport: AuthorizationTransport) {
             .put("email", email)
             .put("password", password)
             .toString()
-        return snapshotFrom(transport.request("POST", "/v1/auth/email", body, null))
+        return safeRequest("POST", "/v1/auth/email", body, null)
     }
 
     suspend fun refresh(snapshot: String): ApiResult<String> =
-        snapshotFrom(transport.request("POST", "/v1/auth/refresh", null, snapshot))
+        safeRequest("POST", "/v1/auth/refresh", null, snapshot)
 
     suspend fun updateTeam(members: List<TeamMember>, snapshot: String): ApiResult<String> {
         val array = org.json.JSONArray()
@@ -84,7 +85,7 @@ class AuthorizationApi(private val transport: AuthorizationTransport) {
                     .put("addedEpochMs", member.addedEpochMs)
             )
         }
-        return snapshotFrom(transport.request("PUT", "/v1/admin/team", JSONObject().put("members", array).toString(), snapshot))
+        return safeRequest("PUT", "/v1/admin/team", JSONObject().put("members", array).toString(), snapshot)
     }
 
     suspend fun verifyPurchase(purchaseToken: String, productId: String, snapshot: String): ApiResult<String> {
@@ -92,7 +93,16 @@ class AuthorizationApi(private val transport: AuthorizationTransport) {
             .put("purchaseToken", purchaseToken)
             .put("productId", productId)
             .toString()
-        return snapshotFrom(transport.request("POST", "/v1/purchases/verify", body, snapshot))
+        return safeRequest("POST", "/v1/purchases/verify", body, snapshot)
+    }
+
+    private suspend fun safeRequest(method: String, path: String, body: String?, bearer: String?): ApiResult<String> {
+        val response = try {
+            transport.request(method, path, body, bearer)
+        } catch (e: IOException) {
+            return ApiResult.NetworkError(e)
+        }
+        return snapshotFrom(response)
     }
 
     private fun snapshotFrom(response: TransportResponse): ApiResult<String> {

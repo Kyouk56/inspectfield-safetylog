@@ -58,48 +58,52 @@ fun SignaturePad(
 
     fun saveDrawnBitmap() {
         if (paths.isEmpty()) return
+        // Snapshot the mutable drawing state on the composition/pointer thread. The IO
+        // worker below then renders from stable copies instead of live Compose Paths.
+        val pathSnapshot = paths.map { android.graphics.Path(it.asAndroidPath()) }
+        val capturedWidth = canvasSize.width
+        val capturedHeight = canvasSize.height
         coroutineScope.launch {
-            val bitmap = Bitmap.createBitmap(800, 300, Bitmap.Config.ARGB_8888)
-            val canvas = android.graphics.Canvas(bitmap)
-            canvas.drawColor(android.graphics.Color.WHITE)
+            val signatureFile = withContext(Dispatchers.IO) {
+                val bitmap = Bitmap.createBitmap(800, 300, Bitmap.Config.ARGB_8888)
+                try {
+                    val canvas = android.graphics.Canvas(bitmap)
+                    canvas.drawColor(android.graphics.Color.WHITE)
 
-            val paint = android.graphics.Paint().apply {
-                color = android.graphics.Color.BLACK
-                strokeWidth = 6f
-                style = android.graphics.Paint.Style.STROKE
-                isAntiAlias = true
-                strokeCap = android.graphics.Paint.Cap.ROUND
-                strokeJoin = android.graphics.Paint.Join.ROUND
-            }
+                    val paint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.BLACK
+                        strokeWidth = 6f
+                        style = android.graphics.Paint.Style.STROKE
+                        isAntiAlias = true
+                        strokeCap = android.graphics.Paint.Cap.ROUND
+                        strokeJoin = android.graphics.Paint.Join.ROUND
+                    }
 
-            // D-19: transform the path into the target bitmap's coordinate space instead
-            // of scaling the canvas. Canvas scaling would stretch the brush stroke into an
-            // ellipse on non-800:300 screens; transforming the path keeps strokeWidth uniform.
-            val scaleX = if (canvasSize.width > 0) 800f / canvasSize.width else 1f
-            val scaleY = if (canvasSize.height > 0) 300f / canvasSize.height else 1f
-            val transform = Matrix().apply { setScale(scaleX, scaleY) }
-            paths.forEach { path ->
-                val transformed = android.graphics.Path(path.asAndroidPath()).apply { transform(transform) }
-                canvas.drawPath(transformed, paint)
-                transformed.close()
-            }
+                    // D-19: transform the path into the target bitmap's coordinate space instead
+                    // of scaling the canvas. Transforming the path keeps strokeWidth uniform.
+                    val scaleX = if (capturedWidth > 0) 800f / capturedWidth else 1f
+                    val scaleY = if (capturedHeight > 0) 300f / capturedHeight else 1f
+                    val transform = Matrix().apply { setScale(scaleX, scaleY) }
+                    pathSnapshot.forEach { source ->
+                        val transformed = android.graphics.Path(source).apply { transform(transform) }
+                        canvas.drawPath(transformed, paint)
+                        transformed.close()
+                    }
 
-            val signatureDir = File(context.filesDir, "signatures").apply { mkdirs() }
-            val signatureFile = File(signatureDir, "sig_${System.currentTimeMillis()}.png")
-            var writeSucceeded = false
-            try {
-                withContext(Dispatchers.IO) {
-                    FileOutputStream(signatureFile).use { out ->
+                    val signatureDir = File(context.filesDir, "signatures").apply { mkdirs() }
+                    val file = File(signatureDir, "sig_${System.currentTimeMillis()}.png")
+                    FileOutputStream(file).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
+                    file
+                } catch (_: Exception) {
+                    // Failed to persist signature; do not report success.
+                    null
+                } finally {
+                    bitmap.recycle()
                 }
-                writeSucceeded = true
-            } catch (_: Exception) {
-                // Failed to persist signature; do not report success.
-            } finally {
-                bitmap.recycle()
             }
-            if (writeSucceeded) {
+            if (signatureFile != null) {
                 isConfirmed = true
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onSignatureCaptured(signatureFile.absolutePath)
@@ -109,42 +113,42 @@ fun SignaturePad(
 
     fun applyDigitalSeal() {
         coroutineScope.launch {
-            val bitmap = Bitmap.createBitmap(800, 300, Bitmap.Config.ARGB_8888)
-            val canvas = android.graphics.Canvas(bitmap)
-            canvas.drawColor(android.graphics.Color.WHITE)
+            val file = withContext(Dispatchers.IO) {
+                val bitmap = Bitmap.createBitmap(800, 300, Bitmap.Config.ARGB_8888)
+                try {
+                    val canvas = android.graphics.Canvas(bitmap)
+                    canvas.drawColor(android.graphics.Color.WHITE)
 
-            val titlePaint = android.graphics.Paint().apply {
-                color = android.graphics.Color.BLACK
-                textSize = 34f
-                isAntiAlias = true
-                typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD_ITALIC)
-            }
-            canvas.drawText("Electronically Certified & Signed", 40f, 130f, titlePaint)
+                    val titlePaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.BLACK
+                        textSize = 34f
+                        isAntiAlias = true
+                        typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD_ITALIC)
+                    }
+                    canvas.drawText("Electronically Certified & Signed", 40f, 130f, titlePaint)
 
-            val subPaint = android.graphics.Paint().apply {
-                color = android.graphics.Color.DKGRAY
-                textSize = 24f
-                isAntiAlias = true
-            }
-            val stampDate = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.US).format(java.util.Date())
-            canvas.drawText("Audit Timestamp: $stampDate", 40f, 190f, subPaint)
+                    val subPaint = android.graphics.Paint().apply {
+                        color = android.graphics.Color.DKGRAY
+                        textSize = 24f
+                        isAntiAlias = true
+                    }
+                    val stampDate = java.text.SimpleDateFormat("MMM dd, yyyy • hh:mm a", java.util.Locale.US).format(java.util.Date())
+                    canvas.drawText("Audit Timestamp: $stampDate", 40f, 190f, subPaint)
 
-            val signatureDir = File(context.filesDir, "signatures").apply { mkdirs() }
-            val file = File(signatureDir, "sig_seal_${System.currentTimeMillis()}.png")
-            var writeSucceeded = false
-            try {
-                withContext(Dispatchers.IO) {
-                    FileOutputStream(file).use { out ->
+                    val signatureDir = File(context.filesDir, "signatures").apply { mkdirs() }
+                    val sealFile = File(signatureDir, "sig_seal_${System.currentTimeMillis()}.png")
+                    FileOutputStream(sealFile).use { out ->
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     }
+                    sealFile
+                } catch (_: Exception) {
+                    // Failed to persist seal; do not report success.
+                    null
+                } finally {
+                    bitmap.recycle()
                 }
-                writeSucceeded = true
-            } catch (_: Exception) {
-                // Failed to persist seal; do not report success.
-            } finally {
-                bitmap.recycle()
             }
-            if (writeSucceeded) {
+            if (file != null) {
                 isConfirmed = true
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 onSignatureCaptured(file.absolutePath)

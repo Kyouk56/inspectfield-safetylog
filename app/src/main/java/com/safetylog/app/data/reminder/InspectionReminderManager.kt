@@ -30,6 +30,19 @@ class InspectionReminderManager(private val context: Context) {
         const val EXTRA_DUE_TIME = "extra_due_time"
         const val EXTRA_DUE_TIMESTAMP = "extra_due_timestamp"
         const val EXTRA_FROM_NOTIFICATION = "com.safetylog.app.extra.FROM_NOTIFICATION"
+        const val EXTRA_NOTIFICATION_TOKEN = "com.safetylog.app.extra.NOTIFICATION_TOKEN"
+
+        /** Per-install secret token verifying notification intents originated from this app. */
+        fun getOrCreateNotificationToken(context: Context): String {
+            val prefs = context.applicationContext.getSharedPreferences("safetylog_internal_tokens", Context.MODE_PRIVATE)
+            return prefs.getString("notification_secret", null) ?: run {
+                val bytes = ByteArray(24)
+                java.security.SecureRandom().nextBytes(bytes)
+                val token = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                prefs.edit().putString("notification_secret", token).apply()
+                token
+            }
+        }
 
         // Dedicated high values so the test alert cannot collide with an equipment alarm
         // or with the dashboard's content PendingIntent (request code 0).
@@ -106,6 +119,7 @@ class InspectionReminderManager(private val context: Context) {
             putExtra(EXTRA_DUE_DATE, equipment.assignedReviewDate)
             putExtra(EXTRA_DUE_TIME, equipment.assignedReviewTime)
             putExtra(EXTRA_DUE_TIMESTAMP, equipment.nextReviewTimestamp)
+            putExtra(EXTRA_NOTIFICATION_TOKEN, getOrCreateNotificationToken(context))
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -201,6 +215,7 @@ class InspectionReminderManager(private val context: Context) {
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_NOTIFICATION_TOKEN, getOrCreateNotificationToken(context))
         }
         val pendingIntent = PendingIntent.getActivity(
             context,

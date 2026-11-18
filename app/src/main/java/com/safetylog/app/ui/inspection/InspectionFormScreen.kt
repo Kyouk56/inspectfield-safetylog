@@ -70,28 +70,28 @@ fun InspectionFormScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             coroutineScope.launch {
-                try {
-                    val photoDir = File(context.filesDir, "photos").apply { mkdirs() }
-                    val photoFile = File(photoDir, "defect_${System.currentTimeMillis()}.jpg")
-                    val inputStream = context.contentResolver.openInputStream(uri)
-                    if (inputStream == null) {
-                        viewModel.onPhotoSelectionFailed()
-                        return@launch
-                    }
-                    var bytesCopied = 0L
-                    withContext(Dispatchers.IO) {
+                // ContentResolver.openInputStream performs a binder call and file I/O;
+                // keep the whole copy off the main thread.
+                val copiedPath = withContext(Dispatchers.IO) {
+                    try {
+                        val photoDir = File(context.filesDir, "photos").apply { mkdirs() }
+                        val photoFile = File(photoDir, "defect_${System.currentTimeMillis()}.jpg")
+                        val inputStream = context.contentResolver.openInputStream(uri)
+                            ?: return@withContext null
+                        var bytesCopied = 0L
                         inputStream.use { input ->
                             FileOutputStream(photoFile).use { output ->
                                 bytesCopied = input.copyTo(output)
                             }
                         }
+                        if (bytesCopied > 0) photoFile.absolutePath else null
+                    } catch (_: Exception) {
+                        null
                     }
-                    if (bytesCopied > 0) {
-                        viewModel.onPhotoSelected(photoFile.absolutePath)
-                    } else {
-                        viewModel.onPhotoSelectionFailed()
-                    }
-                } catch (_: Exception) {
+                }
+                if (copiedPath != null) {
+                    viewModel.onPhotoSelected(copiedPath)
+                } else {
                     viewModel.onPhotoSelectionFailed()
                 }
             }

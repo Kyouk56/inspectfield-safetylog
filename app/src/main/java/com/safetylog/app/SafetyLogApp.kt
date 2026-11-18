@@ -57,7 +57,8 @@ class SafetyLogApp : Application() {
         com.safetylog.app.data.reminder.InspectionReminderManager.initNotificationChannel(this)
 
         // Initialize On-Device Hardware Keystore Vault & AES-256 Cipher by default for every individual user
-        secureTokenStorage.initVault()
+        // Deferred off the main thread so StrongBox/Keystore generation never blocks app startup
+        appScope.launch { secureTokenStorage.initVault() }
 
         // Restore (and verify) any cached server-signed authorization decision.
         authorizationRepository.restoreCachedSnapshot()

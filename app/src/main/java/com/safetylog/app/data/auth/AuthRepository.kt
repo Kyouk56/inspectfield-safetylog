@@ -43,6 +43,18 @@ class AuthRepository(
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     /**
+     * Cached auth configuration. Both values originate from Keystore-backed
+     * EncryptedSharedPreferences, so they are resolved off the main thread and republished
+     * through StateFlows. UI readers (notably AuthViewModel.uiState's `combine` transform)
+     * must use these cached snapshots instead of decrypting on the caller's thread.
+     */
+    private val _effectiveGoogleClientId = MutableStateFlow<String?>(null)
+    val effectiveGoogleClientId: StateFlow<String?> = _effectiveGoogleClientId.asStateFlow()
+
+    private val _sandboxMode = MutableStateFlow(false)
+    val sandboxMode: StateFlow<Boolean> = _sandboxMode.asStateFlow()
+
+    /**
      * Cached cryptographic telemetry for the security badges.
      *
      * Computing telemetry performs a live AES-GCM round-trip plus Keystore KeyInfo inspection,
@@ -83,6 +95,8 @@ class AuthRepository(
         // EncryptedSharedPreferences and runs a SHA-256 integrity check, which would otherwise
         // stall the main thread of whichever caller first touches this repository.
         repoScope.launch {
+            // Resolve the Keystore-backed configuration before anything can read the caches.
+            refreshAuthConfig()
             val persistedUser = secureStorage.loadUser()
             if (persistedUser != null && persistedUser.isSessionActive) {
                 _currentUser.value = persistedUser
@@ -98,7 +112,17 @@ class AuthRepository(
         }
     }
 
-    fun getEffectiveGoogleClientId(): String? {
+    /**
+     * Returns the cached effective Web Client ID. This accessor never touches Keystore or
+     * EncryptedSharedPreferences, so it is safe to call from a UI-thread flow transform.
+     */
+    fun getEffectiveGoogleClientId(): String? = _effectiveGoogleClientId.value
+
+    /**
+     * Resolves the effective Web Client ID from secure storage / resources.
+     * Must only be called from [Dispatchers.IO].
+     */
+    private fun resolveEffectiveGoogleClientId(): String? {
         val custom = secureStorage.getCustomGoogleClientId()
         if (!custom.isNullOrBlank()) return custom
         return try {
@@ -109,15 +133,27 @@ class AuthRepository(
         }
     }
 
-    fun setCustomGoogleClientId(clientId: String?) {
-        secureStorage.setCustomGoogleClientId(clientId)
+    /**
+     * Republishes both cached configuration values from secure storage.
+     * Must only be called from [Dispatchers.IO].
+     */
+    private fun refreshAuthConfig() {
+        _effectiveGoogleClientId.value = resolveEffectiveGoogleClientId()
+        _sandboxMode.value = TestControls.isEnabled && secureStorage.isSandboxAuthForced()
     }
 
-    fun isSandboxMode(): Boolean = TestControls.isEnabled && secureStorage.isSandboxAuthForced()
+    suspend fun setCustomGoogleClientId(clientId: String?) = withContext(Dispatchers.IO) {
+        secureStorage.setCustomGoogleClientId(clientId)
+        refreshAuthConfig()
+    }
 
-    fun setSandboxMode(enabled: Boolean) {
-        if (!TestControls.isEnabled) return
+    /** Returns the cached sandbox flag without decrypting preferences on the caller's thread. */
+    fun isSandboxMode(): Boolean = _sandboxMode.value
+
+    suspend fun setSandboxMode(enabled: Boolean) = withContext(Dispatchers.IO) {
+        if (!TestControls.isEnabled) return@withContext
         secureStorage.setSandboxAuthForced(enabled)
+        refreshAuthConfig()
     }
 
     /**
@@ -132,6 +168,7 @@ class AuthRepository(
         if (!TestControls.isEnabled) {
             return@withContext AuthResult.Error("Sandbox sign-in is disabled in this build.")
         }
+        refreshAuthConfig()
         _isLoading.value = true
         try {
             val resolvedName = fallbackDisplayName?.takeIf { it.isNotBlank() } ?: "Safety Inspector"
@@ -176,6 +213,7 @@ class AuthRepository(
         fallbackDisplayName: String? = null,
         fallbackEmail: String? = null
     ): AuthResult = withContext(Dispatchers.IO) {
+        refreshAuthConfig()
         _isLoading.value = true
         try {
             val effectiveClientId = serverClientId?.trim()?.ifBlank { null } ?: getEffectiveGoogleClientId()?.trim()
@@ -347,6 +385,7 @@ class AuthRepository(
         role: UserRole = UserRole.USER,
         password: String? = null
     ): AuthResult = withContext(Dispatchers.IO) {
+        refreshAuthConfig()
         _isLoading.value = true
         try {
             val resolvedName = displayName.trim().ifBlank { "Certified Safety Inspector" }
@@ -401,6 +440,7 @@ class AuthRepository(
         email: String = "inspector@apexcommercial.onmicrosoft.com",
         displayName: String = "Senior Safety Officer"
     ): AuthResult = withContext(Dispatchers.IO) {
+        refreshAuthConfig()
         if (!(com.safetylog.app.BuildConfig.DEBUG || isSandboxMode())) {
             return@withContext AuthResult.Error("Microsoft sign-in is only available in debug or sandbox mode.")
         }
@@ -430,6 +470,7 @@ class AuthRepository(
         companyDomain: String,
         officerName: String
     ): AuthResult = withContext(Dispatchers.IO) {
+        refreshAuthConfig()
         if (!(com.safetylog.app.BuildConfig.DEBUG || isSandboxMode())) {
             return@withContext AuthResult.Error("Corporate SSO is only available in debug or sandbox mode.")
         }
@@ -495,6 +536,7 @@ class AuthRepository(
      * Securely revokes session, clears encrypted tokens, and signs out
      */
     suspend fun signOut() = withContext(Dispatchers.IO) {
+        refreshAuthConfig()
         _isLoading.value = true
         try {
             try {

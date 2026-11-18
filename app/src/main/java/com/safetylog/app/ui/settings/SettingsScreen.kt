@@ -73,10 +73,18 @@ fun SettingsScreen(
     var showPaywall by remember { mutableStateOf(false) }
     var showCancelConfirmDialog by remember { mutableStateOf(false) }
     var showEndpointDialog by remember { mutableStateOf(false) }
-    var customEndpointInput by remember { mutableStateOf(teamSyncEngine.getCustomRestEndpoint()) }
-    var cloudTelemetryOptIn by remember { mutableStateOf(CrashLogVault.isCloudTelemetryEnabled(context)) }
-    var localCrashCount by remember { mutableIntStateOf(CrashLogVault.getCrashCount(context)) }
+    // These originate from SharedPreferences / on-disk crash logs. Load them off the
+    // composition thread so Keystore/prefs I/O never stalls a frame.
+    var customEndpointInput by remember { mutableStateOf("") }
+    var cloudTelemetryOptIn by remember { mutableStateOf(false) }
+    var localCrashCount by remember { mutableIntStateOf(0) }
     var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(teamSyncEngine, context) {
+        customEndpointInput = withContext(Dispatchers.IO) { teamSyncEngine.getCustomRestEndpoint() }
+        cloudTelemetryOptIn = withContext(Dispatchers.IO) { CrashLogVault.isCloudTelemetryEnabled(context) }
+        localCrashCount = withContext(Dispatchers.IO) { CrashLogVault.getCrashCount(context) }
+    }
 
     var hasNotificationPermission by remember {
         mutableStateOf(
@@ -200,7 +208,8 @@ fun SettingsScreen(
             cloudDriveUriInput = uri.toString()
             cloudDriveNameInput = folderName
 
-            val updatedConfig = uiState.companyOAuthConfig.copy(
+            // Merge into the live form draft so unsaved OAuth/webhook edits are preserved.
+            val updatedConfig = oauthDraft.copy(
                 cloudDriveFolderUri = uri.toString(),
                 cloudDriveFolderName = folderName
             )

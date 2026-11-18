@@ -48,7 +48,6 @@ class AuthViewModel(
     private val _successMessage = MutableStateFlow<String?>(null)
     private val _keystoreDiagnostics = MutableStateFlow<KeystoreDiagnostics?>(null)
     private val _isRunningDiagnostics = MutableStateFlow(false)
-    private val _isSandboxMode = MutableStateFlow(authRepository.isSandboxMode())
 
     val uiState: StateFlow<AuthUiState> = combine(
         authRepository.currentUser,
@@ -62,7 +61,10 @@ class AuthViewModel(
         billingRepository?.paymentStatus ?: MutableStateFlow(PaymentStatus.ACTIVE),
         billingRepository?.currentTier ?: MutableStateFlow(SubscriptionTier.FREE),
         billingRepository?.companyOAuthConfig ?: MutableStateFlow(CompanyOAuthConfig()),
-        _isSandboxMode
+        // Both flows are backed by AuthRepository's cached snapshots, resolved on Dispatchers.IO.
+        // No Keystore decrypt runs in this transform on the Main thread.
+        authRepository.effectiveGoogleClientId,
+        authRepository.sandboxMode
     ) { args: Array<Any?> ->
         val user = args[0] as? AuthUser
         val loading = args[1] as Boolean
@@ -77,7 +79,8 @@ class AuthViewModel(
         val payStatus = args[8] as PaymentStatus
         val tier = args[9] as SubscriptionTier
         val companyConfig = args[10] as CompanyOAuthConfig
-        val sandboxActive = args[11] as Boolean
+        val googleClientId = args[11] as? String
+        val sandboxActive = args[12] as Boolean
 
         AuthUiState(
             currentUser = user,
@@ -93,7 +96,7 @@ class AuthViewModel(
             paymentStatus = payStatus,
             subscriptionTier = tier,
             companyOAuthConfig = companyConfig,
-            googleClientId = authRepository.getEffectiveGoogleClientId(),
+            googleClientId = googleClientId,
             isSandboxMode = sandboxActive
         )
     }.stateIn(
@@ -164,14 +167,19 @@ class AuthViewModel(
     }
 
     fun saveCustomGoogleClientId(clientId: String?) {
-        authRepository.setCustomGoogleClientId(clientId)
-        _successMessage.value = if (clientId.isNullOrBlank()) "Cleared custom Google Client ID" else "Saved Google OAuth Client ID"
+        // EncryptedSharedPreferences write (and cache refresh) must stay off the main thread.
+        viewModelScope.launch(Dispatchers.IO) {
+            authRepository.setCustomGoogleClientId(clientId)
+            _successMessage.value = if (clientId.isNullOrBlank()) "Cleared custom Google Client ID" else "Saved Google OAuth Client ID"
+        }
     }
 
     fun setSandboxMode(enabled: Boolean) {
-        authRepository.setSandboxMode(enabled)
-        _isSandboxMode.value = enabled
-        _successMessage.value = if (enabled) "Sandbox Mode enabled (local offline session)" else "Live Google Cloud OAuth enabled"
+        // Keystore-backed flag write (and cache refresh) must stay off the main thread.
+        viewModelScope.launch(Dispatchers.IO) {
+            authRepository.setSandboxMode(enabled)
+            _successMessage.value = if (enabled) "Sandbox Mode enabled (local offline session)" else "Live Google Cloud OAuth enabled"
+        }
     }
 
     fun signInWithEmail(name: String, email: String, role: UserRole = UserRole.USER, password: String? = null) {
@@ -236,7 +244,7 @@ class AuthViewModel(
             _errorMessage.value = null
 
             // Self-service verification: Company OAuth is locked behind Enterprise!
-            if (billingRepository != null && !billingRepository.canUseCompanyOAuth.value) {
+            if (billingRepository?.canUseCompanyOAuth?.value != true) {
                 _errorMessage.value = "Enterprise Subscription Required: Corporate SSO and Company OAuth domains require an active Enterprise subscription ($0.50/seat/mo). Please upgrade below."
                 return@launch
             }

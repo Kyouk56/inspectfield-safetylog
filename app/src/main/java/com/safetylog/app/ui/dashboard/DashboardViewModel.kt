@@ -23,8 +23,10 @@ import com.safetylog.app.data.sync.TeamSyncEngine
 import com.safetylog.app.domain.EntitlementManager
 import com.safetylog.app.util.ServerAuthorization
 import com.safetylog.app.util.TestControls
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -321,7 +323,9 @@ class DashboardViewModel(
         val currentEmail = authRepository.currentUser.value?.email ?: uiState.value.authUser?.email
         val sanitized = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(role, currentEmail)
         _userRoleOverride.value = sanitized
-        authRepository.updateUserRole(sanitized)
+        viewModelScope.launch(Dispatchers.IO) {
+            authRepository.updateUserRole(sanitized)
+        }
     }
 
     fun resetRoleToDefault() {
@@ -344,7 +348,9 @@ class DashboardViewModel(
         if (TestControls.isEnabled && tier == SubscriptionTier.ENTERPRISE && currentRole != UserRole.OWNER) {
             billingRepository.setEnterpriseSeats(seats)
             _userRoleOverride.value = UserRole.ACCOUNT_ADMIN
-            authRepository.updateUserRole(UserRole.ACCOUNT_ADMIN)
+            viewModelScope.launch(Dispatchers.IO) {
+                authRepository.updateUserRole(UserRole.ACCOUNT_ADMIN)
+            }
         }
     }
 
@@ -360,7 +366,9 @@ class DashboardViewModel(
             // In dev / test fallback, update role for enterprise simulation
             if (tier == SubscriptionTier.ENTERPRISE && currentRole != UserRole.OWNER) {
                 _userRoleOverride.value = UserRole.ACCOUNT_ADMIN
-                authRepository.updateUserRole(UserRole.ACCOUNT_ADMIN)
+                viewModelScope.launch(Dispatchers.IO) {
+                    authRepository.updateUserRole(UserRole.ACCOUNT_ADMIN)
+                }
             }
         }
         return launched
@@ -393,7 +401,10 @@ class DashboardViewModel(
     fun saveCompanyOAuthConfig(config: CompanyOAuthConfig) {
         if (!canMutate()) return
         if (!uiState.value.userRole.canManageSettings) return
-        billingRepository.saveCompanyOAuthConfig(config)
+        // Webhook secrets are Keystore-encrypted before persistence; keep that work off Main.
+        viewModelScope.launch(Dispatchers.IO) {
+            billingRepository.saveCompanyOAuthConfig(config)
+        }
     }
 
     suspend fun addTeamMember(email: String, name: String, role: UserRole): Result<TeamMember> {
@@ -413,7 +424,9 @@ class DashboardViewModel(
         if (result.isFailure) return result
         val serverError = syncRosterToServer()
         if (serverError != null) {
-            billingRepository.saveTeamMembersToPrefs(previous)
+            withContext(Dispatchers.IO) {
+                billingRepository.saveTeamMembersToPrefs(previous)
+            }
             return Result.failure(serverError)
         }
         triggerRosterCloudSync()
@@ -446,7 +459,9 @@ class DashboardViewModel(
         if (result.isFailure) return result
         val serverError = syncRosterToServer()
         if (serverError != null) {
-            billingRepository.saveTeamMembersToPrefs(previous)
+            withContext(Dispatchers.IO) {
+                billingRepository.saveTeamMembersToPrefs(previous)
+            }
             return Result.failure(serverError)
         }
         triggerRosterCloudSync()
@@ -473,7 +488,9 @@ class DashboardViewModel(
         if (result.isFailure) return result
         val serverError = syncRosterToServer()
         if (serverError != null) {
-            billingRepository.saveTeamMembersToPrefs(previous)
+            withContext(Dispatchers.IO) {
+                billingRepository.saveTeamMembersToPrefs(previous)
+            }
             return Result.failure(serverError)
         }
         triggerRosterCloudSync()

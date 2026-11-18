@@ -31,13 +31,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.safetylog.app.SafetyLogApp
 import com.safetylog.app.data.BillingRepository
+import com.safetylog.app.data.auth.AuthRepository
+import com.safetylog.app.data.auth.AuthUser
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
 import com.safetylog.app.data.auth.UserRole
 import com.safetylog.app.ui.components.PaywallBottomSheet
 import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.theme.*
+import kotlinx.coroutines.flow.flowOf
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -47,6 +51,7 @@ import java.util.*
 fun ReportsScreen(
     viewModel: ReportViewModel,
     billingRepository: BillingRepository? = null,
+    authRepository: AuthRepository? = null,
     onNavigateBack: () -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
@@ -58,6 +63,14 @@ fun ReportsScreen(
     val enterpriseSeats by remember(billingRepository) { billingRepository?.enterpriseSeats ?: kotlinx.coroutines.flow.MutableStateFlow(5) }.collectAsStateWithLifecycle()
     var showPaywall by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    // Resolve the real signed-in role the same way EquipmentHistoryScreen does. The
+    // fallback keeps existing callers source-compatible while still reading the live session.
+    val resolvedAuthRepository = authRepository ?: (context.applicationContext as? SafetyLogApp)?.authRepository
+    val currentUserFlow = remember(resolvedAuthRepository) {
+        resolvedAuthRepository?.currentUser ?: flowOf<AuthUser?>(null)
+    }
+    val currentUser by currentUserFlow.collectAsStateWithLifecycle(initialValue = null)
+    val userRole = currentUser?.role ?: UserRole.USER
     val snackbarHostState = remember { SnackbarHostState() }
     val isDark = MaterialTheme.colorScheme.background == DarkSurfaceBase
 
@@ -557,7 +570,7 @@ fun ReportsScreen(
     if (showPaywall && billingRepository != null) {
         PaywallBottomSheet(
             onDismissRequest = { showPaywall = false },
-            userRole = UserRole.ACCOUNT_ADMIN,
+            userRole = userRole,
             currentTier = currentTier,
             paymentStatus = paymentStatus,
             initialEnterpriseSeats = enterpriseSeats,

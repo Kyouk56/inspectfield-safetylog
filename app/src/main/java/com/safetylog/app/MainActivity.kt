@@ -51,8 +51,14 @@ class MainActivity : ComponentActivity() {
      * notification PendingIntent sets may drive in-app navigation, so another installed
      * app cannot force a jump to an arbitrary equipment record.
      */
-    private fun Intent.isTrustedNotificationIntent(): Boolean =
-        getBooleanExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, false)
+    private fun Intent.isTrustedNotificationIntent(): Boolean {
+        val provided = getStringExtra(InspectionReminderManager.EXTRA_NOTIFICATION_TOKEN) ?: return false
+        val expected = InspectionReminderManager.getOrCreateNotificationToken(this@MainActivity)
+        return java.security.MessageDigest.isEqual(
+            provided.toByteArray(Charsets.UTF_8),
+            expected.toByteArray(Charsets.UTF_8)
+        )
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -160,9 +166,15 @@ fun SafetyLogNavGraph(
     androidx.compose.runtime.LaunchedEffect(initialEquipmentId, initialAction) {
         if (initialEquipmentId > 0) {
             if (initialAction == "ACTION_VIEW_HISTORY") {
-                navController.navigate("history/$initialEquipmentId")
+                navController.navigate("history/$initialEquipmentId") {
+                    launchSingleTop = true
+                    popUpTo("dashboard") { inclusive = false }
+                }
             } else {
-                navController.navigate("inspect/$initialEquipmentId")
+                navController.navigate("inspect/$initialEquipmentId") {
+                    launchSingleTop = true
+                    popUpTo("dashboard") { inclusive = false }
+                }
             }
             onNotificationConsumed()
         }

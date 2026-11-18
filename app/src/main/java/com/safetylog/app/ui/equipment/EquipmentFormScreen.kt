@@ -33,7 +33,10 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.safetylog.app.SafetyLogApp
 import com.safetylog.app.data.BillingRepository
+import com.safetylog.app.data.auth.AuthRepository
+import com.safetylog.app.data.auth.AuthUser
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
 import com.safetylog.app.data.auth.UserRole
@@ -41,12 +44,14 @@ import com.safetylog.app.domain.ChecklistRegistry
 import com.safetylog.app.ui.components.PaywallBottomSheet
 import com.safetylog.app.ui.components.SafetyBannerAd
 import com.safetylog.app.ui.theme.*
+import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EquipmentFormScreen(
     viewModel: EquipmentFormViewModel,
     billingRepository: BillingRepository? = null,
+    authRepository: AuthRepository? = null,
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -56,9 +61,17 @@ fun EquipmentFormScreen(
     val enterpriseSeats by remember(billingRepository) { billingRepository?.enterpriseSeats ?: kotlinx.coroutines.flow.MutableStateFlow(5) }.collectAsStateWithLifecycle()
     var showPaywall by remember { mutableStateOf(false) }
     val isDark = MaterialTheme.colorScheme.background == DarkSurfaceBase
+    // Use the real signed-in role (same source as EquipmentHistoryScreen) instead of
+    // granting Account Admin privileges to every user who opens the paywall.
+    val context = LocalContext.current
+    val resolvedAuthRepository = authRepository ?: (context.applicationContext as? SafetyLogApp)?.authRepository
+    val currentUserFlow = remember(resolvedAuthRepository) {
+        resolvedAuthRepository?.currentUser ?: flowOf<AuthUser?>(null)
+    }
+    val currentUser by currentUserFlow.collectAsStateWithLifecycle(initialValue = null)
+    val userRole = currentUser?.role ?: UserRole.USER
     val snackbarHostState = remember { SnackbarHostState() }
     val haptic = LocalHapticFeedback.current
-    val context = LocalContext.current
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -424,7 +437,7 @@ fun EquipmentFormScreen(
     if (showPaywall && billingRepository != null) {
         PaywallBottomSheet(
             onDismissRequest = { showPaywall = false },
-            userRole = UserRole.ACCOUNT_ADMIN,
+            userRole = userRole,
             currentTier = currentTier,
             paymentStatus = paymentStatus,
             initialEnterpriseSeats = enterpriseSeats,

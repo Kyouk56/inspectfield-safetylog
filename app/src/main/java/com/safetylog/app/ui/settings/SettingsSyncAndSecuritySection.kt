@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +33,9 @@ import com.safetylog.app.ui.dashboard.DashboardUiState
 import com.safetylog.app.ui.dashboard.DashboardViewModel
 import com.safetylog.app.ui.theme.*
 import com.safetylog.app.util.CrashLogVault
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun SettingsTeamSyncCard(
@@ -63,6 +67,14 @@ internal fun SettingsTeamSyncCard(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    // SharedPreferences reads are resolved on IO instead of during composition.
+    val customRestEndpoint by produceState(initialValue = "", key1 = teamSyncEngine) {
+        value = withContext(Dispatchers.IO) { teamSyncEngine.getCustomRestEndpoint() }
+    }
+    val lastSyncDate by produceState(initialValue = "Never", key1 = teamSyncEngine) {
+        value = withContext(Dispatchers.IO) { teamSyncEngine.getLastSyncDateFormatted() }
+    }
 
     // 5. Team Synchronization & Cloud Interop
     Card(
@@ -166,7 +178,7 @@ internal fun SettingsTeamSyncCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = teamSyncEngine.getCustomRestEndpoint(),
+                        text = customRestEndpoint,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
@@ -478,7 +490,7 @@ internal fun SettingsTeamSyncCard(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             Text(
-                text = "Last Synchronized: ${teamSyncEngine.getLastSyncDateFormatted()}",
+                text = "Last Synchronized: $lastSyncDate",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -530,13 +542,30 @@ internal fun SettingsTeamSyncCard(
                 shape = RoundedCornerShape(10.dp)
             )
             OutlinedButton(
-                onClick = onImportPackage,
+                onClick = {
+                    // Mirror the Export entitlement gate: stay fail-closed and surface the paywall.
+                    if (!uiState.canShareBetweenAccounts) {
+                        onShowPaywall()
+                        return@OutlinedButton
+                    }
+                    onImportPackage()
+                },
                 modifier = Modifier.fillMaxWidth().height(44.dp),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(
+                    imageVector = if (uiState.canShareBetweenAccounts) Icons.Default.FileDownload else Icons.Default.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Import Encrypted Team Package", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = if (uiState.canShareBetweenAccounts) "Import Encrypted Team Package" else "Unlock Team Import (Pro / Enterprise)",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }

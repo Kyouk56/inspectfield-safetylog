@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,6 +26,8 @@ import coil.compose.AsyncImage
 import com.safetylog.app.data.model.EquipmentItem
 import com.safetylog.app.domain.EquipmentChecklist
 import com.safetylog.app.ui.theme.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 internal val COMMON_DEFECT_TAGS = listOf(
@@ -235,6 +239,13 @@ internal fun InspectionPhotoEvidenceCard(
     onPhotoRemoved: () -> Unit,
     onLaunchPhotoPicker: () -> Unit
 ) {
+    // File.exists() performs disk I/O; check it off the composition thread.
+    val photoFileExists by produceState(initialValue = false, key1 = photoUri) {
+        value = withContext(Dispatchers.IO) {
+            photoUri != null && File(photoUri).exists()
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -278,7 +289,6 @@ internal fun InspectionPhotoEvidenceCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             if (photoUri != null) {
-                val photoFile = File(photoUri)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -287,7 +297,7 @@ internal fun InspectionPhotoEvidenceCard(
                         .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(10.dp))
                 ) {
                     AsyncImage(
-                        model = if (photoFile.exists()) photoFile else photoUri,
+                        model = if (photoFileExists) File(photoUri) else photoUri,
                         contentDescription = "Attached Defect Photo",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop

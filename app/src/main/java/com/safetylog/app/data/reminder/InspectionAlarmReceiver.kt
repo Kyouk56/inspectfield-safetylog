@@ -29,52 +29,27 @@ class InspectionAlarmReceiver : BroadcastReceiver() {
         // All three PendingIntents share one base request code; their distinct Intent
         // actions keep them separate (D-10).
         val reqCode = AlarmCodes.base(equipmentId)
-        val action1 = reqCode
-        val action2 = reqCode
+        val notificationToken = InspectionReminderManager.getOrCreateNotificationToken(context)
 
-        // Main Tap Intent: opens inspection form for this equipment
-        val mainIntent = Intent(context, MainActivity::class.java).apply {
-            action = "ACTION_INSPECT_EQUIPMENT"
-            putExtra("equipmentId", equipmentId)
-            // Marks the intent as originating from our own notification PendingIntent.
-            putExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, true)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        fun buildActionPendingIntent(intentAction: String): PendingIntent {
+            val tapIntent = Intent(context, MainActivity::class.java).apply {
+                action = intentAction
+                putExtra("equipmentId", equipmentId)
+                putExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, true)
+                putExtra(InspectionReminderManager.EXTRA_NOTIFICATION_TOKEN, notificationToken)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            return PendingIntent.getActivity(
+                context,
+                reqCode,
+                tapIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
         }
-        val mainPendingIntent = PendingIntent.getActivity(
-            context,
-            reqCode,
-            mainIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
 
-        // Action Button: Inspect Now — distinct action so its PendingIntent does not
-        // overwrite the main-tap PendingIntent which shares the same request code.
-        val inspectIntent = Intent(context, MainActivity::class.java).apply {
-            action = "ACTION_INSPECT_NOW"
-            putExtra("equipmentId", equipmentId)
-            putExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, true)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val inspectPendingIntent = PendingIntent.getActivity(
-            context,
-            action1,
-            inspectIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Action Button: View History
-        val historyIntent = Intent(context, MainActivity::class.java).apply {
-            action = "ACTION_VIEW_HISTORY"
-            putExtra("equipmentId", equipmentId)
-            putExtra(InspectionReminderManager.EXTRA_FROM_NOTIFICATION, true)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val historyPendingIntent = PendingIntent.getActivity(
-            context,
-            action2,
-            historyIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val mainPendingIntent = buildActionPendingIntent("ACTION_INSPECT_EQUIPMENT")
+        val inspectPendingIntent = buildActionPendingIntent("ACTION_INSPECT_NOW")
+        val historyPendingIntent = buildActionPendingIntent("ACTION_VIEW_HISTORY")
 
         val title = "Inspection Due: $tagId ($equipmentType)"
         val summary = "Scheduled review due at $location on $dueDate at $dueTime."

@@ -220,6 +220,20 @@ internal fun AuditLogHistoryCard(
     val statusColors = getComplianceStatusColors(record.overallStatus, isDark = isDark)
     val protocol = remember(protocolName) { ChecklistRegistry.getChecklistByName(protocolName) }
 
+    // File.exists() hits the filesystem; resolve it off the composition thread.
+    val photoPath = record.photoUri
+    val signaturePath = record.signaturePath
+    val photoFileExists by produceState(initialValue = false, key1 = photoPath) {
+        value = withContext(Dispatchers.IO) {
+            !photoPath.isNullOrBlank() && File(photoPath).exists()
+        }
+    }
+    val signatureFileExists by produceState(initialValue = false, key1 = signaturePath) {
+        value = withContext(Dispatchers.IO) {
+            !signaturePath.isNullOrBlank() && File(signaturePath).exists()
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -359,9 +373,7 @@ internal fun AuditLogHistoryCard(
 
             // Defect / Condition Photo Thumbnail
             if (!record.photoUri.isNullOrBlank()) {
-                val photoFile = File(record.photoUri)
-                val exists = photoFile.exists()
-                if (exists || record.photoUri.startsWith("content://") || record.photoUri.startsWith("http")) {
+                if (photoFileExists || record.photoUri.startsWith("content://") || record.photoUri.startsWith("http")) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "DEFECT PHOTO EVIDENCE:",
@@ -372,7 +384,7 @@ internal fun AuditLogHistoryCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     AsyncImage(
-                        model = if (exists) photoFile else record.photoUri,
+                        model = if (photoFileExists) File(record.photoUri) else record.photoUri,
                         contentDescription = "Defect Photo Evidence",
                         modifier = Modifier
                             .fillMaxWidth()
@@ -385,7 +397,7 @@ internal fun AuditLogHistoryCard(
             }
 
             // Signature Thumbnail
-            if (!record.signaturePath.isNullOrBlank() && File(record.signaturePath).exists()) {
+            if (!record.signaturePath.isNullOrBlank() && signatureFileExists) {
                 Spacer(modifier = Modifier.height(14.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(modifier = Modifier.height(10.dp))

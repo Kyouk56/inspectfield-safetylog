@@ -88,8 +88,21 @@ internal fun SettingsCompanyOAuthCard(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text("Company OAuth & SSO Hub", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Corporate SAML 2.0 / Entra ID / Okta SSO & Domain Lock", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = "Company OAuth & SSO Hub",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Corporate SAML 2.0 / Entra ID / Okta SSO & Domain Lock",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
@@ -108,6 +121,9 @@ internal fun SettingsCompanyOAuthCard(
                         color = if (uiState.canUseCompanyOAuth) Color(0xFF10B981)
                         else if (uiState.paymentStatus == PaymentStatus.PAYMENT_FAILED) StatusDeficient
                         else SafetyOrange,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -225,12 +241,21 @@ internal fun SettingsCompanyOAuthCard(
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                        Text("Enforce Corporate Domain Only", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Enforce Corporate Domain Only",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         val domainDisplay = if (corporateDomainInput.isNotBlank()) corporateDomainInput else "domain.com"
                         Text(
                             text = "Strictly restrict field sign-ins to emails ending in @$domainDisplay",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     Switch(checked = enforceDomainInput, onCheckedChange = onEnforceDomainChange, enabled = canManageSettings)
@@ -265,13 +290,20 @@ internal fun SettingsCompanyOAuthCard(
                     ) {
                         Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (canManageSettings) "Save & Activate OAuth" else "Save Restricted", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (canManageSettings) "Save & Activate OAuth" else "Save Restricted",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     OutlinedButton(onClick = onNavigateToAuth, modifier = Modifier.weight(1f).height(42.dp), shape = RoundedCornerShape(10.dp)) {
                         Icon(Icons.Default.VpnKey, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Test SSO", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Test SSO", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -322,8 +354,21 @@ internal fun SettingsTeamRosterCard(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text("Team Members & Seat Roster", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Assign roles, add/remove users by email ($0.50/seat/mo)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = "Team Members & Seat Roster",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Assign roles, add/remove users by email ($0.50/seat/mo)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
@@ -342,6 +387,9 @@ internal fun SettingsTeamRosterCard(
                         color = if (!uiState.canUseCompanyOAuth) SafetyOrange
                         else if (isSeatsFull) Color(0xFFB45309)
                         else StatusPassed,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -381,8 +429,23 @@ internal fun SettingsTeamRosterCard(
                 // Seat Meter
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Active Seat Utilization:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                        Text("$usedSeats / $totalSeats Seats ($0.50/seat/mo)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = "Active Seat Utilization:",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "$usedSeats / $totalSeats Seats ($0.50/seat/mo)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     val progressFraction = if (totalSeats > 0) (usedSeats.toFloat() / totalSeats.toFloat()).coerceIn(0f, 1f) else 0f
@@ -399,10 +462,17 @@ internal fun SettingsTeamRosterCard(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(modifier = Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Info, contentDescription = null, tint = SafetyAmber, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("All seats allocated. Expand seats to add more.", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB45309))
+                                Text(
+                                    text = "All seats allocated. Expand seats to add more.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFB45309),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                             TextButton(
                                 onClick = {
@@ -415,7 +485,15 @@ internal fun SettingsTeamRosterCard(
                                 },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                             ) {
-                                Text("+ Add Seats", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = TechBlue)
+                                Text(
+                                    text = "+ Add Seats",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    color = TechBlue,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
@@ -547,9 +625,12 @@ internal fun SettingsTeamRosterCard(
                         Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            if (uiState.userRole.canManageTeam) "Add Team Member" else "Add Member (Restricted)",
+                            text = if (uiState.userRole.canManageTeam) "Add Team Member" else "Add Member (Restricted)",
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -575,7 +656,14 @@ internal fun SettingsTeamRosterCard(
                         ) {
                             Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sync Drive", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = "Sync Drive",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }

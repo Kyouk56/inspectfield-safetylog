@@ -32,6 +32,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.safetylog.app.data.auth.TeamMember
@@ -218,7 +219,10 @@ internal fun SettingsInspectionRemindersCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(
                                 imageVector = if (hasNotificationPermission) Icons.Default.CheckCircle else Icons.Default.Warning,
                                 contentDescription = null,
@@ -230,7 +234,10 @@ internal fun SettingsInspectionRemindersCard(
                                 text = if (hasNotificationPermission) "System Notifications: Allowed" else "System Notifications: Permission Required",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (hasNotificationPermission) StatusPassed else SafetyAmber
+                                color = if (hasNotificationPermission) StatusPassed else SafetyAmber,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                         if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -239,7 +246,14 @@ internal fun SettingsInspectionRemindersCard(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("Grant", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = "Grant",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
@@ -248,7 +262,10 @@ internal fun SettingsInspectionRemindersCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f).padding(end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(
                                 imageVector = if (hasExactAlarmPermission) Icons.Default.CheckCircle else Icons.Default.Warning,
                                 contentDescription = null,
@@ -260,7 +277,10 @@ internal fun SettingsInspectionRemindersCard(
                                 text = if (hasExactAlarmPermission) "Exact Alarms: Allowed" else "Exact Alarms: Grant to keep due dates precise",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (hasExactAlarmPermission) StatusPassed else SafetyAmber
+                                color = if (hasExactAlarmPermission) StatusPassed else SafetyAmber,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                         if (!hasExactAlarmPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -278,7 +298,14 @@ internal fun SettingsInspectionRemindersCard(
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("Grant", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = "Grant",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
@@ -683,9 +710,22 @@ internal fun SettingsActionDialogs(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text("Active Seat Status", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                            Text("Inactive users do not consume a paid seat", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                            Text(
+                                text = "Active Seat Status",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Inactive users do not consume a paid seat",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                         Switch(
                             checked = editIsActiveInput,

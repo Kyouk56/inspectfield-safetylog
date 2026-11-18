@@ -209,6 +209,7 @@ class BillingRepository private constructor(
                 return list
             } catch (_: Exception) {}
         }
+        if (!debugMode) return emptyList()
         return listOf(
             TeamMember(
                 email = "admin@safetylog.internal",

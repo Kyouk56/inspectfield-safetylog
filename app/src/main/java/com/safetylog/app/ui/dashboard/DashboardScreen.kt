@@ -24,6 +24,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -115,7 +116,9 @@ fun DashboardScreen(
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Black,
                                     letterSpacing = (-0.5).sp,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
@@ -147,13 +150,17 @@ fun DashboardScreen(
                                         softWrap = false
                                     )
                                 }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
                                 Surface(
                                     shape = RoundedCornerShape(4.dp),
                                     color = Color(uiState.userRole.badgeColorHex),
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
                                         .clickable {
-                                            if (!TestControls.isEnabled) return@clickable
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             showRoleDialog = true
                                         }
@@ -177,23 +184,26 @@ fun DashboardScreen(
                                             maxLines = 1,
                                             softWrap = false
                                         )
-                                        Spacer(modifier = Modifier.width(2.dp))
-                                        Icon(
-                                            imageVector = Icons.Default.ArrowDropDown,
-                                            contentDescription = "Change Role",
-                                            tint = Color.White.copy(alpha = 0.85f),
-                                            modifier = Modifier.size(10.dp)
-                                        )
+                                        if (TestControls.isEnabled || uiState.canPreviewLowerRoles) {
+                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.ArrowDropDown,
+                                                contentDescription = "Change Role",
+                                                tint = Color.White.copy(alpha = 0.85f),
+                                                modifier = Modifier.size(10.dp)
+                                            )
+                                        }
                                     }
                                 }
+                                Text(
+                                    text = "Audit Vault",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
                             }
-                            Text(
-                                text = "Compliance & Audit Vault",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                softWrap = false
-                            )
                         }
                     }
                 },
@@ -433,7 +443,9 @@ fun DashboardScreen(
                         Text(
                             text = "Assigned inventory • Tap 'Inspect' to record audit checks",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     if (canManageAssets) {
@@ -600,8 +612,14 @@ fun DashboardScreen(
     if (showRoleDialog) {
         RoleSwitcherDialog(
             userRole = uiState.userRole,
+            authoritativeRole = uiState.authoritativeRole,
+            isAuthenticated = uiState.authUser != null,
             authEmail = uiState.authUser?.email,
             onSwitchRole = { role -> viewModel.switchTestRole(role) },
+            onNavigateToAuth = {
+                showRoleDialog = false
+                onNavigateToAuth()
+            },
             onDismiss = { showRoleDialog = false }
         )
     }

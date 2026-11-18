@@ -201,6 +201,15 @@ override fun getStringSet(key: String?, defValues: Set<String>?): Set<String>? =
 
         val repo = BillingRepository(prefs, debugMode = false)
         assertTrue(repo.teamMembers.value.none { it.email.contains(":") })
-        assertEquals(2, repo.teamMembers.value.size)
+        assertTrue(repo.teamMembers.value.isEmpty())
+    }
+
+    @Test
+    fun releaseBuildWithoutSavedRosterSeedsNoDemoTeamMembers() {
+        val releaseRepo = BillingRepository(FakePrefs(), debugMode = false)
+        assertTrue(releaseRepo.teamMembers.value.isEmpty())
+
+        val debugRepo = BillingRepository(FakePrefs(), debugMode = true)
+        assertEquals(2, debugRepo.teamMembers.value.size)
     }
 }

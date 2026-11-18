@@ -32,6 +32,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.safetylog.app.ui.theme.*
 import java.io.File
@@ -166,7 +167,7 @@ fun SignaturePad(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().weight(1f),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -277,7 +278,7 @@ fun SignaturePad(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
@@ -289,7 +290,9 @@ fun SignaturePad(
                         onSignatureCaptured("")
                     },
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    enabled = paths.isNotEmpty() || isConfirmed
+                    enabled = paths.isNotEmpty() || isConfirmed,
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Clear,
@@ -297,7 +300,7 @@ fun SignaturePad(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Clear")
+                    Text("Clear", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
 
                 if (!isConfirmed) {
@@ -305,17 +308,21 @@ fun SignaturePad(
                         onClick = { applyDigitalSeal() },
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
+                        ),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Text("Apply Digital Seal", fontWeight = FontWeight.SemiBold)
+                        Text("Apply Digital Seal", fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 } else {
                     Button(
                         onClick = { saveDrawnBitmap() },
                         enabled = paths.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(containerColor = StatusPassed)
+                        colors = ButtonDefaults.buttonColors(containerColor = StatusPassed),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Text("Signature Saved", fontWeight = FontWeight.Bold)
+                        Text("Signature Saved", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }

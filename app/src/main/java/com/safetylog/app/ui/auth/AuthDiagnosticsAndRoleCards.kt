@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.safetylog.app.ui.theme.*
@@ -106,15 +107,16 @@ internal fun KeystoreDiagnosticsCard(
             // Cryptographic specs grid
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SecurityMetricItem(label = "Cipher Engine", value = "AES-256-GCM", subValue = "Hardware Authenticated")
+                SecurityMetricItem(label = "Cipher Engine", value = "AES-256-GCM", subValue = "Hardware Authenticated", modifier = Modifier.weight(1f))
                 SecurityMetricItem(
                     label = "Key Protection",
                     value = uiState.keystoreDiagnostics?.securityLevel?.split(" ")?.firstOrNull() ?: "TEE / Hardware",
-                    subValue = "Non-Exportable"
+                    subValue = "Non-Exportable",
+                    modifier = Modifier.weight(1f)
                 )
-                SecurityMetricItem(label = "Tamper Audit", value = "SHA-256 Checked", subValue = "Constant-Time")
+                SecurityMetricItem(label = "Tamper Audit", value = "SHA-256 Checked", subValue = "Constant-Time", modifier = Modifier.weight(1f))
             }
 
             // Diagnostic results box if diagnostics available
@@ -152,7 +154,8 @@ internal fun KeystoreDiagnosticsCard(
                             fontSize = 9.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.Monospace,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -183,12 +186,13 @@ internal fun KeystoreDiagnosticsCard(
 internal fun SecurityMetricItem(
     label: String,
     value: String,
-    subValue: String
+    subValue: String,
+    modifier: Modifier = Modifier
 ) {
-    Column {
-        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
-        Text(text = value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-        Text(text = subValue, style = MaterialTheme.typography.labelSmall, color = StatusPassed, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+    Column(modifier = modifier) {
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text = value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text = subValue, style = MaterialTheme.typography.labelSmall, color = StatusPassed, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -260,7 +264,14 @@ internal fun GoogleOAuthClientIdDialog(
                         Text("Package: com.safetylog.inspection.app", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Release SHA-1: 62:FC:B5...EE:21", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
+                            Text(
+                                text = "Release SHA-1: 62:FC:B5...EE:21",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                            )
                             TextButton(
                                 onClick = {
                                     coroutineScope.launch {
@@ -277,11 +288,18 @@ internal fun GoogleOAuthClientIdDialog(
                                 },
                                 contentPadding = PaddingValues(0.dp)
                             ) {
-                                Text("Copy", fontSize = 11.sp)
+                                Text("Copy", fontSize = 11.sp, maxLines = 1, softWrap = false)
                             }
                         }
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Debug SHA-1: 0E:58:7D...51:34", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp)
+                            Text(
+                                text = "Debug SHA-1: 0E:58:7D...51:34",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                            )
                             TextButton(
                                 onClick = {
                                     coroutineScope.launch {
@@ -298,7 +316,7 @@ internal fun GoogleOAuthClientIdDialog(
                                 },
                                 contentPadding = PaddingValues(0.dp)
                             ) {
-                                Text("Copy", fontSize = 11.sp)
+                                Text("Copy", fontSize = 11.sp, maxLines = 1, softWrap = false)
                             }
                         }
                         Text(

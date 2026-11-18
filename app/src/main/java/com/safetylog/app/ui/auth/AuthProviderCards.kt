@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.safetylog.app.R
@@ -134,12 +135,21 @@ internal fun ActiveSessionCard(
                     text = if (!serverClientId.isNullOrBlank()) "Google OAuth: Live Cloud Mode" else "Google OAuth: Local Identity Mode",
                     style = MaterialTheme.typography.labelSmall,
                     color = if (!serverClientId.isNullOrBlank()) Color(0xFF059669) else SafetyOrange,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
                 )
                 TextButton(onClick = onConfigureClientId, contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)) {
                     Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(12.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (!serverClientId.isNullOrBlank()) "Edit Client ID" else "Configure Client ID", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (!serverClientId.isNullOrBlank()) "Edit Client ID" else "Configure Client ID",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
         }
@@ -216,7 +226,10 @@ internal fun SignInHeroCard(
                         text = if (uiState.isSandboxMode) "Offline Sandbox Active" else if (!serverClientId.isNullOrBlank()) "Live Google OAuth Ready" else "Google Sign-In not configured",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (uiState.isSandboxMode) SafetyOrange else if (!serverClientId.isNullOrBlank()) Color(0xFF059669) else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp)
                     )
                 }
                 TextButton(
@@ -228,7 +241,9 @@ internal fun SignInHeroCard(
                     Text(
                         text = if (!serverClientId.isNullOrBlank()) "Edit Client ID" else "Configure Client ID",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -387,10 +402,16 @@ internal fun CorporateSsoSection(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Icon(Icons.Default.Lock, contentDescription = null, tint = SafetyOrange, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Corporate SAML / OIDC Domain", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            text = "Corporate SAML / OIDC Domain",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     Surface(color = SafetyOrange.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp)) {
@@ -399,6 +420,8 @@ internal fun CorporateSsoSection(
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = SafetyOrange,
+                            maxLines = 1,
+                            softWrap = false,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -411,7 +434,9 @@ internal fun CorporateSsoSection(
                         "Company-specific OAuth identity integration and SAML 2.0 / Entra / Okta domain locking are exclusive to Enterprise subscribers ($0.50/seat/mo)."
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Button(

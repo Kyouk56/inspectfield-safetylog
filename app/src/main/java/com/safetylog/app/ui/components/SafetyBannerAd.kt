@@ -158,7 +158,7 @@ fun SafetyBannerAd(
 
                             Spacer(modifier = Modifier.width(6.dp))
 
-                            Column {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                 Text(
                                     text = "Brooks & Amerex Certified Safety Gear",
                                     color = Slate200,
@@ -220,7 +220,10 @@ fun SafetyBannerAd(
                         color = Slate400,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp)
                     )
                     Surface(
                         color = SafetyOrange.copy(alpha = 0.18f),
@@ -245,7 +248,9 @@ fun SafetyBannerAd(
                                 text = "Remove Ads ($2.99)",
                                 color = SafetyOrange,
                                 fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }

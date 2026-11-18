@@ -195,11 +195,23 @@ class AuthRepository(
     }
 
     private fun isCancellation(e: Exception): Boolean {
-        if (e is GetCredentialCancellationException) return true
-        if (e is androidx.credentials.exceptions.GetCredentialInterruptedException) return true
-        val msg = e.message?.lowercase() ?: ""
-        val type = (e as? androidx.credentials.exceptions.GetCredentialCustomException)?.type?.lowercase() ?: ""
-        return type.contains("user_canceled") || type.contains("cancel") || msg.contains("cancel") || msg.contains("activity is cancelled")
+        val msg = e.message?.lowercase().orEmpty()
+        val hasConfigIndicator = msg.contains("28444") ||
+            msg.contains("developer console") ||
+            msg.contains("access_denied") ||
+            msg.contains("misconfig")
+
+        if (e is GetCredentialCancellationException) {
+            return !hasConfigIndicator
+        }
+        if (e is androidx.credentials.exceptions.GetCredentialInterruptedException) {
+            return !hasConfigIndicator
+        }
+
+        // Do not match generic "cancel" substrings on non-cancellation GetCredentialExceptions
+        // (e.g. GetCredentialCustomException / provider configuration errors must surface as errors).
+        val type = (e as? androidx.credentials.exceptions.GetCredentialCustomException)?.type?.lowercase().orEmpty()
+        return type.contains("user_canceled")
     }
 
     /**
@@ -276,10 +288,11 @@ class AuthRepository(
                         .build()
                     credentialManager.getCredential(context = hostActivity, request = request)
                 } catch (stage1Error: Exception) {
-                    if (stage1Error is NoCredentialException) throw stage1Error
                     if (isCancellation(stage1Error)) throw stage1Error
 
                     // Stage 2: Fallback to GetGoogleIdOption (with all accounts shown, as sole option)
+                    // Any non-user-cancel Stage 1 error, including NoCredentialException, should
+                    // fall through cleanly so Stage 2 can attempt sign-in.
                     val googleIdOption = GetGoogleIdOption.Builder()
                         .setFilterByAuthorizedAccounts(false)
                         .setServerClientId(effectiveClientId)
@@ -325,12 +338,9 @@ class AuthRepository(
                     keyAlias = secureStorage.masterKeyAlias
                 )
 
-                _currentUser.value = user
-                _assignedRole.value = user.role
-
                 // Server-authoritative builds exchange the verified Google ID token for a
-                // signed decision. If the server cannot be reached, the user may still work
-                // offline as USER, but no elevated local role is honoured.
+                // signed decision. If the server cannot verify the session, do not leave an
+                // unverified session pretending to be signed in.
                 if (ServerAuthorization.isConfigured && authorizationRepository != null) {
                     when (val result = authorizationRepository.exchange(googleIdToken, rawNonce)) {
                         is ApiResult.Success -> {
@@ -339,22 +349,37 @@ class AuthRepository(
                             secureStorage.saveUser(updated)
                             _currentUser.value = updated
                             _assignedRole.value = authoritativeRole
+                            AuthResult.Success(updated)
                         }
-                        else -> {
-                            val offlineUser = user.copy(role = UserRole.USER)
-                            // Do not persist offline fallback unless in debug/sandbox local mode.
-                            if (TestControls.isEnabled) {
-                                secureStorage.saveUser(offlineUser)
-                            }
-                            _currentUser.value = offlineUser
+                        is ApiResult.HttpError -> {
+                            secureStorage.clearUser()
+                            authorizationRepository.clear()
+                            _currentUser.value = null
                             _assignedRole.value = UserRole.USER
+                            AuthResult.Error("Authorization server rejected sign-in (HTTP ${result.code}): ${result.message}")
+                        }
+                        is ApiResult.NetworkError -> {
+                            secureStorage.clearUser()
+                            authorizationRepository.clear()
+                            _currentUser.value = null
+                            _assignedRole.value = UserRole.USER
+                            AuthResult.Error("Could not verify sign-in with the authorization server: ${result.error.message ?: "network error"}")
+                        }
+                        is ApiResult.InvalidResponse -> {
+                            secureStorage.clearUser()
+                            authorizationRepository.clear()
+                            _currentUser.value = null
+                            _assignedRole.value = UserRole.USER
+                            AuthResult.Error("Authorization server returned an invalid response; sign-in was not verified.")
                         }
                     }
                 } else {
                     // Local/non-server mode: persist the session.
                     secureStorage.saveUser(user)
+                    _currentUser.value = user
+                    _assignedRole.value = user.role
+                    AuthResult.Success(user)
                 }
-                AuthResult.Success(_currentUser.value ?: user)
             } else {
                 AuthResult.Error("Unsupported credential type returned from Google Credential Manager (${credential::class.java.simpleName}).")
             }

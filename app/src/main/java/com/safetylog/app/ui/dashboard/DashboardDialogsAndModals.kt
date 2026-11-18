@@ -5,8 +5,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
@@ -23,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.safetylog.app.data.auth.AuthorizationConfig
@@ -84,6 +87,8 @@ internal fun AssetActionBottomSheet(
                     ) {
                         Box(
                             modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(if (isDark) DarkSurfaceBase else Slate800)
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -93,7 +98,9 @@ internal fun AssetActionBottomSheet(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                         Surface(
@@ -380,12 +387,16 @@ internal fun NetworkStatusDialog(
 @Composable
 internal fun RoleSwitcherDialog(
     userRole: UserRole,
+    authoritativeRole: UserRole,
+    isAuthenticated: Boolean,
     authEmail: String?,
     onSwitchRole: (UserRole) -> Unit,
+    onNavigateToAuth: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
+    val isReleaseMode = !TestControls.isEnabled
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -413,7 +424,9 @@ internal fun RoleSwitcherDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Role Description
@@ -461,128 +474,272 @@ internal fun RoleSwitcherDialog(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                // Switch Role Selector
-                Text(
-                    text = "Switch Active Role (Testing & Simulation):",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isReleaseMode) {
+                    Text(
+                        text = "Role Access:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    val isOwnerAuthorized = TestControls.isEnabled && AuthorizationConfig.isAuthorizedOwner(authEmail)
-
-                    UserRole.entries.forEach { role ->
-                        val isSelected = userRole == role
-                        val isRestrictedOwner = role == UserRole.OWNER && !isOwnerAuthorized
-
+                    if (!isAuthenticated) {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) {
-                                Color(role.badgeColorHex).copy(alpha = 0.18f)
-                            } else if (isRestrictedOwner) {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            },
-                            border = BorderStroke(
-                                if (isSelected) 1.5.dp else 1.dp,
-                                if (isSelected) Color(role.badgeColorHex) else MaterialTheme.colorScheme.outlineVariant
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    if (isRestrictedOwner) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        Toast.makeText(
-                                            context,
-                                            "Restricted: Platform Owner authority is reserved exclusively for ${AuthorizationConfig.AUTHORIZED_OWNER_EMAILS.joinToString(" and ")}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    } else {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onSwitchRole(role)
-                                        Toast.makeText(context, "Switched role to ${role.title}", Toast.LENGTH_SHORT).show()
-                                        onDismiss()
-                                    }
-                                }
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
-                            Row(
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Sign in with Google/Email to verify an organization role.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Button(
+                                    onClick = onNavigateToAuth,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Sign in to verify role", fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        UserRole.entries.forEach { role ->
+                            val isSelected = userRole == role
+                            val isAuthoritative = role == authoritativeRole
+                            val canPreview = role.ordinal >= authoritativeRole.ordinal
+                            val isLocked = !canPreview
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = when {
+                                    isSelected -> Color(role.badgeColorHex).copy(alpha = 0.18f)
+                                    isLocked -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                },
+                                border = BorderStroke(
+                                    if (isSelected) 1.5.dp else 1.dp,
+                                    if (isSelected) Color(role.badgeColorHex) else MaterialTheme.colorScheme.outlineVariant
+                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        if (isLocked) {
+                                            Toast.makeText(
+                                                context,
+                                                "Assigned by Organization Admin / Owner",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else {
+                                            onSwitchRole(if (isAuthoritative) authoritativeRole else role)
+                                            if (isAuthoritative && userRole != authoritativeRole) {
+                                                Toast.makeText(context, "Restored role to ${authoritativeRole.title}", Toast.LENGTH_SHORT).show()
+                                            } else if (!isAuthoritative) {
+                                                Toast.makeText(context, "Previewing role as ${role.title}", Toast.LENGTH_SHORT).show()
+                                            }
+                                            onDismiss()
+                                        }
+                                    }
                             ) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = Color(role.badgeColorHex)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f).padding(end = 8.dp)
                                     ) {
-                                        Text(
-                                            text = when (role) {
-                                                UserRole.OWNER -> "OWNER"
-                                                UserRole.ACCOUNT_ADMIN -> "ADMIN"
-                                                UserRole.MANAGER -> "MANAGER"
-                                                UserRole.USER -> "USER"
-                                            },
-                                            fontSize = 8.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Color.White,
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color(role.badgeColorHex)
+                                        ) {
+                                            Text(
+                                                text = when (role) {
+                                                    UserRole.OWNER -> "OWNER"
+                                                    UserRole.ACCOUNT_ADMIN -> "ADMIN"
+                                                    UserRole.MANAGER -> "MANAGER"
+                                                    UserRole.USER -> "USER"
+                                                },
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = Color.White,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = if (isAuthoritative) "${role.title} (Your Role)" else role.title,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = if (isLocked) "Assigned by Organization Admin / Owner" else if (isAuthoritative) "Verified assigned role" else "Tap to preview lower permissions",
+                                                fontSize = 9.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Active",
+                                            tint = Color(role.badgeColorHex),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    } else if (isLocked) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = "Locked",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = role.title,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                            )
-                                            if (isRestrictedOwner) {
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
-                                                ) {
-                                                    Text(
-                                                        text = "RESTRICTED",
-                                                        fontSize = 8.sp,
-                                                        fontWeight = FontWeight.ExtraBold,
-                                                        color = MaterialTheme.colorScheme.error,
-                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Switch Role Selector (Testing & Simulation)
+                    Text(
+                        text = "Switch Active Role (Testing & Simulation):",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val isOwnerAuthorized = AuthorizationConfig.isAuthorizedOwner(authEmail)
+
+                        UserRole.entries.forEach { role ->
+                            val isSelected = userRole == role
+                            val isRestrictedOwner = role == UserRole.OWNER && !isOwnerAuthorized
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) {
+                                    Color(role.badgeColorHex).copy(alpha = 0.18f)
+                                } else if (isRestrictedOwner) {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                },
+                                border = BorderStroke(
+                                    if (isSelected) 1.5.dp else 1.dp,
+                                    if (isSelected) Color(role.badgeColorHex) else MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
                                         if (isRestrictedOwner) {
-                                            Text(
-                                                text = "Authorized owners only: ${AuthorizationConfig.AUTHORIZED_OWNER_EMAILS.joinToString(", ")}",
-                                                fontSize = 9.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            Toast.makeText(
+                                                context,
+                                                "Restricted: Platform Owner authority is reserved exclusively for ${AuthorizationConfig.AUTHORIZED_OWNER_EMAILS.joinToString(" and ")}",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        } else {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onSwitchRole(role)
+                                            Toast.makeText(context, "Switched role to ${role.title}", Toast.LENGTH_SHORT).show()
+                                            onDismiss()
                                         }
                                     }
-                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color(role.badgeColorHex)
+                                        ) {
+                                            Text(
+                                                text = when (role) {
+                                                    UserRole.OWNER -> "OWNER"
+                                                    UserRole.ACCOUNT_ADMIN -> "ADMIN"
+                                                    UserRole.MANAGER -> "MANAGER"
+                                                    UserRole.USER -> "USER"
+                                                },
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = Color.White,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = role.title,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                if (isRestrictedOwner) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f)
+                                                    ) {
+                                                        Text(
+                                                            text = "RESTRICTED",
+                                                            fontSize = 8.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = MaterialTheme.colorScheme.error,
+                                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            if (isRestrictedOwner) {
+                                                Text(
+                                                    text = "Authorized owners only: ${AuthorizationConfig.AUTHORIZED_OWNER_EMAILS.joinToString(", ")}",
+                                                    fontSize = 9.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
 
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = "Active",
-                                        tint = Color(role.badgeColorHex),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                } else if (isRestrictedOwner) {
-                                    Icon(
-                                        imageVector = Icons.Default.Lock,
-                                        contentDescription = "Restricted",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Active",
+                                            tint = Color(role.badgeColorHex),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    } else if (isRestrictedOwner) {
+                                        Icon(
+                                            imageVector = Icons.Default.Lock,
+                                            contentDescription = "Restricted",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         }

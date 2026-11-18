@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.safetylog.app.data.auth.PaymentStatus
 import com.safetylog.app.data.auth.SubscriptionTier
@@ -160,7 +161,10 @@ internal fun ExecutiveComplianceHeroCard(
                     fontWeight = FontWeight.Bold,
                     color = Slate400,
                     fontSize = 10.sp,
-                    letterSpacing = 0.8.sp
+                    letterSpacing = 0.8.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -198,7 +202,7 @@ internal fun ExecutiveComplianceHeroCard(
             ) {
                 // Radial Arc Gauge
                 Box(
-                    modifier = Modifier.size(76.dp),
+                    modifier = Modifier.size(76.dp).weight(1f).padding(end = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     val gaugeColor = when {
@@ -242,14 +246,18 @@ internal fun ExecutiveComplianceHeroCard(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black,
                             color = Color.White,
-                            fontSize = 18.sp
+                            fontSize = 18.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = if (complianceRate >= 90) "AUDIT READY" else "DEFICIENT",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = if (complianceRate >= 90) StatusPassedLight else StatusDeficientLight,
-                            fontSize = 7.sp
+                            fontSize = 7.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -301,7 +309,9 @@ internal fun MetricCounterRow(
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             color = textColor,
-            fontSize = 12.sp
+            fontSize = 12.sp,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
@@ -397,7 +407,8 @@ internal fun LicenseQuotaCard(
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             if (isDelinquent) {
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -431,7 +442,9 @@ internal fun LicenseQuotaCard(
                             },
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -450,7 +463,8 @@ internal fun LicenseQuotaCard(
                             },
                             fontWeight = FontWeight.Bold,
                             fontSize = 10.sp,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 )
@@ -537,7 +551,10 @@ internal fun DashboardSearchAndFilterBar(
                 Text(
                     text = "Found $filteredCount of $totalCount assets matching \"$searchQuery\"",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
                 )
                 TextButton(
                     onClick = {
@@ -551,7 +568,9 @@ internal fun DashboardSearchAndFilterBar(
                         text = "Reset Search",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = SafetyOrange
+                        color = SafetyOrange,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }

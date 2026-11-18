@@ -50,6 +50,7 @@ data class DashboardUiState(
     val enterpriseSeats: Int = 5,
     val teamMembers: List<TeamMember> = emptyList(),
     val userRole: UserRole = UserRole.USER,
+    val authoritativeRole: UserRole = UserRole.USER,
     val isAdminTestViewActive: Boolean = false,
     val authUser: com.safetylog.app.data.auth.AuthUser? = null,
     val inspectionsThisMonth: Int = 0,
@@ -57,6 +58,8 @@ data class DashboardUiState(
     val isOnline: Boolean = true,
     val isLoading: Boolean = true
 ) {
+    val canPreviewLowerRoles: Boolean = authoritativeRole != UserRole.USER
+
     // Counts and the filtered list are computed once per state instance instead of on every
     // recomposition/read. Being body initializers (not custom getters) keeps `copy()` correct.
     val totalCount: Int = equipmentList.size
@@ -214,14 +217,31 @@ class DashboardViewModel(
             else -> auth.assigned
         }
 
-        // 2. Explicit simulated or selected role override in session
-        val rawRole = auth.roleOverride ?: naturalRole
-
-        // 3. Strict owner security invariant
-        val role = if (authoritative) {
-            signed.role
+        val authoritativeRole = if (!TestControls.isEnabled) {
+            if (authoritative) {
+                signed.role
+            } else if (authUser == null || ServerAuthorization.isConfigured) {
+                // Never let stale legacy persisted roles elevate an unauthenticated/unverified release user.
+                UserRole.USER
+            } else {
+                com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(naturalRole, authUser.email)
+            }
         } else {
-            com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(rawRole, authUser?.email)
+            if (authoritative) {
+                signed.role
+            } else {
+                com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(naturalRole, authUser?.email)
+            }
+        }
+
+        val role = if (!TestControls.isEnabled) {
+            auth.roleOverride?.takeIf { it.ordinal >= authoritativeRole.ordinal } ?: authoritativeRole
+        } else {
+            if (authoritative) {
+                signed.role
+            } else {
+                com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(auth.roleOverride ?: naturalRole, authUser?.email)
+            }
         }
 
         DashboardUiState(
@@ -239,6 +259,7 @@ class DashboardViewModel(
             enterpriseSeats = seats,
             teamMembers = members,
             userRole = role,
+            authoritativeRole = authoritativeRole,
             isAdminTestViewActive = auth.isTestView,
             authUser = authUser,
             inspectionsThisMonth = entitlement.team.countThisMonth,
@@ -258,6 +279,14 @@ class DashboardViewModel(
         viewModelScope.launch {
             if (ServerAuthorization.isConfigured && networkMonitor?.isOnline?.value != false) {
                 authorizationRepository.refresh()
+            }
+        }
+        // Release-mode role previews must never survive sign-out / unauthenticated state.
+        viewModelScope.launch {
+            authRepository.currentUser.collect { user ->
+                if (user == null) {
+                    _userRoleOverride.value = null
+                }
             }
         }
     }
@@ -319,7 +348,16 @@ class DashboardViewModel(
     }
 
     fun switchTestRole(role: UserRole) {
-        if (!TestControls.isEnabled) return
+        if (!TestControls.isEnabled) {
+            val currentAuthoritative = uiState.value.authoritativeRole
+            // Release: allow downward-only preview (higher ordinal = lower privilege). Never
+            // mutate the repository and never escalate above the authoritative role.
+            if (role.ordinal >= currentAuthoritative.ordinal) {
+                _userRoleOverride.value = if (role == currentAuthoritative) null else role
+            }
+            return
+        }
+
         val currentEmail = authRepository.currentUser.value?.email ?: uiState.value.authUser?.email
         val sanitized = com.safetylog.app.data.auth.AuthorizationConfig.sanitizeRole(role, currentEmail)
         _userRoleOverride.value = sanitized

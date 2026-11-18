@@ -25,7 +25,15 @@
 # --- Google Credential Manager & Identity ---
 -keep class androidx.credentials.** { *; }
 -keep class com.google.android.libraries.identity.googleid.** { *; }
+-keep class com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption { *; }
+-keep class com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption$Builder { *; }
+-keep class com.google.android.libraries.identity.googleid.GetGoogleIdOption { *; }
+-keep class com.google.android.libraries.identity.googleid.GetGoogleIdOption$Builder { *; }
+-keep class com.google.android.libraries.identity.googleid.GoogleIdTokenCredential { *; }
 -dontwarn androidx.credentials.**
+
+# --- Compose Material3 Exposed Dropdown Menu ---
+-keep class androidx.compose.material3.ExposedDropdownMenu** { *; }
 
 # --- Google Play Billing Client ---
 -keep class com.android.billingclient.** { *; }

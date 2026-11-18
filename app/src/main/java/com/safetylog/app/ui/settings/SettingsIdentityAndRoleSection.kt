@@ -22,6 +22,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.safetylog.app.data.auth.PaymentStatus
@@ -68,7 +69,7 @@ internal fun SettingsDeveloperSandboxCard(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).padding(end = 8.dp)
                     ) {
                         Box(
                             modifier = Modifier
@@ -92,7 +93,10 @@ internal fun SettingsDeveloperSandboxCard(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color(0xFF6366F1),
-                                    letterSpacing = 1.sp
+                                    letterSpacing = 1.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Surface(
@@ -104,6 +108,9 @@ internal fun SettingsDeveloperSandboxCard(
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF6366F1),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                     )
                                 }
@@ -111,7 +118,9 @@ internal fun SettingsDeveloperSandboxCard(
                             Text(
                                 text = "Isolated testing mode • Mock assets strictly isolated here",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -321,12 +330,17 @@ internal fun SettingsIdentityVaultCard(
                         Text(
                             text = "Cryptographic Security Vault",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Hardware-backed AES-256 session encryption",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -342,6 +356,7 @@ internal fun SettingsIdentityVaultCard(
                         color = Color(0xFF10B981),
                         maxLines = 1,
                         softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -491,7 +506,7 @@ internal fun SettingsSubscriptionQuotasCard(
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFFEF3C7)),
                         contentAlignment = Alignment.Center
@@ -500,8 +515,22 @@ internal fun SettingsSubscriptionQuotasCard(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text("Subscription & Quotas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text(uiState.subscriptionTier.title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = "Subscription & Quotas",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = uiState.subscriptionTier.title,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
@@ -529,6 +558,9 @@ internal fun SettingsSubscriptionQuotasCard(
                             PaymentStatus.CANCELLED -> SafetyAmber
                             PaymentStatus.GRACE_PERIOD -> SafetyAmber
                         },
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -644,7 +676,13 @@ internal fun SettingsSubscriptionQuotasCard(
                     ) {
                         Icon(Icons.Default.CreditCard, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pay Outstanding Balance & Restore Access", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(
+                            text = "Pay Outstanding Balance & Restore Access",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 } else if (uiState.paymentStatus == PaymentStatus.CANCELLED) {
                     Button(
@@ -667,7 +705,7 @@ internal fun SettingsSubscriptionQuotasCard(
                         ) {
                             Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Manage Seats", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
+                            Text("Manage Seats", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
 
                         OutlinedButton(
@@ -677,7 +715,7 @@ internal fun SettingsSubscriptionQuotasCard(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDeficient),
                             border = BorderStroke(1.dp, StatusDeficient.copy(alpha = 0.5f))
                         ) {
-                            Text("Cancel Sub", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Cancel Sub", fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 } else {

@@ -139,6 +139,9 @@ internal fun SettingsTeamSyncCard(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (uiState.canShareBetweenAccounts) Color(0xFF10B981) else SafetyOrange,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -171,17 +174,22 @@ internal fun SettingsTeamSyncCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                     Text(
                         text = "Sync REST Endpoint:",
                         style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = customRestEndpoint,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 TextButton(onClick = {
@@ -191,7 +199,13 @@ internal fun SettingsTeamSyncCard(
                         onShowPaywall()
                     }
                 }) {
-                    Text(if (uiState.canShareBetweenAccounts) "Edit" else "Unlock", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (uiState.canShareBetweenAccounts) "Edit" else "Unlock",
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
@@ -254,7 +268,14 @@ internal fun SettingsTeamSyncCard(
                             enabled = uiState.canShareBetweenAccounts && uiState.userRole.canManageSettings,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text(if (cloudDriveNameInput.isNotBlank()) "Change" else "Link Folder", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = if (cloudDriveNameInput.isNotBlank()) "Change" else "Link Folder",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
@@ -291,7 +312,14 @@ internal fun SettingsTeamSyncCard(
                     ) {
                         Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isBackingUpDrive) "Backing up..." else "Backup to Drive Now", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (isBackingUpDrive) "Backing up..." else "Backup to Drive Now",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
@@ -304,12 +332,17 @@ internal fun SettingsTeamSyncCard(
                         Text(
                             text = "Auto-Backup on Every Inspection",
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Automatically writes encrypted .safetylog.enc to linked folder",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     Switch(
@@ -414,7 +447,14 @@ internal fun SettingsTeamSyncCard(
                     ) {
                         Icon(Icons.Default.NetworkCheck, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isTestingWebhook) "Testing..." else "Test Webhook Ping", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (isTestingWebhook) "Testing..." else "Test Webhook Ping",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     OutlinedButton(
@@ -441,7 +481,14 @@ internal fun SettingsTeamSyncCard(
                     ) {
                         Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Save Webhook", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            text = "Save Webhook",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
 
@@ -454,12 +501,17 @@ internal fun SettingsTeamSyncCard(
                         Text(
                             text = "Auto-Dispatch to Webhook on Inspection",
                             style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Dispatches JSON payload with item checks to endpoint",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                     Switch(
@@ -600,7 +652,7 @@ internal fun SettingsCrashLogVaultCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.weight(1f).padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(38.dp)
@@ -620,12 +672,17 @@ internal fun SettingsCrashLogVaultCard(
                         Text(
                             text = "Crash & Incident Vault",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Local hardware-encrypted crash logs",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -653,12 +710,17 @@ internal fun SettingsCrashLogVaultCard(
                     Text(
                         text = "Anonymous Telemetry & Crash Reporting",
                         style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "Transmit unidentifiable crash stack traces to help resolve field bugs",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 Switch(
@@ -685,7 +747,14 @@ internal fun SettingsCrashLogVaultCard(
                     modifier = Modifier.weight(1f).height(40.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Export Report", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "Export Report",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
                 OutlinedButton(
@@ -699,7 +768,14 @@ internal fun SettingsCrashLogVaultCard(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDeficient),
                     border = BorderStroke(1.dp, StatusDeficient.copy(alpha = 0.5f))
                 ) {
-                    Text("Clear Logs", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "Clear Logs",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }

@@ -87,10 +87,11 @@ internal fun EquipmentAssetCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f).padding(end = 6.dp)) {
                         // Monospaced Tag Badge
                         Box(
                             modifier = Modifier
+                                .weight(1f, fill = false)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(if (isDark) DarkSurfaceCard else Slate900)
                                 .border(
@@ -105,7 +106,9 @@ internal fun EquipmentAssetCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -136,7 +139,9 @@ internal fun EquipmentAssetCard(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = statusColors.text,
-                                    fontSize = 9.sp
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -278,7 +283,8 @@ internal fun EquipmentAssetCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             fontSize = 8.5.sp,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.weight(1f)
                         )
                         Text(
                             text = if (item.lastInspectionDate != null) {

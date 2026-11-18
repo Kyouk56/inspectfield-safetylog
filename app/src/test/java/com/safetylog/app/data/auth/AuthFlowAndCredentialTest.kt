@@ -246,15 +246,15 @@ class AuthFlowAndCredentialTest {
 
     @Test
     fun testBuildConfigReleaseVersion() {
-        assertEquals("1.0.18", com.safetylog.app.BuildConfig.VERSION_NAME)
-        assertEquals(21, com.safetylog.app.BuildConfig.VERSION_CODE)
+        assertEquals("1.0.19", com.safetylog.app.BuildConfig.VERSION_NAME)
+        assertEquals(22, com.safetylog.app.BuildConfig.VERSION_CODE)
         assertEquals("com.safetylog.inspection.app", com.safetylog.app.BuildConfig.APPLICATION_ID)
     }
 
     @Test
     fun testCrashLogVaultVersionHeaderFormat() {
         val expectedHeaderLine = "App Version: ${com.safetylog.app.BuildConfig.VERSION_NAME} (Build ${com.safetylog.app.BuildConfig.VERSION_CODE})"
-        assertEquals("App Version: 1.0.18 (Build 21)", expectedHeaderLine)
+        assertEquals("App Version: 1.0.19 (Build 22)", expectedHeaderLine)
     }
 
     @Test

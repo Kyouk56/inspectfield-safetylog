@@ -163,12 +163,12 @@ https://safetylog-auth.safetylog-auth.workers.dev
   now enforce server-issued decisions.
 
 The Google service account `safetylog-play-verifier@safety-app-512814.iam.gserviceaccount.com`
-still needs Play Console access before paid purchases can be verified end-to-end.
-**Blocker found 2026-11-18:** the signed-in Google account has no Play Console developer
-account yet (Play Console only offers "Create a new developer account"). A developer
-account — and the app registered in it — is required before the service account can be
-invited under **Users and permissions** with **View app information** access. Purchase
-verification fails closed until then; all other authorization flows work.
+was invited to the Hex Engine Labs Play Console developer account and is listed under
+**Users and permissions** as **Active / Never expires** (verified 2026-11-18). Play purchase
+verification is now wired end-to-end: the app sends the purchase token to the Worker, the
+Worker verifies it with the Play Developer API using this service account, and reissues a
+signed entitlement snapshot. If verification ever fails (e.g. permission too narrow or no
+matching purchase), it fails closed rather than granting a free tier.
 
 ## Play service account setup (manual, remaining step)
 

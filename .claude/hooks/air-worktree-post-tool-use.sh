@@ -119,7 +119,7 @@ command_verbs() {
     while [[ $i -lt ${#toks[@]} ]]; do
       tok="${toks[i]}"
       case "$tok" in
-        --name|--repo|--base) i=$((i + 1)) ;;
+        --name|--repo|--base|--goal) i=$((i + 1)) ;;
         -*) ;;
         *) [[ -z "$verb" ]] && verb="$tok" ;;
       esac
@@ -146,7 +146,7 @@ command_names() {
       case "$tok" in
         --name=*) [[ "$verb" == "create" || "$verb" == "adopt" ]] && n="${tok#--name=}" ;;
         --name) [[ "$verb" == "create" || "$verb" == "adopt" ]] && n="${toks[i + 1]:-}"; i=$((i + 1)) ;;
-        --repo|--base) i=$((i + 1)) ;;
+        --repo|--base|--goal) i=$((i + 1)) ;;
         -*) ;;
         *)
           if [[ -z "$verb" ]]; then verb="$tok"

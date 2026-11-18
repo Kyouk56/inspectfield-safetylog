@@ -16,20 +16,22 @@ It is a bash script that needs `git` and `jq`. On Windows run it from Git Bash (
 1. **Before the first edit of a coding task**, run:
 
    ```bash
-   ~/.air/bin/air-worktree create --name "<feature-slug>"
+   ~/.air/bin/air-worktree create --name "<feature-slug>" --goal "<one sentence>"
    ```
 
-   **Name it after the feature or task you are about to work on** — short, descriptive, kebab-case (e.g. `login-rate-limit`, `fix-export-crash`, `sessions-panel-grouping`). Derive it from the user's request; do not ask them for a name and do not use placeholders like `task` or `work`. Free text is slugified and de-duplicated (`-2` suffix) automatically. The tool prints the final name, the absolute `path`, and the branch (`air/<name>`, cut from the current HEAD; `--base <ref>` picks another base). The user can rename it at any time (`air-worktree rename <name> <new-name>`, or from the Sessions panel) — sessions stay linked.
+   **Name it after the feature or task you are about to work on** — short, descriptive, kebab-case (e.g. `login-rate-limit`, `fix-export-crash`, `sessions-panel-grouping`). Derive it from the user's request; do not ask them for a name and do not use placeholders like `task` or `work`. **State its goal** in `--goal`: one plain sentence saying what the work is for (e.g. "Add a dismiss button to the waiting-for-input alert"). The worktree group's page shows it as the group's description until the group's review states a goal of its own; `air-worktree goal <name> "<sentence>"` sets or replaces it later. Free text is slugified and de-duplicated (`-2` suffix) automatically. The tool prints the final name, the absolute `path`, and the branch (`air/<name>`, cut from the current HEAD; `--base <ref>` picks another base). The user can rename it at any time (`air-worktree rename <name> <new-name>`, or from the Sessions panel) — sessions stay linked.
 
 2. **Do everything inside the printed path.** `cd` there for shell commands (builds, tests, git), and use absolute paths under it for every file edit. The main checkout is not your working copy — under Worktree isolation, edits to it are denied until the session has a worktree.
 
-3. **Joining instead of creating.** If the user names a worktree, or you are told another agent already opened one for this task, attach to it:
+3. **Joining instead of creating.** If the user names a worktree, or Air opened this chat into a worktree group (a join instruction, a nested task), attach to it:
 
    ```bash
-   ~/.air/bin/air-worktree join <name>
+   ~/.air/bin/air-worktree join <name> --goal "<one sentence>" --repo <the worktree's repository or path>
    ```
 
-   It prints the same path + branch. Several agents can work in one worktree; coordinate through git (commit small, pull before pushing).
+   It prints the same path + branch, and the group's goal. Your `--goal` is recorded only when the worktree has none yet. Without `--repo` the name is looked up in your current directory's repository first, then across every repository Air knows; a name used in several repositories needs `--repo`. Never skip a failed join — the session stays unlinked from the worktree. Several agents can work in one worktree; coordinate through git (commit small, pull before pushing).
+
+   **Ask before joining on your own judgement.** A chat started on its own (the global new-conversation button) is not part of any worktree group. When you only *think* its task belongs in an existing worktree (another conversation opened it, memory or recorded knowledge names it), ask the user first: offer joining that worktree or creating a new one (AskUserQuestion), and join only if they agree.
 
 4. **Finishing.** Commit on the worktree's branch, push it, and open a PR as the user's workflow dictates. The Sessions panel reads the git state (uncommitted → committed → pushed → PR) straight from the worktree. Only remove a worktree when the user asks (`air-worktree remove <name>` — the branch is kept).
 
@@ -50,10 +52,11 @@ No worktree is needed for pure questions, reading, research or planning. **One w
 
 | Command | What it does |
 |---|---|
-| `air-worktree create --name <feature-slug> [--base <ref>] [--json]` | New worktree + branch `air/<name>` named after the feature, registered for the panel |
+| `air-worktree create --name <feature-slug> --goal "<sentence>" [--base <ref>] [--json]` | New worktree + branch `air/<name>` named after the feature, registered for the panel with its goal |
 | `air-worktree adopt [<path>] [--name <name>] [--base <ref>] [--json]` | Register a worktree another tool created (Cursor's `/worktree` / `agent --worktree`, Claude Code's EnterWorktree, `git worktree add`) — the one at `<path>`, else the cwd. Creates nothing; idempotent. Use it instead of `create` when the session already runs inside such a worktree |
 | `air-worktree rename <name> <new-name> [--keep-branch]` | Rename (dir, registry, links, and the branch unless it is already pushed; an adopted worktree keeps its directory and branch) |
-| `air-worktree join <name> [--json]` | Attach this session to an existing worktree; prints path + branch |
+| `air-worktree join <name> --goal "<sentence>" [--repo <path>] [--json]` | Attach this session to an existing worktree; prints path + branch + goal (records `--goal` only when it has none) |
+| `air-worktree goal <name> ["<sentence>"]` | Print the worktree group's goal, or set / replace it |
 | `air-worktree list [--json]` | Worktrees registered for this repo |
 | `air-worktree status <name> [--json]` | Modified/added/deleted/untracked counts, commits ahead of base, unpushed |
 | `air-worktree path <name>` | Just the absolute path |

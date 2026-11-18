@@ -1,4 +1,18 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(C:\\Users\\jdesr\\.local\\bin\\gnosis knowledge:*)",
+      "Bash(gnosis knowledge:*)"
+    ]
+  },
+  "sandbox": {
+    "excludedCommands": [
+      "gnosis:*",
+      "jbcontext:*",
+      "embark-call-graph:*",
+      "C:\\Users\\jdesr\\.local\\bin\\gnosis:*"
+    ]
+  },
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -31,20 +45,6 @@
         ],
         "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit"
       }
-    ]
-  },
-  "permissions": {
-    "allow": [
-      "Bash(C:\\Users\\jdesr\\.local\\bin\\gnosis knowledge:*)",
-      "Bash(gnosis knowledge:*)"
-    ]
-  },
-  "sandbox": {
-    "excludedCommands": [
-      "gnosis:*",
-      "jbcontext:*",
-      "embark-call-graph:*",
-      "C:\\Users\\jdesr\\.local\\bin\\gnosis:*"
     ]
   }
 }

@@ -95,7 +95,7 @@ handoff_names() {
       case "$tok" in
         --name=*) [[ "$verb" == "create" || "$verb" == "adopt" ]] && n="${tok#--name=}" ;;
         --name) [[ "$verb" == "create" || "$verb" == "adopt" ]] && n="${toks[i + 1]:-}"; i=$((i + 1)) ;;
-        --repo|--base) i=$((i + 1)) ;;
+        --repo|--base|--goal) i=$((i + 1)) ;;
         -*) ;;
         *)
           if [[ -z "$verb" ]]; then verb="$tok"
@@ -228,7 +228,7 @@ REPO_W="$(sh_word "$FILE_REPO")"
 if [[ -n "$OTHERS" ]]; then
   REASON="Air worktree gate: this session's worktree(s) — $OTHERS — belong to other repositories; \`$REPO_REL\` is in \`$FILE_REPO\`, which has none yet. Create one there first: \`$TOOL_W create --name <feature-slug> --repo $REPO_W\` (or \`join <name>\` if one exists), then make this edit at the same relative path INSIDE the worktree path it prints."
 else
-  REASON="Air worktree gate: this session has no worktree yet, so editing \`$REPO_REL\` in the main checkout of \`$FILE_REPO\` is denied. Start the coding task properly: run \`$TOOL_W create --name <feature-slug>\` (a short kebab-case name for the feature/task you are working on; add \`--repo $REPO_W\` when your cwd is another repo), then make this edit at the same relative path INSIDE the worktree path it prints (cd there for shell commands). To attach to an existing worktree the user named, run \`$TOOL_W join <name>\` instead."
+  REASON="Air worktree gate: this session has no worktree yet, so editing \`$REPO_REL\` in the main checkout of \`$FILE_REPO\` is denied. Start the coding task properly: run \`$TOOL_W create --name <feature-slug> --goal \"<one sentence>\"\` (a short kebab-case name for the feature/task you are working on and one sentence saying what it is for; add \`--repo $REPO_W\` when your cwd is another repo), then make this edit at the same relative path INSIDE the worktree path it prints (cd there for shell commands). To attach to an existing worktree the user named, run \`$TOOL_W join <name> --goal \"<one sentence>\"\` instead."
 fi
 
 jq -n --arg reason "$REASON" '{

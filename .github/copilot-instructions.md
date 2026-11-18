@@ -1,5 +1,5 @@
 <!-- BEGIN gnosis-knowledge -->
-<!-- gnosis-knowledge prompt v12 -->
+<!-- gnosis-knowledge prompt v14 -->
 ## Codebase knowledge (gnosis)
 
 Earlier agent sessions in this repository recorded WHY the code is the way it is: design

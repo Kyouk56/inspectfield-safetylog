@@ -43,9 +43,11 @@ STATE="${TMPDIR:-/tmp}/air-worktree-hook-${SID}.json"
 # The session's isolation scope: its own record, else the installed default,
 # else (a pre-scope install without arguments) the agent decides.
 SCOPE=""
+SOURCE=""
 SCOPE_FILE="$AIR_HOME/isolation/${SID}.json"
 if [[ -f "$SCOPE_FILE" ]]; then
   SCOPE="$(jq -r '.scope // empty' "$SCOPE_FILE" 2>/dev/null || true)"
+  SOURCE="$(jq -r '.source // empty' "$SCOPE_FILE" 2>/dev/null || true)"
   case "$SCOPE" in worktree|branch|agent) ;; *) SCOPE="$DEFAULT_SCOPE" ;; esac
 elif [[ ! -f "$STATE" ]]; then
   # NOT OUR SESSION, NOT OUR BUSINESS (user decision 2026-10-13): no Air record and
@@ -73,22 +75,50 @@ if [[ -f "$STATE" ]]; then
   fi
 fi
 
+# A one-shot note the Air plugin left for this session's next prompt (a re-root):
+# claimed by rename so two hook runs never both deliver it.
+NOTE=""
+NOTE_FILE="$AIR_HOME/session-notes/${SID}.txt"
+if [[ -f "$NOTE_FILE" ]] && mv "$NOTE_FILE" "$NOTE_FILE.$$.taking" 2>/dev/null; then
+  NOTE="$(tr '\n' ' ' <"$NOTE_FILE.$$.taking" | sed 's/  */ /g; s/ *$//')"
+  rm -f "$NOTE_FILE.$$.taking"
+fi
+
+# The logical worktree group (set by a re-root — the Air plugin's groupModel.ts).
+GROUP_LABEL=""
+if [[ -f "$STATE" ]]; then
+  GROUP_LABEL="$(jq -r '.group.label // empty' "$STATE" 2>/dev/null || true)"
+fi
+GROUP_NOTE=""
+[[ -n "$GROUP_LABEL" ]] && GROUP_NOTE=" (worktree group \`$GROUP_LABEL\`)"
+
+# A chat started on its own (the global new-conversation button: record source
+# `default` / `user`) was NOT opened into a worktree group, so joining one is the
+# user's call (user decision 2026-11-02): the agent asks before it joins a
+# worktree the user did not name. A chat Air opened into a group or spawned as a
+# nested task (source `seed`) carries its join instruction and joins directly.
+ASK_JOIN=""
+if [[ "$SOURCE" != "seed" ]]; then
+  ASK_JOIN=" This chat was started on its own, not inside a worktree group: when you think the task belongs in a worktree that already exists (one another conversation opened, or one named in memory or recorded knowledge), ask the user first (AskUserQuestion: join that worktree, or create a new one) and join only if they agree. A worktree the user named in their request needs no question."
+fi
+
 if [[ -n "$LIST" ]]; then
-  CONTEXT="Air worktrees for this session: $LIST. Keep ALL edits and shell commands inside those paths — cd there for commands, use absolute paths under them for file edits; the main checkouts are not your working copy. If the task needs changes in ANOTHER repository of this workspace, create (or join) a worktree there too: \`$TOOL create --name <feature-slug> --repo <that repo's path>\` — one worktree per repo per session, never a second one in the same repo. \`$TOOL status <name>\` shows what changed.$KNOWLEDGE"
+  CONTEXT="Air worktrees for this session$GROUP_NOTE: $LIST. Keep ALL edits and shell commands inside those paths — cd there for commands, use absolute paths under them for file edits; the main checkouts are not your working copy. If the task needs changes in ANOTHER repository of this workspace, create (or join) a worktree there too: \`$TOOL create --name <feature-slug> --repo <that repo's path>\` — one worktree per repo per session, never a second one in the same repo. \`$TOOL status <name>\` shows what changed.$KNOWLEDGE"
 else
   case "$SCOPE" in
     worktree)
-      CONTEXT="Isolation scope for this session: WORKTREE ISOLATION. Before you start ANY coding task (editing, adding or deleting source files), create an isolated git worktree with \`$TOOL create --name <feature-slug>\` — name it after the feature/task from the user's request (short kebab-case, e.g. \`login-rate-limit\`; never a placeholder, don't ask the user) — and do every edit + command inside the path it prints. If the user names an existing worktree, attach to it with \`$TOOL join <name>\` instead. A task that spans several repositories in the workspace gets one worktree per repo (\`--repo <path>\` targets another repo). Pure questions, reading and research need no worktree. Edits to files in a main checkout are DENIED until the session has a worktree for that repository."
+      CONTEXT="Isolation scope for this session: WORKTREE ISOLATION. Before you start ANY coding task (editing, adding or deleting source files), create an isolated git worktree with \`$TOOL create --name <feature-slug> --goal \"<one sentence>\"\` — name it after the feature/task from the user's request (short kebab-case, e.g. \`login-rate-limit\`; never a placeholder, don't ask the user) and say in the goal what the work is for (the worktree group's page shows it as its description) — and do every edit + command inside the path it prints. If the user names an existing worktree, attach to it with \`$TOOL join <name> --goal \"<one sentence>\"\` instead.$ASK_JOIN A task that spans several repositories in the workspace gets one worktree per repo (\`--repo <path>\` targets another repo). Pure questions, reading and research need no worktree. Edits to files in a main checkout are DENIED until the session has a worktree for that repository."
       ;;
     branch)
-      CONTEXT="Isolation scope for this session: CURRENT BRANCH. Work directly in the workspace checkout on the branch that is checked out — do NOT create or join an Air worktree unless the user explicitly asks for one (then \`$TOOL create --name <feature-slug>\` / \`$TOOL join <name>\` are available). Edits are not blocked."
+      CONTEXT="Isolation scope for this session: CURRENT BRANCH. Work directly in the workspace checkout on the branch that is checked out — do NOT create or join an Air worktree unless the user explicitly asks for one (then \`$TOOL create --name <feature-slug> --goal \"<one sentence>\"\` / \`$TOOL join <name> --goal \"<one sentence>\"\` are available). Edits are not blocked."
       ;;
     *)
-      CONTEXT="Isolation scope for this session: AGENT DECIDES. Air worktrees are available — \`$TOOL create --name <feature-slug>\` makes an isolated checkout on its own branch (name it after the feature/task, short kebab-case), \`$TOOL join <name>\` attaches to one the user or another agent opened; do every edit + command inside the path it prints. Use one when the task benefits from isolation: a change that wants its own branch/PR, other agents working in the same repository, a large or risky edit, or the user asking for one. Otherwise work on the current branch. Edits are never blocked. Pure questions, reading and research need no worktree."
+      CONTEXT="Isolation scope for this session: AGENT DECIDES. Air worktrees are available — \`$TOOL create --name <feature-slug> --goal \"<one sentence>\"\` makes an isolated checkout on its own branch (name it after the feature/task, short kebab-case; the goal says what the work is for), \`$TOOL join <name> --goal \"<one sentence>\"\` attaches to one the user or another agent opened; do every edit + command inside the path it prints.$ASK_JOIN Use one when the task benefits from isolation: a change that wants its own branch/PR, other agents working in the same repository, a large or risky edit, or the user asking for one. Otherwise work on the current branch. Edits are never blocked. Pure questions, reading and research need no worktree."
       ;;
   esac
 fi
 
+[[ -n "$NOTE" ]] && CONTEXT="$NOTE $CONTEXT"
 jq -n --arg ctx "$CONTEXT" '{
   hookSpecificOutput: {
     hookEventName: "UserPromptSubmit",

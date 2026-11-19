@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -68,7 +69,8 @@ internal fun AssetActionBottomSheet(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
+                .padding(bottom = 24.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Asset Info Header Box
@@ -113,7 +115,10 @@ internal fun AssetActionBottomSheet(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 9.sp,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -169,7 +174,7 @@ internal fun AssetActionBottomSheet(
                     onClick = onInspect,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .heightIn(min = 54.dp)
                         .shadow(4.dp, RoundedCornerShape(14.dp)),
                     colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange),
                     shape = RoundedCornerShape(14.dp)
@@ -571,7 +576,10 @@ internal fun RoleSwitcherDialog(
                                                 fontSize = 8.sp,
                                                 fontWeight = FontWeight.ExtraBold,
                                                 color = Color.White,
-                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -587,7 +595,7 @@ internal fun RoleSwitcherDialog(
                                                 text = if (isLocked) "Assigned by Organization Admin / Owner" else if (isAuthoritative) "Verified assigned role" else "Tap to preview lower permissions",
                                                 fontSize = 9.sp,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
+                                                maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         }
@@ -684,7 +692,10 @@ internal fun RoleSwitcherDialog(
                                                 fontSize = 8.sp,
                                                 fontWeight = FontWeight.ExtraBold,
                                                 color = Color.White,
-                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                                maxLines = 1,
+                                                softWrap = false,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
@@ -718,7 +729,7 @@ internal fun RoleSwitcherDialog(
                                                     text = "Authorized owners only: ${AuthorizationConfig.AUTHORIZED_OWNER_EMAILS.joinToString(", ")}",
                                                     fontSize = 9.sp,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    maxLines = 1,
+                                                    maxLines = 2,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                             }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -103,7 +104,7 @@ internal fun SubscriptionDelinquencyBanner(
                         onShowPaywall()
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(38.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (paymentStatus == PaymentStatus.PAYMENT_FAILED) StatusDeficient else SafetyAmber
@@ -115,7 +116,9 @@ internal fun SubscriptionDelinquencyBanner(
                     text = if (paymentStatus == PaymentStatus.PAYMENT_FAILED) "Pay Outstanding Balance" else "Reactivate Subscription",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -187,7 +190,10 @@ internal fun ExecutiveComplianceHeroCard(
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF38BDF8),
-                        fontSize = 8.sp
+                        fontSize = 8.sp,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -289,7 +295,10 @@ internal fun MetricCounterRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.weight(1f).padding(end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
                 modifier = Modifier
                     .size(6.dp)
@@ -301,7 +310,9 @@ internal fun MetricCounterRow(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
                 color = Slate300,
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         Text(
@@ -424,7 +435,10 @@ internal fun LicenseQuotaCard(
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = if (paymentStatus == PaymentStatus.PAYMENT_FAILED) StatusDeficient else SafetyAmber,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -451,7 +465,7 @@ internal fun LicenseQuotaCard(
 
                 AssistChip(
                     onClick = onManageSubscription,
-                    modifier = Modifier.height(28.dp),
+                    modifier = Modifier.heightIn(min = 32.dp),
                     label = {
                         Text(
                             text = if (isDelinquent) {
@@ -464,7 +478,8 @@ internal fun LicenseQuotaCard(
                             fontWeight = FontWeight.Bold,
                             fontSize = 10.sp,
                             maxLines = 1,
-                            softWrap = false
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 )
@@ -637,7 +652,10 @@ internal fun AuditFilterChip(
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = 11.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = contentColor
+                color = contentColor,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.width(4.dp))
             Box(
@@ -653,7 +671,10 @@ internal fun AuditFilterChip(
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 9.sp
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

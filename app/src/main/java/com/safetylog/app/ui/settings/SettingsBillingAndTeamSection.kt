@@ -157,7 +157,7 @@ internal fun SettingsCompanyOAuthCard(
 
                         Button(
                             onClick = onShowPaywall,
-                            modifier = Modifier.fillMaxWidth().height(42.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (uiState.paymentStatus == PaymentStatus.PAYMENT_FAILED) StatusDeficient else Slate900
@@ -284,7 +284,7 @@ internal fun SettingsCompanyOAuthCard(
                             Toast.makeText(context, "Company OAuth configuration saved & activated!", Toast.LENGTH_SHORT).show()
                         },
                         enabled = canManageSettings,
-                        modifier = Modifier.weight(1.3f).height(42.dp),
+                        modifier = Modifier.weight(1.3f).heightIn(min = 42.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5))
                     ) {
@@ -300,7 +300,7 @@ internal fun SettingsCompanyOAuthCard(
                         )
                     }
 
-                    OutlinedButton(onClick = onNavigateToAuth, modifier = Modifier.weight(1f).height(42.dp), shape = RoundedCornerShape(10.dp)) {
+                    OutlinedButton(onClick = onNavigateToAuth, modifier = Modifier.weight(1f).heightIn(min = 42.dp), shape = RoundedCornerShape(10.dp)) {
                         Icon(Icons.Default.VpnKey, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Test SSO", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
@@ -358,8 +358,7 @@ internal fun SettingsTeamRosterCard(
                             text = "Team Members & Seat Roster",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            softWrap = false,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
@@ -415,7 +414,7 @@ internal fun SettingsTeamRosterCard(
                         )
                         Button(
                             onClick = onShowPaywall,
-                            modifier = Modifier.fillMaxWidth().height(42.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Slate900)
                         ) {
@@ -618,7 +617,7 @@ internal fun SettingsTeamRosterCard(
                             }
                         },
                         enabled = uiState.userRole.canManageTeam,
-                        modifier = Modifier.weight(1.3f).height(42.dp),
+                        modifier = Modifier.weight(1.3f).heightIn(min = 42.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = TechBlue)
                     ) {
@@ -651,7 +650,7 @@ internal fun SettingsTeamRosterCard(
                                 }
                             },
                             enabled = uiState.userRole.canManageTeam,
-                            modifier = Modifier.weight(1f).height(42.dp),
+                            modifier = Modifier.weight(1f).heightIn(min = 42.dp),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))

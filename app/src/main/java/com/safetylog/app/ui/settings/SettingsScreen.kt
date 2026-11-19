@@ -363,7 +363,7 @@ fun SettingsScreen(
                                             showPaywall = true
                                         }
                                     },
-                                    modifier = Modifier.weight(1.3f).height(42.dp),
+                                    modifier = Modifier.weight(1.3f).heightIn(min = 42.dp),
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = if (uiState.paymentStatus == PaymentStatus.PAYMENT_FAILED) StatusDeficient else SafetyAmber
@@ -381,7 +381,7 @@ fun SettingsScreen(
 
                                 OutlinedButton(
                                     onClick = { showPaywall = true },
-                                    modifier = Modifier.weight(1f).height(42.dp),
+                                    modifier = Modifier.weight(1f).heightIn(min = 42.dp),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Text("Review Plan", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

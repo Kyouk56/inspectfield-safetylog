@@ -77,8 +77,8 @@ fun ProfileScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Inspector Credentials", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Text("Official Certification & Header Data", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Inspector Credentials", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Official Certification & Header Data", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
                 navigationIcon = {
@@ -221,7 +221,10 @@ fun ProfileScreen(
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (authUser != null) StatusPassed else SafetyOrange,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -349,7 +352,7 @@ fun ProfileScreen(
                             onClick = onNavigateToAuth,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(46.dp),
+                                .heightIn(min = 46.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Slate900)
                         ) {
@@ -466,7 +469,7 @@ fun ProfileScreen(
                 enabled = !uiState.isSaving && !uiState.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp)
+                    .heightIn(min = 54.dp)
                     .shadow(4.dp, RoundedCornerShape(14.dp)),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)

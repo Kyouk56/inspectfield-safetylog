@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -165,7 +166,7 @@ internal fun KeystoreDiagnosticsCard(
             OutlinedButton(
                 onClick = onRunDiagnostics,
                 enabled = !uiState.isRunningDiagnostics,
-                modifier = Modifier.fillMaxWidth().height(40.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 if (uiState.isRunningDiagnostics) {
@@ -364,7 +365,7 @@ internal fun GoogleOAuthClientIdDialog(
                             onSignInSandbox()
                             onDismiss()
                         },
-                        modifier = Modifier.fillMaxWidth().height(38.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 38.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
                     ) {
@@ -408,7 +409,7 @@ fun GoogleSignInButton(
     Surface(
         onClick = onClick,
         enabled = !isLoading,
-        modifier = modifier.fillMaxWidth().height(52.dp).shadow(2.dp, RoundedCornerShape(12.dp)),
+        modifier = modifier.fillMaxWidth().heightIn(min = 52.dp).shadow(2.dp, RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFFFFFFFF),
         border = BorderStroke(1.dp, Color(0xFFDADCE0))
@@ -438,7 +439,7 @@ fun MicrosoftSignInButton(
     Surface(
         onClick = onClick,
         enabled = !isLoading,
-        modifier = modifier.fillMaxWidth().height(52.dp).shadow(1.dp, RoundedCornerShape(12.dp)),
+        modifier = modifier.fillMaxWidth().heightIn(min = 52.dp).shadow(1.dp, RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFF2F2F2F),
         border = BorderStroke(1.dp, Color(0xFF4A4A4A))

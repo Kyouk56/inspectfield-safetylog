@@ -305,7 +305,7 @@ internal fun SettingsTeamSyncCard(
                                 }
                             }
                         },
-                        modifier = Modifier.weight(1f).height(40.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = TechBlue),
                         enabled = !isBackingUpDrive
@@ -440,7 +440,7 @@ internal fun SettingsTeamSyncCard(
                                 }
                             }
                         },
-                        modifier = Modifier.weight(1.2f).height(40.dp),
+                        modifier = Modifier.weight(1.2f).heightIn(min = 40.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
                         enabled = !isTestingWebhook
@@ -476,7 +476,7 @@ internal fun SettingsTeamSyncCard(
                             Toast.makeText(context, "Webhook configuration saved!", Toast.LENGTH_SHORT).show()
                         },
                         enabled = uiState.canShareBetweenAccounts && uiState.userRole.canManageSettings,
-                        modifier = Modifier.weight(1f).height(40.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -564,7 +564,7 @@ internal fun SettingsTeamSyncCard(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp),
+                    .heightIn(min = 44.dp),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Icon(
@@ -602,7 +602,7 @@ internal fun SettingsTeamSyncCard(
                     }
                     onImportPackage()
                 },
-                modifier = Modifier.fillMaxWidth().height(44.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Icon(
@@ -744,7 +744,7 @@ internal fun SettingsCrashLogVaultCard(
                             Toast.makeText(context, "Encrypted audit report exported (${report.length()} bytes)", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    modifier = Modifier.weight(1f).height(40.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text(
@@ -763,7 +763,7 @@ internal fun SettingsCrashLogVaultCard(
                         onLocalCrashCountChange(CrashLogVault.getCrashCount(context))
                         Toast.makeText(context, "Incident vault cleared", Toast.LENGTH_SHORT).show()
                     },
-                    modifier = Modifier.weight(1f).height(40.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDeficient),
                     border = BorderStroke(1.dp, StatusDeficient.copy(alpha = 0.5f))

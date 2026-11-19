@@ -322,6 +322,7 @@ class DashboardViewModel(
     }
 
     fun deleteEquipment(equipment: EquipmentItem) {
+        if (!canMutate() || !uiState.value.userRole.canDeleteAssets) return
         viewModelScope.launch {
             equipmentDao.deleteEquipment(equipment)
             reminderManager?.cancelReminder(equipment.id)

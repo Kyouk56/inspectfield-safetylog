@@ -160,7 +160,10 @@ internal fun EquipmentAssetCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 8.5.sp,
-                                color = StatusDeficient
+                                color = StatusDeficient,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     } else if (eq.assignedReviewDate.isNotBlank()) {
@@ -178,7 +181,10 @@ internal fun EquipmentAssetCard(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 8.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 if (eq.reminderEnabled) {
                                     Spacer(modifier = Modifier.width(3.dp))

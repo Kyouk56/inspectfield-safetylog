@@ -194,7 +194,7 @@ internal fun EquipmentOverviewCard(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp),
+                        .heightIn(min = 44.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange),
                     shape = RoundedCornerShape(10.dp)
                 ) {

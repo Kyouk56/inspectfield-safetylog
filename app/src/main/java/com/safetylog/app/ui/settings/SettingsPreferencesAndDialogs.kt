@@ -278,8 +278,7 @@ internal fun SettingsInspectionRemindersCard(
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (hasExactAlarmPermission) StatusPassed else SafetyAmber,
-                                maxLines = 1,
-                                softWrap = false,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -334,7 +333,7 @@ internal fun SettingsInspectionRemindersCard(
                             Toast.makeText(context, "Notification permission needed or service unavailable.", Toast.LENGTH_LONG).show()
                         }
                     },
-                    modifier = Modifier.weight(1f).height(44.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Icon(Icons.Default.NotificationAdd, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -348,7 +347,7 @@ internal fun SettingsInspectionRemindersCard(
                         dashboardViewModel.rescheduleAllReminders()
                         Toast.makeText(context, "All upcoming inspection alarms synchronized!", Toast.LENGTH_SHORT).show()
                     },
-                    modifier = Modifier.weight(1f).height(44.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
                 ) {

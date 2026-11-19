@@ -246,7 +246,7 @@ internal fun SettingsDeveloperSandboxCard(
                                     dashboardViewModel.loadTestSandboxAssets()
                                     Toast.makeText(context, "Loaded test sandbox inventory", Toast.LENGTH_SHORT).show()
                                 },
-                                modifier = Modifier.weight(1.2f).height(40.dp),
+                                modifier = Modifier.weight(1.2f).heightIn(min = 40.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5)),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
@@ -260,7 +260,7 @@ internal fun SettingsDeveloperSandboxCard(
                                     dashboardViewModel.purgeAllEquipmentForCleanTesting()
                                     Toast.makeText(context, "Purged test data. Vault is clean.", Toast.LENGTH_SHORT).show()
                                 },
-                                modifier = Modifier.weight(1f).height(40.dp),
+                                modifier = Modifier.weight(1f).heightIn(min = 40.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDeficient),
                                 border = BorderStroke(1.dp, StatusDeficient.copy(alpha = 0.5f)),
                                 shape = RoundedCornerShape(10.dp)
@@ -432,7 +432,7 @@ internal fun SettingsIdentityVaultCard(
                 ) {
                     Button(
                         onClick = onNavigateToAuth,
-                        modifier = Modifier.weight(1.2f).height(44.dp),
+                        modifier = Modifier.weight(1.2f).heightIn(min = 44.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Slate900)
                     ) {
@@ -447,7 +447,7 @@ internal fun SettingsIdentityVaultCard(
                             dashboardViewModel.signOut()
                             Toast.makeText(context, "Signed out of session", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.weight(1f).height(44.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = StatusDeficient)
                     ) {
@@ -461,7 +461,7 @@ internal fun SettingsIdentityVaultCard(
                     onClick = onNavigateToAuth,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp),
+                        .heightIn(min = 44.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Slate900)
                 ) {
@@ -475,7 +475,7 @@ internal fun SettingsIdentityVaultCard(
                 onClick = onShowPrivacyPolicy,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp),
+                    .heightIn(min = 44.dp),
                 shape = RoundedCornerShape(10.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
@@ -670,7 +670,7 @@ internal fun SettingsSubscriptionQuotasCard(
                             dashboardViewModel.reactivateSubscription()
                             Toast.makeText(context, "Balance cleared. Features unlocked!", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = StatusDeficient)
                     ) {
@@ -687,7 +687,7 @@ internal fun SettingsSubscriptionQuotasCard(
                 } else if (uiState.paymentStatus == PaymentStatus.CANCELLED) {
                     Button(
                         onClick = onShowPaywall,
-                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
                     ) {
@@ -699,7 +699,7 @@ internal fun SettingsSubscriptionQuotasCard(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = onShowPaywall,
-                            modifier = Modifier.weight(1.2f).height(44.dp),
+                            modifier = Modifier.weight(1.2f).heightIn(min = 44.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
                         ) {
@@ -710,7 +710,7 @@ internal fun SettingsSubscriptionQuotasCard(
 
                         OutlinedButton(
                             onClick = onShowCancelConfirmDialog,
-                            modifier = Modifier.weight(1f).height(44.dp),
+                            modifier = Modifier.weight(1f).heightIn(min = 44.dp),
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDeficient),
                             border = BorderStroke(1.dp, StatusDeficient.copy(alpha = 0.5f))
@@ -721,7 +721,7 @@ internal fun SettingsSubscriptionQuotasCard(
                 } else {
                     Button(
                         onClick = onShowPaywall,
-                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange)
                     ) {
@@ -744,21 +744,21 @@ internal fun SettingsSubscriptionQuotasCard(
                                 dashboardViewModel.markPaymentFailed()
                                 Toast.makeText(context, "Simulated payment failure: Features locked to free use", Toast.LENGTH_SHORT).show()
                             },
-                            modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                            modifier = Modifier.weight(1f).heightIn(min = 36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
                         ) { Text("Fail Pay", fontSize = 11.sp, maxLines = 1) }
                         OutlinedButton(
                             onClick = {
                                 dashboardViewModel.cancelSubscription()
                                 Toast.makeText(context, "Simulated cancel: Features locked to free use", Toast.LENGTH_SHORT).show()
                             },
-                            modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                            modifier = Modifier.weight(1f).heightIn(min = 36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
                         ) { Text("Cancel", fontSize = 11.sp, maxLines = 1) }
                         OutlinedButton(
                             onClick = {
                                 dashboardViewModel.reactivateSubscription()
                                 Toast.makeText(context, "Simulated success: Features restored", Toast.LENGTH_SHORT).show()
                             },
-                            modifier = Modifier.weight(1f).height(36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
+                            modifier = Modifier.weight(1f).heightIn(min = 36.dp), shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(horizontal = 4.dp)
                         ) { Text("Restore", fontSize = 11.sp, maxLines = 1) }
                     }
                 }

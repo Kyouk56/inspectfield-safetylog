@@ -90,8 +90,8 @@ fun ReportsScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Compliance Reports & Exports", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                        Text("Certified PDF Audit Documentation", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Compliance Reports & Exports", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Certified PDF Audit Documentation", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
                 navigationIcon = {
@@ -217,7 +217,10 @@ fun ReportsScreen(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = if (rate >= 90) StatusPassedTextDark else StatusDeficientTextDark,
-                                    fontSize = 9.sp
+                                    fontSize = 9.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -416,7 +419,7 @@ fun ReportsScreen(
                         onClick = viewModel::generatePdf,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp)
+                            .heightIn(min = 54.dp)
                             .shadow(4.dp, RoundedCornerShape(14.dp)),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = SafetyOrange),
@@ -430,7 +433,9 @@ fun ReportsScreen(
                             Text(
                                 text = "Generate Signed PDF (${uiState.recordsWithEquipment.size} Items)",
                                 fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.titleMedium
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
